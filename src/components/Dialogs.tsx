@@ -143,7 +143,7 @@ export function LandDialog() {
           <input type="range" className="w-full" min={0} max={359} step={1} value={((land.northAngle % 360) + 360) % 360} onChange={(e) => setLand({ ...land, northAngle: parseFloat(e.target.value) })} />
         </Field>
         <div className="rounded-xl border border-sand-200 bg-white p-3">
-          <Toggle label="سياج حول الأرض" checked={land.fence.enabled} onChange={(enabled) => setLand({ ...land, fence: { ...land.fence, enabled } })} />
+          <Toggle label="سياج أو تور حول العنة" checked={land.fence.enabled} onChange={(enabled) => setLand({ ...land, fence: { ...land.fence, enabled } })} />
           {land.fence.enabled && (
             <div className="mt-2 grid grid-cols-3 gap-2">
               <Field label="النوع"><Select value={land.fence.type} onChange={(type) => setLand({ ...land, fence: { ...land.fence, type } })} options={Object.entries(FENCE_LABELS).map(([value, label]) => ({ value: value as Land['fence']['type'], label }))} /></Field>
@@ -200,7 +200,7 @@ export function SummaryDialog() {
           <Stat label="أطوال الممرات" value={formatMeters(s.pathLength, 1)} sub={`المساحة ${formatArea(s.pathArea, 1)}`} />
           <Stat label="العشب الصناعي (تقديري)" value={formatArea(s.turfArea, 1)} />
           <Stat label="الحمامات / المغاسل" value={`${s.toilets} / ${s.sinks}`} />
-          <Stat label="طول السياج" value={formatMeters(s.fenceLength, 1)} />
+          <Stat label="طول السياج أو التور" value={formatMeters(s.fenceLength, 1)} />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">

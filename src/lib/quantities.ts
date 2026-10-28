@@ -358,6 +358,6 @@ export function costLines(s: Summary): CostLine[] {
     lines.push({ key: 'wood-sheets', label: 'ألواح خشب الممر', unit: 'لوح', qty: s.woodTurf.sheets });
     lines.push({ key: 'wood-turf-grass', label: 'عشب صناعي فوق الخشب', unit: 'م²', qty: s.woodTurf.turfArea });
   }
-  if (s.fenceLength > 0) lines.push({ key: 'fence', label: 'السياج', unit: 'م طولي', qty: s.fenceLength });
+  if (s.fenceLength > 0) lines.push({ key: 'fence', label: 'السياج أو التور', unit: 'م طولي', qty: s.fenceLength });
   return lines;
 }
