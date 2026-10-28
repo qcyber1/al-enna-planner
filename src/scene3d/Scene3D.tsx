@@ -33,6 +33,7 @@ import { safeFileName, shareOrDownload } from '../lib/files';
 import { saveThumbs } from '../lib/storage';
 
 const BUDGET = { low: 8, medium: 20, high: 40 };
+const PROMO = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('promo');
 
 interface ElProps {
   el: PlanElement;
@@ -174,8 +175,9 @@ function CameraRig({ plan, w, walking }: { plan: Plan; w: WorldInfo; walking: bo
     first.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera.nonce, walking]);
+  const invalidate = useThree((st) => st.invalidate);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).has('promo')) (window as unknown as Record<string, unknown>).__ennaCam = ref.current;
+    if (PROMO) Object.assign(window as unknown as Record<string, unknown>, { __ennaCam: ref.current, __ennaInvalidate: invalidate });
   });
   if (walking) return null;
   return (
@@ -306,7 +308,8 @@ export default function Scene3D() {
     <div className="relative h-full w-full bg-[#cfd9e3]" data-testid="scene-3d">
       <Canvas
         shadows
-        dpr={[1, 2]}
+        dpr={PROMO ? 1 : [1, 2]}
+        frameloop={PROMO ? 'demand' : 'always'}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
         camera={{ fov: 50, near: 0.1, far: 4000, position: [30, 30, 40] }}
         onCreated={() => setReady(true)}
