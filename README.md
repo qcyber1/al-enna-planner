@@ -25,3 +25,9 @@ npm run dev
 - `src/render2d/` رسم المسقط العلوي المشترك بين المحرر وتصدير الصور.
 - `src/scene3d/` المشهد ثلاثي الأبعاد (React Three Fiber) بخامات مولدة برمجياً.
 - `src/store/` حالة التطبيق (Zustand) مع التراجع/الإعادة والحفظ التلقائي.
+
+## النشر على Railway
+المشروع جاهز للنشر مباشرة من GitHub (ملف `railway.json` موجود):
+1. في Railway: New Project ← Deploy from GitHub repo ← اختر `al-enna-planner`.
+2. بعد اكتمال النشر: Settings ← Networking ← Generate Domain للحصول على رابط عام.
+أي تعديل يُرفع على فرع `main` يُنشر تلقائياً.
