@@ -1,0 +1,95 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, system-ui, sans-serif;
+
+  --color-sand-50: #fbf7ef;
+  --color-sand-100: #f5ecda;
+  --color-sand-200: #ecdcbc;
+  --color-sand-300: #e0c697;
+  --color-sand-400: #d2ab6e;
+  --color-sand-500: #c39352;
+  --color-sand-600: #a87842;
+  --color-sand-700: #8a5f37;
+  --color-sand-800: #6b4a2d;
+  --color-sand-900: #4a3322;
+  --color-sand-950: #2e1f15;
+
+  --color-dune: #3b2a1e;
+  --color-dune-light: #54402f;
+
+  --color-turf-400: #6cb34d;
+  --color-turf-500: #4f9a35;
+  --color-turf-600: #3f7f2a;
+  --color-turf-700: #2f6220;
+
+  --color-gold-300: #ecc97f;
+  --color-gold-400: #e0b660;
+  --color-gold-500: #d4a24c;
+  --color-gold-600: #b8862f;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-sand-100);
+  color: var(--color-sand-950);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  opacity: 0.5;
+}
+
+input[type='range'] {
+  accent-color: var(--color-gold-600);
+}
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-sand-300) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-sand-300);
+  border-radius: 8px;
+}
+
+.sadu-band {
+  background-image:
+    linear-gradient(135deg, transparent 50%, #f3e2c0 50%, #f3e2c0 60%, transparent 60%),
+    linear-gradient(45deg, transparent 50%, #f3e2c0 50%, #f3e2c0 60%, transparent 60%);
+  background-size: 14px 8px;
+  background-color: #8e2a2a;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  .print-area {
+    position: static !important;
+    inset: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+}
