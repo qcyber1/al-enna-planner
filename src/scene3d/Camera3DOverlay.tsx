@@ -27,7 +27,7 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
     onPointerLeave: () => (move.current[k] = 0),
   });
   return (
-    <div className="pointer-events-none absolute inset-0" dir="rtl">
+    <div data-overlay className="pointer-events-none absolute inset-0" dir="rtl">
       <div className="pointer-events-auto absolute top-2 right-2 left-2 flex flex-wrap items-center gap-1 rounded-xl border border-sand-300/80 bg-white/95 p-1 shadow-md sm:left-auto">
         {PRESETS.map((p) => (
           <IconButton key={p.id} label={p.label} active={preset === p.id} onClick={() => setCamera(p.id)} data-testid={`cam-${p.id}`}>

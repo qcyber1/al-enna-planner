@@ -31,7 +31,7 @@ function loadDb() {
 }
 let db = loadDb();
 if (!db.orders) db.orders = [];
-const PRICE = Number(process.env.PRICE || 350);
+const PRICE = Number(process.env.PRICE || 349);
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 function saveDb() {
   try {

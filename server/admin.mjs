@@ -33,14 +33,14 @@ ${persistent ? '' : '<div class="warn">⚠ لم يتم ربط Volume على <b>/
 <form id="f" class="grid">
 <div><label for="name">اسم العميل</label><input id="name" required></div>
 <div><label for="phone">رقم الواتساب</label><input id="phone" dir="ltr" placeholder="974xxxxxxxx"></div>
-<div><label for="price">المبلغ (ر.ق)</label><input id="price" type="number" value="350" dir="ltr"></div>
+<div><label for="price">المبلغ (ر.ق)</label><input id="price" type="number" value="349" dir="ltr"></div>
 <div><label for="note">ملاحظة</label><input id="note"></div>
 <div style="align-self:end"><button class="gold">توليد الكود</button></div></form><div id="out"></div></section>
 <section class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">العملاء</h3><input id="q" placeholder="بحث" style="max-width:240px"></div>
 <div class="tbl"><table><thead><tr><th>العميل</th><th>الكود</th><th>التاريخ</th><th>الأجهزة</th><th>الحالة</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></section>
 </main>
 <script>
-let list=[],orders=[],PRICE=350;const MAX=${maxDevices};const ST={pending:'بانتظار الدفع',new:'جديد',sent:'أُرسل رابط الدفع',paid:'مدفوع ✓',cancelled:'ملغي'};
+let list=[],orders=[],PRICE=349;const MAX=${maxDevices};const ST={pending:'بانتظار الدفع',new:'جديد',sent:'أُرسل رابط الدفع',paid:'مدفوع ✓',cancelled:'ملغي'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:{});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'خطأ');return j}
 const msg=r=>'هلا '+(r.name||'')+' 👋\\nشكراً لاشتراكك في مخطط العنة ⛺\\n\\nالرابط: '+location.origin+'\\nكود التفعيل: '+r.code+'\\n\\nالكود لك مدى الحياة ويعمل على '+MAX+' أجهزة.';
@@ -53,7 +53,7 @@ function renderOrders(){ob.innerHTML=orders.map(o=>{const c=o.codeId&&list.find(
 (o.status==='paid'&&c?'<a href="'+wa(c)+'" target="_blank"><button class="gold" type="button">إرسال الكود واتساب</button></a>':
 '<a href="https://wa.me/'+esc(o.phone)+'?text='+encodeURIComponent(payMsg(o))+'" target="_blank" data-o="'+o.id+'" data-s="sent"><button class="ghost" type="button">إرسال رابط الدفع</button></a><button class="gold" type="button" data-o="'+o.id+'" data-s="paid">تم الدفع ← توليد الكود</button><button class="bad" type="button" data-o="'+o.id+'" data-s="cancelled">إلغاء</button>')+
 '</div></td></tr>'}).join('')||'<tr><td colspan="4">لا توجد طلبات بعد</td></tr>'}
-async function load(){const j=await api('/api/admin/list');list=j.list;orders=j.orders||[];PRICE=j.price||350;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';render();renderOrders()}
+async function load(){const j=await api('/api/admin/list');list=j.list;orders=j.orders||[];PRICE=j.price||349;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';render();renderOrders()}
 pl.onchange=()=>localStorage.setItem('pl',pl.value);
 ob.onclick=async e=>{const t=e.target.closest('[data-o]');if(!t)return;try{const r=await api('/api/admin/order',{id:t.dataset.o,status:t.dataset.s});await load();if(t.dataset.s==='paid'&&r.code&&r.code.phone)window.open(wa(r.code),'_blank')}catch(err){alert(err.message)}};
 setInterval(()=>load().catch(()=>{}),30000);
@@ -61,7 +61,7 @@ q.oninput=render;
 tb.onclick=async e=>{const b=e.target.closest('button[data-a]');if(!b)return;try{await api('/api/admin/update',{id:b.dataset.id,action:b.dataset.a});await load()}catch(err){alert(err.message)}};
 f.onsubmit=async e=>{e.preventDefault();try{const{created}=await api('/api/admin/create',{name:name.value,phone:phone.value,price:price.value,note:note.value});const r=created[0];
 out.innerHTML='<div class="new"><div>كود <b>'+esc(r.name)+'</b>: <span class="code">'+esc(r.code)+'</span></div><div class="row">'+(r.phone?'<a href="'+wa(r)+'" target="_blank"><button class="gold" type="button">إرسال واتساب</button></a>':'')+'<button class="ghost" type="button" id="cp">نسخ الرسالة</button></div></div>';
-cp.onclick=()=>navigator.clipboard.writeText(msg(r)).then(()=>cp.textContent='تم النسخ ✓');f.reset();price.value=350;await load()}catch(err){alert(err.message)}};
+cp.onclick=()=>navigator.clipboard.writeText(msg(r)).then(()=>cp.textContent='تم النسخ ✓');f.reset();price.value=349;await load()}catch(err){alert(err.message)}};
 load().catch(e=>alert(e.message));
 </script></body></html>`;
 }

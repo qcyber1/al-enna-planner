@@ -174,6 +174,9 @@ function CameraRig({ plan, w, walking }: { plan: Plan; w: WorldInfo; walking: bo
     first.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera.nonce, walking]);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('promo')) (window as unknown as Record<string, unknown>).__ennaCam = ref.current;
+  });
   if (walking) return null;
   return (
     <CameraControls

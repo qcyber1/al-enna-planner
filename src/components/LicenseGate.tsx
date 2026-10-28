@@ -43,7 +43,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'code' | 'buy'>('buy');
-  const [info, setInfo] = useState<{ price: number; online: boolean }>({ price: 350, online: false });
+  const [info, setInfo] = useState<{ price: number; online: boolean }>({ price: 349, online: false });
   const [buyer, setBuyer] = useState({ name: '', phone: '', email: '' });
   const [paidCode, setPaidCode] = useState('');
   const [notice, setNotice] = useState('');
@@ -54,7 +54,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         const r = await fetch('/api/status');
         const s = (await r.json()) as { licensing?: boolean; price?: number; online?: boolean };
         if (!s.licensing) return setState('open');
-        setInfo({ price: s.price ?? 350, online: !!s.online });
+        setInfo({ price: s.price ?? 349, online: !!s.online });
       } catch {
         // بيئة التطوير بدون خادم: لا يوجد نظام أكواد
         if (import.meta.env.DEV) return setState('open');

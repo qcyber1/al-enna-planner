@@ -78,7 +78,7 @@ export function EditorOverlay({
   const barPx = barM * scale;
 
   return (
-    <div dir="rtl" className="pointer-events-none absolute inset-0">
+    <div data-overlay dir="rtl" className="pointer-events-none absolute inset-0">
       {/* شريط الأدوات */}
       <div className="pointer-events-auto absolute top-2 right-2 left-2 flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1 rounded-xl border border-sand-300/80 bg-white/95 p-1 shadow-md backdrop-blur">
