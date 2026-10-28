@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { adminPage } from './admin.mjs';
+import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -25,10 +26,13 @@ function loadDb() {
   try {
     return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
   } catch {
-    return { codes: {} };
+    return { codes: {}, orders: [] };
   }
 }
 let db = loadDb();
+if (!db.orders) db.orders = [];
+const PRICE = Number(process.env.PRICE || 350);
+const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 function saveDb() {
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -100,6 +104,20 @@ function bindDevice(id, device) {
     saveDb();
   }
   return { ok: true, rec };
+}
+
+/** يعلّم الطلب مدفوعاً ويولّد كود العميل (مرة واحدة فقط) */
+function markPaid(o) {
+  if (o.codeId) {
+    o.status = 'paid';
+    return;
+  }
+  const { id: cid, code } = makeCode();
+  db.codes[cid] = { id: cid, code, name: o.name, phone: o.phone, note: o.online ? 'دفع إلكتروني (سكيب كاش)' : 'طلب من الموقع', price: PRICE, createdAt: Date.now(), devices: [], revoked: false };
+  o.codeId = cid;
+  o.status = 'paid';
+  o.paidAt = Date.now();
+  saveDb();
 }
 
 // ——— حماية بسيطة من التخمين ———
@@ -177,7 +195,77 @@ const server = http.createServer(async (req, res) => {
   const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
 
   try {
-    if (p === '/api/status') return send(res, 200, { licensing: LICENSING });
+    if (p === '/api/status') return send(res, 200, { licensing: LICENSING, price: PRICE, online: skipcashEnabled && LICENSING });
+
+    // ——— الدفع الإلكتروني (سكيب كاش) ———
+    if (p === '/api/checkout' && req.method === 'POST') {
+      if (!skipcashEnabled || !LICENSING) return send(res, 400, { ok: false, error: 'الدفع الإلكتروني غير مفعّل' });
+      if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
+      const { name, phone, email } = await readBody(req);
+      const nm = String(name || '').trim().slice(0, 60);
+      const ph = String(phone || '').replace(/\D/g, '');
+      const em = String(email || '').trim().slice(0, 100);
+      if (!nm || ph.length < 8 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))
+        return send(res, 400, { ok: false, error: 'اكتب الاسم ورقم الجوال والإيميل بشكل صحيح' });
+      const full = ph.length === 8 ? '974' + ph : ph;
+      const parts = nm.split(/\s+/);
+      const order = { id: crypto.randomBytes(8).toString('hex'), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'pending', online: true };
+      try {
+        const pay = await createPayment({
+          uid: crypto.randomUUID(),
+          amount: PRICE,
+          firstName: parts[0],
+          lastName: parts.slice(1).join(' ') || parts[0],
+          phone: full,
+          email: em,
+          transactionId: order.id,
+          custom1: order.id,
+        });
+        order.paymentId = pay.paymentId;
+        db.orders.unshift(order);
+        saveDb();
+        return send(res, 200, { ok: true, payUrl: pay.payUrl, orderId: order.id });
+      } catch (e) {
+        console.error('[skipcash]', e.message);
+        return send(res, 502, { ok: false, error: 'تعذر فتح صفحة الدفع الآن — حاول بعد قليل' });
+      }
+    }
+
+    if (p === '/api/checkout/verify' && req.method === 'POST') {
+      const { paymentId, orderId } = await readBody(req);
+      const o = db.orders.find((x) => (orderId && x.id === orderId) || (paymentId && x.paymentId === paymentId));
+      if (!o) return send(res, 404, { ok: false, error: 'لم يتم العثور على الطلب' });
+      if (o.status !== 'paid') {
+        try {
+          const st = await getPayment(o.paymentId || paymentId);
+          if (st.paid) markPaid(o);
+        } catch (e) {
+          console.error('[skipcash verify]', e.message);
+        }
+      }
+      if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'لم يكتمل الدفع بعد' });
+      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code });
+    }
+
+    if (p === '/api/skipcash/webhook' && req.method === 'POST') {
+      const body = await readBody(req);
+      if (!verifyWebhook(body, req.headers.authorization)) return send(res, 401, { ok: false });
+      const o = db.orders.find((x) => x.id === body.Custom1 || x.id === body.TransactionId || x.paymentId === body.PaymentId);
+      if (o && Number(body.StatusId) === 2) markPaid(o);
+      return send(res, 200, { ok: true });
+    }
+
+    if (p === '/api/order' && req.method === 'POST') {
+      if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
+      const { name, phone } = await readBody(req);
+      const ph = String(phone || '').replace(/\D/g, '');
+      if (!String(name || '').trim() || ph.length < 8) return send(res, 400, { ok: false, error: 'اكتب الاسم ورقم الجوال بشكل صحيح' });
+      const full = ph.length === 8 ? '974' + ph : ph;
+      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), name: String(name).trim().slice(0, 80), phone: full.slice(0, 20), createdAt: Date.now(), status: 'new' });
+      db.orders = db.orders.slice(0, 2000);
+      saveDb();
+      return send(res, 200, { ok: true });
+    }
 
     if (p === '/api/activate' && req.method === 'POST') {
       if (!LICENSING) return send(res, 200, { ok: true, token: 'open' });
@@ -206,10 +294,19 @@ const server = http.createServer(async (req, res) => {
       if (!ADMIN_PASSWORD) return send(res, 503, '<h1 dir="rtl">لوحة الإدارة معطلة: اضبط ADMIN_PASSWORD في Railway</h1>');
       if (!isAdmin(req))
         return send(res, 401, { error: 'unauthorized' }, { 'www-authenticate': 'Basic realm="enna-admin", charset="UTF-8"' });
-      if (p === '/admin') return send(res, 200, adminPage({ licensing: LICENSING, maxDevices: MAX_DEVICES, dataDir: DATA_DIR }));
+      if (p === '/admin') return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }));
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt);
-        return send(res, 200, { list });
+        return send(res, 200, { list, orders: db.orders, paymentLink: PAYMENT_LINK, price: PRICE });
+      }
+      if (p === '/api/admin/order' && req.method === 'POST') {
+        const { id, status } = await readBody(req);
+        const o = db.orders.find((x) => x.id === id);
+        if (!o) return send(res, 404, { error: 'غير موجود' });
+        if (['new', 'sent', 'paid', 'cancelled'].includes(status)) o.status = status;
+        if (status === 'paid' && LICENSING) markPaid(o);
+        saveDb();
+        return send(res, 200, { ok: true, order: o, code: o.codeId ? db.codes[o.codeId] : null });
       }
       if (p === '/api/admin/create' && req.method === 'POST') {
         if (!LICENSING) return send(res, 400, { error: 'اضبط LICENSE_SECRET أولاً' });
