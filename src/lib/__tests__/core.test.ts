@@ -19,7 +19,7 @@ describe('الحسابات', () => {
   });
   it('ملخص المثال', () => {
     const s = computeSummary(createSamplePlan());
-    expect(s.landArea).toBe(1200);
+    expect(s.landArea).toBe(2500);
     expect(s.tentCount).toBe(3);
     expect(s.courtArea).toBe(162);
     expect(s.toilets).toBe(2);
@@ -32,8 +32,8 @@ describe('الحسابات', () => {
 describe('التنبيهات', () => {
   it('خيمة فوق الملعب وخارج الحدود', () => {
     const plan = createSamplePlan();
-    plan.elements.push(createElement('small-tent', { x: 32, y: 15 }));
-    plan.elements.push(createElement('main-tent', { x: 39, y: 2 }));
+    plan.elements.push(createElement('small-tent', { x: 37, y: 25 }));
+    plan.elements.push(createElement('main-tent', { x: 49, y: 2 }));
     const v = validatePlan(plan);
     expect(v.issues.some((i) => i.code === 'court-overlap')).toBe(true);
     expect(v.issues.some((i) => i.code === 'out-of-bounds')).toBe(true);
@@ -47,7 +47,7 @@ describe('الاستيراد', () => {
   });
   it('ينظف العناصر غير الصالحة', () => {
     const plan = sanitizePlan({ land: { width: 'x' }, elements: [{ kind: 'nope' }, { kind: 'toilet', x: 3, y: 4 }] });
-    expect(plan.land.width).toBe(40);
+    expect(plan.land.width).toBe(50);
     expect(plan.elements.length).toBe(1);
   });
 });

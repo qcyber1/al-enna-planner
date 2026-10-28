@@ -4,13 +4,13 @@ import { uid } from './id';
 
 export function defaultLand(): Land {
   return {
-    shape: 'rectangle',
-    width: 40,
-    depth: 30,
+    shape: 'square',
+    width: 50,
+    depth: 50,
     ground: 'sand',
     northAngle: 0,
     // الضلع الأمامي (2) يبدأ من الزاوية اليمنى السفلية باتجاه اليسار
-    entrance: { edge: 2, offset: 20, width: 4 },
+    entrance: { edge: 2, offset: 25, width: 4 },
     fence: { enabled: true, type: 'fabric', height: 2, color: '#d9c49b' },
   };
 }
@@ -28,11 +28,14 @@ export function aimRotation(from: Vec2, to: Vec2): number {
 }
 
 /**
- * نموذج تجريبي لعنة قطرية على أرض 40 × 30 م.
+ * نموذج تجريبي لعنة قطرية على أرض 50 × 50 م (المقاس المعتاد).
  * جميع المقاسات والمواقع افتراضية للتجربة فقط ويمكن تعديلها.
  */
+// التوزيع مصمم ثم يُزاح ليتوسط أرض 50 × 50
+const SHIFT = { x: 5, y: 10 };
+
 export function createSamplePlan(): Plan {
-  const land: Land = { ...defaultLand(), entrance: { edge: 2, offset: 27.5, width: 4 } };
+  const land: Land = { ...defaultLand(), entrance: { edge: 2, offset: 50 - (12.5 + SHIFT.x), width: 4 } };
   const els: PlanElement[] = [];
   const add = (el: PlanElement) => {
     els.push(el);
@@ -132,9 +135,19 @@ export function createSamplePlan(): Plan {
   add(createElement('entrance-light', { x: 10.1, y: 29.4 }, { name: 'إنارة المدخل 1' }));
   add(createElement('entrance-light', { x: 14.9, y: 29.4 }, { name: 'إنارة المدخل 2' }));
 
+  const mv = (p: Vec2): Vec2 => ({ x: p.x + SHIFT.x, y: p.y + SHIFT.y });
+  for (const el of els) {
+    el.x += SHIFT.x;
+    el.y += SHIFT.y;
+    if (el.points) el.points = el.points.map(mv);
+  }
+  // الممر الرئيسي يبدأ من المدخل عند السور، وإنارة المدخل عند البوابة
+  const mainPath = els.find((e) => e.name === 'الممر الرئيسي');
+  if (mainPath?.points) mainPath.points[0] = { x: mainPath.points[0].x, y: 50 };
+  for (const e of els) if (e.kind === 'entrance-light') e.y = 49.4;
   return {
     land,
     elements: els,
-    measurements: [{ id: uid('m'), a: { x: 18, y: 6.5 }, b: { x: 27.5, y: 6.5 } }],
+    measurements: [{ id: uid('m'), a: mv({ x: 18, y: 6.5 }), b: mv({ x: 27.5, y: 6.5 }) }],
   };
 }

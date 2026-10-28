@@ -28,7 +28,7 @@ export function WelcomeDialog() {
           صمّم عنتك قبل التركيب: وزّع الخيام والملعب والممرات والإنارة بمقاسات حقيقية بالمتر، شاهدها مجسمة ثلاثية الأبعاد نهاراً وليلاً، واحفظ أكثر من مقترح وشاركه مع الشباب.
         </p>
         <p className="rounded-lg bg-sand-100 p-3 text-[13px] text-sand-800">
-          جهّزنا لك <b>مثالاً تجريبياً</b> على أرض 40 × 30 م. كل المقاسات والمواقع افتراضية — غيّرها لمقاساتك الفعلية.
+          جهّزنا لك <b>مثالاً تجريبياً</b> على أرض 50 × 50 م (المقاس المعتاد للعنة). كل المقاسات والمواقع افتراضية — غيّرها لمقاساتك الفعلية.
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           <Button variant="primary" onClick={() => openDialog(null)} data-testid="welcome-sample">
@@ -78,6 +78,25 @@ export function LandDialog() {
       }
     >
       <div className="space-y-4 p-5">
+        <div>
+          <span className="mb-1 block text-[12px] font-medium text-sand-700">المقاس المعتاد للعنة</span>
+          <div className="flex flex-wrap gap-2">
+            {[50, 25].map((n) => (
+              <Button
+                key={n}
+                variant={land.shape === 'square' && land.width === n ? 'gold' : 'secondary'}
+                onClick={() => {
+                  const L = { ...land, shape: 'square' as const, width: n, depth: n };
+                  setLand({ ...L, entrance: { ...L.entrance, offset: n / 2, width: Math.min(L.entrance.width, n / 3) } });
+                }}
+                data-testid={`land-preset-${n}`}
+              >
+                {n} × {n} م
+              </Button>
+            ))}
+            <span className="self-center text-[12px] text-sand-600">أو أدخل أي مقاس آخر بالأسفل</span>
+          </div>
+        </div>
         <Field label="شكل الأرض">
           <Select
             value={land.shape === 'polygon' ? 'rectangle' : land.shape}
