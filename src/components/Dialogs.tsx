@@ -231,8 +231,8 @@ export function SummaryDialog() {
             <ul className="grid grid-cols-2 gap-1 text-sm">
               <li>أعمدة إنارة: <b>{s.lights.poles}</b></li>
               <li>كشافات LED: <b>{s.lights.floods}</b></li>
-              <li>سلاسل لمبات: <b>{s.lights.strings}</b> ({formatMeters(s.lights.stringLength, 1)})</li>
-              <li>عدد اللمبات المعلقة: <b>{s.lights.bulbs}</b></li>
+              <li>سلاسل ليتات: <b>{s.lights.strings}</b> ({formatMeters(s.lights.stringLength, 1)})</li>
+              <li>عدد الليتات المعلقة: <b>{s.lights.bulbs}</b></li>
               <li>إنارة أرضية: <b>{s.lights.groundLights + s.lights.pathEdgeLights}</b></li>
               <li>إنارة المدخل: <b>{s.lights.entranceLights}</b></li>
               <li>فوانيس مداخل الخيام: <b>{s.lights.tentEntranceLights + s.lights.lanterns}</b></li>
@@ -586,7 +586,7 @@ export function HelpDialog() {
   const open = useEditor((s) => s.dialog === 'help');
   const openDialog = useEditor((s) => s.openDialog);
   const rows: [string, string][] = [
-    ['V / H / P / T / M', 'تحديد • تحريك العرض • رسم ممر • سلسلة لمبات • قياس'],
+    ['V / H / P / T / M', 'تحديد • تحريك العرض • رسم ممر • سلسلة ليتات • قياس'],
     ['Ctrl+Z / Ctrl+Shift+Z', 'تراجع / إعادة'],
     ['Delete', 'حذف المحدد'],
     ['Ctrl+D / Ctrl+C / Ctrl+V', 'تكرار / نسخ / لصق'],

@@ -424,7 +424,7 @@ function LightSection({ el, upd }: { el: PlanElement; upd: Upd }) {
         <Field label="اللون">
           <Select value={L.color} onChange={(c) => set({ color: c })} options={Object.entries(LIGHT_COLOR_LABELS).map(([value, label]) => ({ value: value as typeof L.color, label }))} />
         </Field>
-        <Field label={el.kind === 'string-lights' ? 'واط لكل لمبة' : 'القدرة'}>
+        <Field label={el.kind === 'string-lights' ? 'واط لكل ليت' : 'القدرة'}>
           <NumberInput value={L.watts} min={0} max={2000} step={1} digits={1} onChange={(w) => set({ watts: w }, 'w')} unit="W" />
         </Field>
       </div>
@@ -447,9 +447,9 @@ function LightSection({ el, upd }: { el: PlanElement; upd: Upd }) {
       {el.string && (
         <>
           <Field label="الترهل في المنتصف"><NumberInput value={el.string.sag} min={0} max={2} onChange={(s) => upd({ string: { ...el.string!, sag: s } }, 'sag')} unit="م" /></Field>
-          <Field label="المسافة بين اللمبات"><NumberInput value={el.string.bulbSpacing} min={0.2} max={5} onChange={(s) => upd({ string: { ...el.string!, bulbSpacing: s } }, 'bs')} unit="م" /></Field>
+          <Field label="المسافة بين الليتات"><NumberInput value={el.string.bulbSpacing} min={0.2} max={5} onChange={(s) => upd({ string: { ...el.string!, bulbSpacing: s } }, 'bs')} unit="م" /></Field>
           <Toggle label="أعمدة تثبيت تلقائية" checked={el.string.autoPoles} onChange={(c) => upd({ string: { ...el.string!, autoPoles: c } })} />
-          <div className="text-[12px] text-sand-700">الطول {formatMeters(polylineLength(el.points ?? []))} — {stringBulbs(el).length} لمبة</div>
+          <div className="text-[12px] text-sand-700">الطول {formatMeters(polylineLength(el.points ?? []))} — {stringBulbs(el).length} ليت</div>
         </>
       )}
       <p className="text-[11px] text-sand-600">بدّل إلى «ليل» لمشاهدة تأثير الإنارة، أو فعّل خريطة الإضاءة في المخطط 2D.</p>

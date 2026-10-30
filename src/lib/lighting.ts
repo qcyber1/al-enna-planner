@@ -40,7 +40,7 @@ function pointCandela(lumens: number): number {
   return lumens / (4 * Math.PI);
 }
 
-/** نقاط اللمبات على طول السلسلة */
+/** نقاط الليتات على طول السلسلة */
 export function stringBulbs(el: PlanElement): { p: Vec2; h: number }[] {
   const pts = el.points ?? [];
   const spacing = Math.max(0.2, el.string?.bulbSpacing ?? 0.6);
@@ -121,7 +121,7 @@ export function tentLightPositions(el: PlanElement): { entrance: Vec2; outward: 
 }
 
 export interface EmitterOptions {
-  /** دمج لمبات السلاسل في مجموعات لكل X متر */
+  /** دمج ليتات السلاسل في مجموعات لكل X متر */
   clusterMeters?: number;
 }
 
@@ -251,8 +251,8 @@ export function collectEmitters(plan: Plan, opts: EmitterOptions = {}): Emitter[
       case 'string-lights': {
         const bulbs = stringBulbs(el);
         if (!bulbs.length) break;
-        const perBulb = lumens; // الواط هنا لكل لمبة
-        // تجميع اللمبات في مجموعات لتقليل عدد مصادر الضوء
+        const perBulb = lumens; // الواط هنا لكل ليت
+        // تجميع الليتات في مجموعات لتقليل عدد مصادر الضوء
         let group: { p: Vec2; h: number }[] = [];
         let start = bulbs[0].p;
         let gi = 0;

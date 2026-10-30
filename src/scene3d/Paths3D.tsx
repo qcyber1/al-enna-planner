@@ -79,7 +79,7 @@ function Bollards({ points, on }: { points: Vec2[]; on: boolean }) {
   );
 }
 
-/** سلسلة لمبات معلقة مع أعمدة تلقائية */
+/** سلسلة ليتات معلقة مع أعمدة تلقائية */
 export const StringLights3D = memo(function StringLights3D({
   el,
   lampsOn,

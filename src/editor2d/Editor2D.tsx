@@ -199,11 +199,11 @@ export default function Editor2D() {
         const count = getPlan().elements.filter((e) => e.kind === kind).length + 1;
         const el = createElement(kind, clean[0], {
           points: clean,
-          name: kind === 'path' ? `ممر ${count}` : `سلسلة لمبات ${count}`,
+          name: kind === 'path' ? `ممر ${count}` : `سلسلة ليتات ${count}`,
         });
         st.addElement(el);
         st.setTool('select');
-        st.toast(kind === 'path' ? 'تمت إضافة الممر — عدّل عرضه ونوعه من لوحة الخصائص' : 'تمت إضافة سلسلة اللمبات', 'success');
+        st.toast(kind === 'path' ? 'تمت إضافة الممر — عدّل عرضه ونوعه من لوحة الخصائص' : 'تمت إضافة سلسلة الليتات', 'success');
       } else {
         st.toast('أضف نقطتين مختلفتين على الأقل', 'warning');
       }

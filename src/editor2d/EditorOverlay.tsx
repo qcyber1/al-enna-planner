@@ -28,7 +28,7 @@ const TOOLS: { id: Tool; label: string; icon: typeof MousePointer2; key: string 
   { id: 'select', label: 'تحديد وتحريك (V)', icon: MousePointer2, key: 'V' },
   { id: 'pan', label: 'تحريك العرض (H أو مسطرة المسافة)', icon: Hand, key: 'H' },
   { id: 'path', label: 'رسم ممر (P)', icon: Route, key: 'P' },
-  { id: 'string-lights', label: 'رسم سلسلة لمبات (T)', icon: Sparkles, key: 'T' },
+  { id: 'string-lights', label: 'رسم سلسلة ليتات (T)', icon: Sparkles, key: 'T' },
   { id: 'measure', label: 'قياس مسافة (M)', icon: Ruler, key: 'M' },
 ];
 

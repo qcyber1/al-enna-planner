@@ -345,7 +345,7 @@ export function costLines(s: Summary): CostLine[] {
     if (s.counts[k] > 0) lines.push({ key: `kind:${k}`, label: kindLabel(k), unit: 'قطعة', qty: s.counts[k] });
   }
   if (s.lights.stringLength > 0)
-    lines.push({ key: 'string-length', label: 'سلاسل لمبات معلقة', unit: 'م طولي', qty: s.lights.stringLength });
+    lines.push({ key: 'string-length', label: 'سلاسل ليتات معلقة', unit: 'م طولي', qty: s.lights.stringLength });
   if (s.lights.pathEdgeLights > 0)
     lines.push({ key: 'path-edge-lights', label: 'إنارة جوانب الممرات', unit: 'قطعة', qty: s.lights.pathEdgeLights });
   for (const m of Object.keys(s.pathByMaterial) as PathMaterial[]) {

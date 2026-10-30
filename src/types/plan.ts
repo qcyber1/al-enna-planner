@@ -151,7 +151,7 @@ export interface PlanElement {
   accent: string;
   locked: boolean;
   allowOutside?: boolean;
-  /** نقاط الخط للممرات وسلاسل اللمبات (إحداثيات مطلقة) */
+  /** نقاط الخط للممرات وسلاسل الليتات (إحداثيات مطلقة) */
   points?: Vec2[];
   tent?: TentProps;
   court?: CourtProps;

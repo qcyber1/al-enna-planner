@@ -77,7 +77,7 @@ export const RectNode = memo(function RectNode({ el, ppm, selected, issue, night
   );
 });
 
-/** ممر أو سلسلة لمبات (نقاط مطلقة) */
+/** ممر أو سلسلة ليتات (نقاط مطلقة) */
 export const PolylineNode = memo(function PolylineNode({
   el,
   ppm,

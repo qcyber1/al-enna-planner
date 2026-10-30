@@ -105,7 +105,7 @@ export function createSamplePlan(): Plan {
   add(createElement('light-pole', { x: 7.6, y: 23.2 }, { name: 'عمود إنارة 4' }));
   add(createElement('light-pole', { x: 15.8, y: 26.2 }, { name: 'عمود إنارة 5' }));
 
-  // سلاسل اللمبات
+  // سلاسل الليتات
   add(
     createElement('string-lights', { x: 12.5, y: 11.2 }, {
       name: 'سلسلة أمام المجلس',

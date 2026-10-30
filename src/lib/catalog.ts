@@ -460,7 +460,7 @@ export const CATALOG: CatalogItem[] = [
   {
     kind: 'string-lights',
     category: 'lighting',
-    label: 'سلسلة لمبات معلقة',
+    label: 'سلسلة ليتات معلقة',
     description: 'ارسمها بين الأعمدة نقطة بنقطة',
     icon: '✨',
     geometry: 'polyline',
