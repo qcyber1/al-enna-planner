@@ -88,6 +88,13 @@ export const FENCE_LABELS: Record<FenceType, string> = {
   block: 'جدار بلوك منخفض',
 };
 
+export const SURROUND_LABELS: Record<import('../types/plan').Surround, string> = {
+  open: 'صحراء مفتوحة',
+  dunes: 'طعوس (كثبان رملية)',
+  hazm: 'حزم (مرتفع صخري)',
+  sea: 'بحر',
+};
+
 export const LIGHT_COLOR_LABELS: Record<LightColor, string> = {
   warm: 'أصفر دافئ',
   white: 'أبيض',

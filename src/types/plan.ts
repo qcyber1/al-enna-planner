@@ -41,7 +41,11 @@ export interface Land {
   northAngle: number;
   entrance: LandEntrance;
   fence: Fence;
+  /** ما يحيط بالأرض لكل ضلع (للمستطيل: 0 خلف، 1 يمين، 2 أمام، 3 يسار) */
+  surroundings?: Surround[];
 }
+
+export type Surround = 'open' | 'dunes' | 'hazm' | 'sea';
 
 export type ElementKind =
   | 'main-tent'

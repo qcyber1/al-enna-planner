@@ -29,6 +29,7 @@ import { Path3D, StringLights3D } from './Paths3D';
 import { LightFixture3D, LightRig } from './Lights3D';
 import { Camera3DOverlay } from './Camera3DOverlay';
 import { Extra3D } from './Extras3D';
+import { Surroundings3D } from './Surroundings3D';
 import { canvasToBlob } from '../render2d/exportImage';
 import { safeFileName, shareOrDownload, stamp } from '../lib/files';
 import { saveThumbs } from '../lib/storage';
@@ -322,6 +323,7 @@ export default function Scene3D() {
           <SceneLighting time={time} land={plan.land} size={size} />
           <Ground3D land={plan.land} w={w} />
           <Fence3D land={plan.land} w={w} />
+          <Surroundings3D land={plan.land} w={w} />
           {plan.elements.map((el) => (
             <Placed key={el.id} el={el} w={w}>
               <Element3D

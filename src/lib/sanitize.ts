@@ -82,6 +82,9 @@ export function sanitizeLand(raw: unknown): Land {
       height: num(fence.height, d.fence.height, 0.3, 6),
       color: color(fence.color, d.fence.color),
     },
+    surroundings: Array.isArray(raw.surroundings)
+      ? raw.surroundings.slice(0, 64).map((x) => oneOf(x, ['open', 'dunes', 'hazm', 'sea'] as const, 'open'))
+      : undefined,
   };
 }
 

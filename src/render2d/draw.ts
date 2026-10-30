@@ -25,6 +25,7 @@ import { LIGHT_HEX, floodTarget, pathEdgeLights, stringBulbs } from '../lib/ligh
 import { isPolyline, isTentKind, CATALOG_BY_KIND } from '../lib/catalog';
 import { tentEntranceZone } from '../lib/validation';
 import { drawExtra } from './drawExtra';
+import { drawSurroundings } from './surroundings';
 
 export const FONT = "'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif";
 
@@ -1095,6 +1096,7 @@ export function drawLand(ctx: Ctx, land: Land, _o?: DrawOpts) {
   // الصحراء المحيطة
   ctx.fillStyle = '#e3cfa6';
   ctx.fillRect(b.minX - 200, b.minY - 200, b.maxX - b.minX + 400, b.maxY - b.minY + 400);
+  drawSurroundings(ctx, land, _o ?? { ppm: 10 });
   poly(ctx, pts);
   ctx.fillStyle = GROUND_COLORS[land.ground];
   ctx.fill();

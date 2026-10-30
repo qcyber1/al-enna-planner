@@ -4,7 +4,7 @@ import type { Land, Plan } from '../types/plan';
 import { activeDesign, useActiveDesign, useEditor, usePlan } from '../store/editorStore';
 import { useSummary } from '../hooks/useDerived';
 import { Button, Field, Modal, NumberInput, Select, Stat, TextInput, Toggle, cx } from './ui';
-import { FENCE_LABELS, GROUND_LABELS, PATH_MATERIAL_LABELS } from '../lib/catalog';
+import { FENCE_LABELS, GROUND_LABELS, PATH_MATERIAL_LABELS, SURROUND_LABELS } from '../lib/catalog';
 import { formatArea, formatMeters, formatNumber, landEdges, round } from '../lib/geometry';
 import { DEFAULT_ESTIMATE, computeSummary, costLines } from '../lib/quantities';
 import { renderPlanCanvas, canvasToBlob, dateLabel, planThumbnail } from '../render2d/exportImage';
@@ -145,6 +145,25 @@ export function LandDialog() {
         <Field label={`اتجاه الشمال: ${Math.round(land.northAngle)}° (0 = أعلى المخطط)`} hint="يؤثر على اتجاه الشمس والظلال في المشهد ثلاثي الأبعاد">
           <input type="range" className="w-full" min={0} max={359} step={1} value={((land.northAngle % 360) + 360) % 360} onChange={(e) => setLand({ ...land, northAngle: parseFloat(e.target.value) })} />
         </Field>
+        <div className="rounded-xl border border-sand-200 bg-white p-3">
+          <div className="mb-2 text-sm font-bold text-dune">وش حول العنة؟</div>
+          <div className="grid grid-cols-2 gap-2">
+            {edges.map((_, i) => (
+              <Field key={i} label={`الجهة ${['الخلفية', 'اليمنى', 'الأمامية', 'اليسرى'][i] ?? i + 1}`}>
+                <Select
+                  value={land.surroundings?.[i] ?? 'open'}
+                  onChange={(v) => {
+                    const arr = edges.map((__, k) => land.surroundings?.[k] ?? 'open');
+                    arr[i] = v;
+                    setLand({ ...land, surroundings: arr });
+                  }}
+                  options={Object.entries(SURROUND_LABELS).map(([value, label]) => ({ value: value as 'open', label }))}
+                />
+              </Field>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-sand-600">يظهر في المخطط والمجسم 3D — مثلاً عنة على البحر أو وراها حزم.</p>
+        </div>
         <div className="rounded-xl border border-sand-200 bg-white p-3">
           <Toggle label="سياج أو تور حول العنة" checked={land.fence.enabled} onChange={(enabled) => setLand({ ...land, fence: { ...land.fence, enabled } })} />
           {land.fence.enabled && (
