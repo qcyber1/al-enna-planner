@@ -11,6 +11,7 @@ import {
   SIDE_LABELS,
   TENT_STYLE_LABELS,
   createElement,
+  qiblaRotation,
 } from '../lib/catalog';
 import {
   dist,
@@ -272,6 +273,12 @@ function SingleElement({ el }: { el: PlanElement }) {
         <Section title="المواقف">
           <Field label="عدد المواقف"><NumberInput value={el.parking.slots} min={1} max={60} step={1} digits={0} onChange={(n) => upd({ parking: { ...el.parking!, slots: Math.round(n) }, width: round(Math.round(n) * 2.7, 2) }, 'slots')} /></Field>
           <Toggle label="إظهار سيارات توضيحية" checked={el.parking.showCars} onChange={(c) => upd({ parking: { ...el.parking!, showCars: c } })} />
+        </Section>
+      )}
+      {el.kind === 'prayer-area' && (
+        <Section title="المصلّى">
+          <p className="text-[12px] text-sand-700">المحراب يتجه للقبلة (حوالي 255° من الشمال في قطر) حسب اتجاه الشمال المحدد للأرض.</p>
+          <Button size="sm" variant="gold" disabled={dis} onClick={() => upd({ rotation: qiblaRotation(plan.land.northAngle) })}>🕋 وجّه للقبلة</Button>
         </Section>
       )}
       {el.furniture && (

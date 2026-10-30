@@ -67,7 +67,14 @@ export type ElementKind =
   | 'string-lights'
   | 'ground-light'
   | 'entrance-light'
-  | 'lantern';
+  | 'lantern'
+  | 'sleep-cabin'
+  | 'kitchen-cabin'
+  | 'fire-pit'
+  | 'prayer-area'
+  | 'screen'
+  | 'kids-area'
+  | 'partition';
 
 export type TentStyle = 'majlis' | 'bedouin' | 'pyramid';
 export type Side = 'front' | 'back' | 'left' | 'right';

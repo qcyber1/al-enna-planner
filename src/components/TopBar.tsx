@@ -17,6 +17,7 @@ import {
   Loader2,
   AlertCircle,
   HelpCircle,
+  Sparkles,
 } from 'lucide-react';
 import { useEditor } from '../store/editorStore';
 import { IconButton, Segmented, cx } from './ui';
@@ -184,6 +185,15 @@ export function TopBar({ compact }: { compact: boolean }) {
             </IconButton>
           </>
         )}
+        <button
+          type="button"
+          onClick={() => openDialog('generator')}
+          className="flex h-9 items-center gap-1.5 rounded-lg bg-white/10 px-2.5 text-sm font-semibold text-gold-300 hover:bg-white/15"
+          data-testid="open-generator"
+          title="مولّد التصاميم"
+        >
+          <Sparkles size={16} /> {!compact && 'ولّد تصاميم'}
+        </button>
         <button
           type="button"
           onClick={() => openDialog('share')}

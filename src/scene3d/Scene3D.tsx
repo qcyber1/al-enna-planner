@@ -28,6 +28,7 @@ import {
 import { Path3D, StringLights3D } from './Paths3D';
 import { LightFixture3D, LightRig } from './Lights3D';
 import { Camera3DOverlay } from './Camera3DOverlay';
+import { Extra3D } from './Extras3D';
 import { canvasToBlob } from '../render2d/exportImage';
 import { safeFileName, shareOrDownload } from '../lib/files';
 import { saveThumbs } from '../lib/storage';
@@ -97,6 +98,8 @@ const Element3D = memo(function Element3D({ el, night, lampsOn, selected, showSa
       case 'seating':
         body = <Seating3D el={el} />;
         break;
+      default:
+        body = <Extra3D el={el} night={night} lampsOn={lampsOn} />;
     }
   }
   return (

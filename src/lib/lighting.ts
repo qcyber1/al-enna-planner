@@ -187,6 +187,24 @@ export function collectEmitters(plan: Plan, opts: EmitterOptions = {}): Emitter[
       });
     }
 
+    // الضو (شبّة النار) يضيء الجلسة حوله
+    if (el.kind === 'fire-pit') {
+      const lm = 1800;
+      out.push({
+        key: `${el.id}:fire`,
+        sourceId: el.id,
+        kind: 'point',
+        pos: { x: el.x, y: el.y },
+        height: 0.6,
+        halfAngle: Math.PI,
+        candela: pointCandela(lm),
+        lumens: lm,
+        color: 'warm',
+        priority: 60,
+        category: 'lantern',
+      });
+    }
+
     if (!isLightKind(el.kind) || !el.light || !el.light.on) continue;
     const L = el.light;
     const lumens = L.watts * EFFICACY * Math.max(0, Math.min(100, L.intensity)) / 100;

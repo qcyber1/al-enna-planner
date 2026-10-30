@@ -18,7 +18,7 @@ import {
   type DrawOpts,
 } from '../render2d/draw';
 import { drawLightMap } from '../render2d/lightmap';
-import { CATALOG_BY_KIND, createElement, isPolyline } from '../lib/catalog';
+import { CATALOG_BY_KIND, createElement, isPolyline, qiblaRotation } from '../lib/catalog';
 import {
   DEG,
   boundsIntersect,
@@ -550,7 +550,7 @@ export default function Editor2D() {
     if (!pos) return;
     const p = snapPoint(toWorld(pos));
     const st = useEditor.getState();
-    const el = createElement(kind, p);
+    const el = createElement(kind, p, kind === 'prayer-area' ? { rotation: qiblaRotation(getPlan().land.northAngle) } : {});
     st.setTool('select');
     st.addElement(el);
   };

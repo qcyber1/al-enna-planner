@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
-import { CATALOG, CATEGORY_LABELS, CATEGORY_ORDER, createElement, type CatalogItem } from '../lib/catalog';
+import { CATALOG, CATEGORY_LABELS, CATEGORY_ORDER, createElement, qiblaRotation, type CatalogItem } from '../lib/catalog';
 import { getPlan, useEditor } from '../store/editorStore';
 import { landBounds } from '../lib/geometry';
 import { DND_MIME } from '../editor2d/Editor2D';
@@ -24,7 +24,7 @@ function addAtCenter(item: CatalogItem) {
     p = { x: (host.clientWidth / 2 - vp.x) / vp.scale, y: (host.clientHeight / 2 - vp.y) / vp.scale };
   }
   const n = plan.elements.filter((e) => e.kind === item.kind).length;
-  const el = createElement(item.kind, { x: Math.round(p.x * 2) / 2 + (n % 4) * 0.5, y: Math.round(p.y * 2) / 2 + (n % 4) * 0.5 });
+  const el = createElement(item.kind, { x: Math.round(p.x * 2) / 2 + (n % 4) * 0.5, y: Math.round(p.y * 2) / 2 + (n % 4) * 0.5 }, item.kind === 'prayer-area' ? { rotation: qiblaRotation(plan.land.northAngle) } : {});
   st.setTool('select');
   st.addElement(el);
   st.toast(`تمت إضافة «${el.name}» — اسحبه إلى مكانه`, 'success');

@@ -5,6 +5,7 @@ import { Library } from './components/Library';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { DesignsDialog, HelpDialog, LandDialog, ProjectsDialog, ShareDialog, SharedLinkDialog, SummaryDialog, WelcomeDialog } from './components/Dialogs';
 import { Toasts } from './components/Toasts';
+import { GeneratorDialog } from './components/GeneratorDialog';
 import Editor2D from './editor2d/Editor2D';
 import { startAutosave, useEditor } from './store/editorStore';
 import { useMediaQuery } from './hooks/useDerived';
@@ -117,6 +118,7 @@ export default function App() {
       <ProjectsDialog />
       <SharedLinkDialog />
       <HelpDialog />
+      <GeneratorDialog />
       <Toasts />
     </div>
   );

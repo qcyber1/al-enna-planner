@@ -16,6 +16,10 @@ import {
   ZoomIn,
   ZoomOut,
   Tag,
+  RotateCw,
+  Copy,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { useEditor, usePlan } from '../store/editorStore';
 import { useViewport } from './viewport';
@@ -159,6 +163,8 @@ export function EditorOverlay({
         </div>
       )}
 
+      {!drawing && !selectedMeasure && <SelectionBar />}
+
       {selectedMeasure && (
         <div className="pointer-events-auto absolute bottom-16 right-1/2 translate-x-1/2">
           <button
@@ -226,6 +232,34 @@ export function EditorOverlay({
           <div className="mt-1 max-w-[150px] text-[10px] text-sand-600">تقدير بصري تقريبي وليس حساباً هندسياً</div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SelectionBar() {
+  const selection = useEditor((s) => s.selection);
+  const plan = usePlan();
+  if (!selection.length) return null;
+  const els = plan.elements.filter((e) => selection.includes(e.id));
+  if (!els.length) return null;
+  const st = useEditor.getState();
+  const locked = els.every((e) => e.locked);
+  const btn = 'flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-dune hover:bg-sand-100 active:scale-95';
+  return (
+    <div className="pointer-events-auto absolute bottom-16 right-1/2 flex translate-x-1/2 items-center gap-0.5 rounded-2xl border border-sand-300 bg-white/97 p-1 shadow-xl" data-testid="selection-bar">
+      <span className="max-w-28 truncate px-2 text-[12px] font-bold text-sand-700">{els.length > 1 ? `${els.length} عناصر` : els[0].name}</span>
+      <button type="button" className={btn} onClick={() => st.rotateElements(selection, 90)} disabled={locked}>
+        <RotateCw size={17} /> تدوير
+      </button>
+      <button type="button" className={btn} onClick={() => st.duplicateElements(selection)}>
+        <Copy size={17} /> نسخ
+      </button>
+      <button type="button" className={btn} onClick={() => st.setLocked(selection, !locked)}>
+        {locked ? <Unlock size={17} /> : <Lock size={17} />} {locked ? 'فك' : 'قفل'}
+      </button>
+      <button type="button" className={btn + ' text-red-700'} onClick={() => st.removeElements(selection)} disabled={locked}>
+        <Trash2 size={17} /> حذف
+      </button>
     </div>
   );
 }

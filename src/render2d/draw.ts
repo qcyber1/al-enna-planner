@@ -24,6 +24,7 @@ import {
 import { LIGHT_HEX, floodTarget, pathEdgeLights, stringBulbs } from '../lib/lighting';
 import { isPolyline, isTentKind, CATALOG_BY_KIND } from '../lib/catalog';
 import { tentEntranceZone } from '../lib/validation';
+import { drawExtra } from './drawExtra';
 
 export const FONT = "'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif";
 
@@ -875,6 +876,7 @@ export function drawLocalElement(ctx: Ctx, el: PlanElement, o: DrawOpts) {
     case 'lantern':
       return drawLightPoint(ctx, el, o);
     default:
+      if (drawExtra(ctx, el, o)) return;
       ctx.fillStyle = el.color;
       ctx.fillRect(-el.width / 2, -el.depth / 2, el.width, el.depth);
   }

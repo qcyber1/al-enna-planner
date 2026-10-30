@@ -536,6 +536,84 @@ export const CATALOG: CatalogItem[] = [
       light: light(12, 2.2, 360, 'warm'),
     },
   },
+  // ——— عناصر العنة القطرية ———
+  {
+    kind: 'sleep-cabin',
+    category: 'facilities',
+    label: 'كبينة رقدة (نوم)',
+    description: 'كرفان نوم مع مكيف وشباك',
+    icon: '🛏️',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 1.5,
+    defaults: { ...base, width: 6, depth: 2.6, height: 2.8, color: '#f1ece2', accent: '#7a4a24' },
+  },
+  {
+    kind: 'kitchen-cabin',
+    category: 'facilities',
+    label: 'كبينة مطبخ',
+    description: 'كرفان مطبخ مع شفاط',
+    icon: '🍲',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 1.5,
+    defaults: { ...base, width: 4.5, depth: 2.6, height: 2.8, color: '#e8e2d6', accent: '#2f5d3a' },
+  },
+  {
+    kind: 'fire-pit',
+    category: 'furniture',
+    label: 'الضو (شبّة النار)',
+    description: 'موقد نار مع جلسة أرضية والدلال',
+    icon: '🔥',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 1,
+    defaults: { ...base, width: 4, depth: 4, height: 0.5, color: '#8e2a2a', accent: '#5a4636' },
+  },
+  {
+    kind: 'prayer-area',
+    category: 'furniture',
+    label: 'مصلّى',
+    description: 'سجاد صلاة موجّه للقبلة تلقائياً',
+    icon: '🕌',
+    geometry: 'rect',
+    collision: 'soft',
+    minSize: 1,
+    defaults: { ...base, width: 5, depth: 3, height: 0.05, color: '#2f5d3a', accent: '#d4a24c' },
+  },
+  {
+    kind: 'screen',
+    category: 'furniture',
+    label: 'شاشة عرض (مباريات)',
+    description: 'شاشة خارجية كبيرة على حامل',
+    icon: '📺',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 0.5,
+    defaults: { ...base, width: 3, depth: 0.6, height: 2.6, color: '#1c1c1c', accent: '#3a3a3a' },
+  },
+  {
+    kind: 'kids-area',
+    category: 'facilities',
+    label: 'ألعاب أطفال',
+    description: 'زحليقة ومراجيح على أرضية مطاطية',
+    icon: '🛝',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 2,
+    defaults: { ...base, width: 6, depth: 5, height: 2.5, color: '#3b82c4', accent: '#e8b33a' },
+  },
+  {
+    kind: 'partition',
+    category: 'tents',
+    label: 'ساتر (خصوصية)',
+    description: 'ساتر قماش للفصل بين المجالس',
+    icon: '🧱',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 0.2,
+    defaults: { ...base, width: 8, depth: 0.2, height: 2.2, color: '#d9c49b', accent: '#8e2a2a' },
+  },
 ];
 
 export const CATALOG_BY_KIND: Record<ElementKind, CatalogItem> = Object.fromEntries(
@@ -592,4 +670,12 @@ export function createElement(
     ];
   }
   return { ...el, ...clone(overrides) };
+}
+
+/** اتجاه القبلة من قطر (تقريباً 255° من الشمال) */
+export const QIBLA_BEARING = 255;
+
+/** زاوية الدوران التي تجعل أعلى العنصر يتجه للقبلة */
+export function qiblaRotation(northAngle: number): number {
+  return (((northAngle + QIBLA_BEARING) % 360) + 360) % 360;
 }

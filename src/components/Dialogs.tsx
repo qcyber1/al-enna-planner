@@ -30,11 +30,14 @@ export function WelcomeDialog() {
         <p className="rounded-lg bg-sand-100 p-3 text-[13px] text-sand-800">
           جهّزنا لك <b>مثالاً تجريبياً</b> على أرض 50 × 50 م (المقاس المعتاد للعنة). كل المقاسات والمواقع افتراضية — غيّرها لمقاساتك الفعلية.
         </p>
+        <Button variant="gold" className="h-12 w-full text-base" onClick={() => openDialog('generator')} data-testid="welcome-generator">
+          <Sparkles size={18} /> صمّم لي عنتي تلقائياً (5 أفكار)
+        </Button>
         <div className="grid gap-2 sm:grid-cols-2">
           <Button variant="primary" onClick={() => openDialog(null)} data-testid="welcome-sample">
             <Sparkles size={16} /> استكشف المثال الجاهز
           </Button>
-          <Button variant="gold" onClick={() => openDialog('land')} data-testid="welcome-land">
+          <Button onClick={() => openDialog('land')} data-testid="welcome-land">
             حدد مقاسات أرضك
           </Button>
         </div>
