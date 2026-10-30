@@ -35,6 +35,8 @@ async function post(url: string, body: unknown): Promise<{ status: number; data:
 
 type State = 'checking' | 'locked' | 'open' | 'paid';
 const ORDER_KEY = 'enna.order';
+const REF_KEY = 'enna.ref';
+export { TOKEN_KEY };
 
 /** شاشة إدخال كود الشراء قبل فتح التطبيق */
 export function LicenseGate({ children }: { children: ReactNode }) {
@@ -43,7 +45,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'code' | 'buy'>('buy');
-  const [info, setInfo] = useState<{ price: number; online: boolean }>({ price: 349, online: false });
+  const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean }>({ price: 349, online: false, basePrice: 349, refValid: false });
   const [buyer, setBuyer] = useState({ name: '', phone: '', email: '' });
   const [paidCode, setPaidCode] = useState('');
   const [notice, setNotice] = useState('');
@@ -51,10 +53,13 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch('/api/status');
-        const s = (await r.json()) as { licensing?: boolean; price?: number; online?: boolean };
+        const qRef = new URLSearchParams(window.location.search).get('ref');
+        if (qRef) set(REF_KEY, qRef.slice(0, 20));
+        const ref = get(REF_KEY) || '';
+        const r = await fetch('/api/status' + (ref ? `?ref=${encodeURIComponent(ref)}` : ''));
+        const s = (await r.json()) as { licensing?: boolean; price?: number; basePrice?: number; refValid?: boolean; online?: boolean };
         if (!s.licensing) return setState('open');
-        setInfo({ price: s.price ?? 349, online: !!s.online });
+        setInfo({ price: s.price ?? 349, online: !!s.online, basePrice: s.basePrice ?? s.price ?? 349, refValid: !!s.refValid });
       } catch {
         // بيئة التطوير بدون خادم: لا يوجد نظام أكواد
         if (import.meta.env.DEV) return setState('open');
@@ -127,7 +132,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     setError('');
     try {
       if (info.online) {
-        const { data } = await post('/api/checkout', buyer);
+        const { data } = await post('/api/checkout', { ...buyer, ref: get(REF_KEY) || undefined });
         const d = data as { ok?: boolean; error?: string; payUrl?: string; orderId?: string };
         if (d.ok && d.payUrl) {
           if (d.orderId) set(ORDER_KEY, d.orderId);
@@ -136,7 +141,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         }
         setError(d.error || 'تعذر فتح صفحة الدفع');
       } else {
-        const { data } = await post('/api/order', buyer);
+        const { data } = await post('/api/order', { ...buyer, ref: get(REF_KEY) || undefined });
         if (data.ok) setNotice('وصلنا طلبك ✓ بنرسل لك رابط الدفع على الواتساب خلال دقائق، وبعد الدفع يوصلك كود التفعيل.');
         else setError(data.error || 'تعذر إرسال الطلب');
       }
@@ -201,7 +206,13 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         ) : (
           <form onSubmit={buy} className="space-y-2.5">
             <div className="rounded-lg bg-white p-3 text-center">
-              <div className="text-2xl font-bold text-dune">{info.price} ر.ق</div>
+              {info.refValid && info.basePrice > info.price && (
+                <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700">🎁 وصلك خصم من صديقك</div>
+              )}
+              <div className="text-2xl font-bold text-dune">
+                {info.refValid && info.basePrice > info.price && <span className="ml-2 text-base text-sand-500 line-through">{info.basePrice}</span>}
+                {info.price} ر.ق
+              </div>
               <div className="text-xs text-sand-600">دفعة واحدة • استخدام مدى الحياة</div>
             </div>
             <input required value={buyer.name} onChange={(e) => setBuyer({ ...buyer, name: e.target.value })} placeholder="الاسم" aria-label="الاسم" className="h-10 w-full rounded-lg border border-sand-300 bg-white px-3 outline-none focus:border-gold-500" />

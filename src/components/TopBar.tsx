@@ -18,6 +18,7 @@ import {
   AlertCircle,
   HelpCircle,
   Sparkles,
+  Gift,
 } from 'lucide-react';
 import { useEditor } from '../store/editorStore';
 import { IconButton, Segmented, cx } from './ui';
@@ -185,6 +186,11 @@ export function TopBar({ compact }: { compact: boolean }) {
             </IconButton>
           </>
         )}
+        {hasLicense() && (
+          <IconButton tone="dark" label="ادعُ أصحابك (خصم لهم ومكافأة لك)" onClick={() => openDialog('invite')} data-testid="open-invite">
+            <Gift size={17} className="text-gold-400" />
+          </IconButton>
+        )}
         <button
           type="button"
           onClick={() => openDialog('generator')}
@@ -205,4 +211,13 @@ export function TopBar({ compact }: { compact: boolean }) {
       </div>
     </header>
   );
+}
+
+function hasLicense(): boolean {
+  try {
+    const t = localStorage.getItem('enna.license.token');
+    return !!t && t !== 'open';
+  } catch {
+    return false;
+  }
 }

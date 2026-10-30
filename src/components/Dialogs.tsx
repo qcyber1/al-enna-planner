@@ -8,7 +8,7 @@ import { FENCE_LABELS, GROUND_LABELS, PATH_MATERIAL_LABELS } from '../lib/catalo
 import { formatArea, formatMeters, formatNumber, landEdges, round } from '../lib/geometry';
 import { DEFAULT_ESTIMATE, computeSummary, costLines } from '../lib/quantities';
 import { renderPlanCanvas, canvasToBlob, dateLabel, planThumbnail } from '../render2d/exportImage';
-import { askConfirm, copyText, exportDesignJson, exportProjectJson, readFileText, safeFileName, shareOrDownload, downloadBlob } from '../lib/files';
+import { askConfirm, stamp, copyText, exportDesignJson, exportProjectJson, readFileText, safeFileName, shareOrDownload, downloadBlob } from '../lib/files';
 import { buildShareLink } from '../lib/share';
 import { ImportError, parseImport } from '../lib/sanitize';
 import { createSamplePlan, defaultLand, emptyPlan } from '../lib/sample';
@@ -177,7 +177,7 @@ export function SummaryDialog() {
   const exportCsv = () => {
     const rows = [['البند', 'الوحدة', 'الكمية', 'سعر الوحدة', 'الإجمالي'], ...lines.map((l) => [l.label, l.unit, String(round(l.qty, 2)), String(project.prices[l.key] ?? ''), String(round((project.prices[l.key] ?? 0) * l.qty, 2))])];
     const csv = '﻿' + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
-    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${safeFileName(project.name)}-كميات.csv`);
+    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `al-enna-quantities-${stamp()}.csv`);
   };
   if (!open) return null;
   return (
@@ -348,7 +348,7 @@ export function DesignsDialog() {
     // الترتيب من اليمين لليسار
     imgs.forEach((c, i) => ctx.drawImage(c, board.width - (i + 1) * (W + 20), 20));
     const blob = await canvasToBlob(board);
-    await shareOrDownload(blob, `${safeFileName(project.name)}-مقارنة.png`, `مقارنة تصاميم ${project.name}`);
+    await shareOrDownload(blob, `al-enna-compare-${stamp()}.png`, `مقارنة تصاميم ${project.name}`);
   };
 
   return (
@@ -441,7 +441,7 @@ export function ShareDialog() {
   const export2d = async (mode: 'download' | 'share') => {
     const c = renderPlanCanvas(design.plan, { width: 2200, title: `${project.name} — ${design.name}`, subtitle: dateLabel(), lightMap, night: lightMap || time === 'night' });
     const blob = await canvasToBlob(c);
-    const r = await shareOrDownload(blob, `${safeFileName(project.name)}-${safeFileName(design.name)}-مخطط.png`, `${project.name} — ${design.name}`);
+    const r = await shareOrDownload(blob, `al-enna-plan-${safeFileName(design.name)}-${stamp()}.png`, `${project.name} — ${design.name}`);
     if (r === 'downloaded' && mode === 'share') toast('تم تنزيل الصورة — أرسلها في قروب الواتساب', 'success');
     else if (r !== 'cancelled') toast('تم تصدير صورة المخطط', 'success');
   };

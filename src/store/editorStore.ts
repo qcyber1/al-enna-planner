@@ -35,7 +35,8 @@ export type DialogName =
   | 'help'
   | 'designs'
   | 'sharedLink'
-  | 'generator';
+  | 'generator'
+  | 'invite';
 
 export interface Toast {
   id: string;

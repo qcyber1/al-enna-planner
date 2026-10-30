@@ -32,6 +32,9 @@ function loadDb() {
 let db = loadDb();
 if (!db.orders) db.orders = [];
 const PRICE = Number(process.env.PRICE || 349);
+const REF_DISCOUNT = Number(process.env.REF_DISCOUNT || 50);
+const REF_REWARD = Number(process.env.REF_REWARD || 50);
+if (!db.referrals) db.referrals = [];
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 function saveDb() {
   try {
@@ -106,6 +109,22 @@ function bindDevice(id, device) {
   return { ok: true, rec };
 }
 
+// ——— الإحالات: رابط خاص لكل عميل يعطي صديقه خصماً ويكسب مكافأة ———
+function refFor(id) {
+  return id + b32(hmac('ref:' + id).subarray(0, 3)).slice(0, 4);
+}
+function parseRef(ref) {
+  const r = String(ref || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!LICENSING || r.length !== 12) return null;
+  const id = r.slice(0, 8);
+  if (refFor(id) !== r) return null;
+  if (db.codes[id]?.revoked) return null;
+  return id;
+}
+function priceFor(refId) {
+  return refId ? Math.max(0, PRICE - REF_DISCOUNT) : PRICE;
+}
+
 /** يعلّم الطلب مدفوعاً ويولّد كود العميل (مرة واحدة فقط) */
 function markPaid(o) {
   if (o.codeId) {
@@ -113,10 +132,14 @@ function markPaid(o) {
     return;
   }
   const { id: cid, code } = makeCode();
-  db.codes[cid] = { id: cid, code, name: o.name, phone: o.phone, note: o.online ? 'دفع إلكتروني (سكيب كاش)' : 'طلب من الموقع', price: PRICE, createdAt: Date.now(), devices: [], revoked: false };
+  const amount = o.amount ?? PRICE;
+  db.codes[cid] = { id: cid, code, name: o.name, phone: o.phone, note: (o.online ? 'دفع إلكتروني (سكيب كاش)' : 'طلب من الموقع') + (o.ref ? ' • بإحالة' : ''), price: amount, createdAt: Date.now(), devices: [], revoked: false, ref: o.ref };
   o.codeId = cid;
   o.status = 'paid';
   o.paidAt = Date.now();
+  if (o.ref && o.ref !== cid && !db.referrals.some((r) => r.orderId === o.id)) {
+    db.referrals.push({ refId: o.ref, orderId: o.id, buyer: o.name, at: Date.now(), reward: REF_REWARD, paidOut: false });
+  }
   saveDb();
 }
 
@@ -195,13 +218,26 @@ const server = http.createServer(async (req, res) => {
   const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
 
   try {
-    if (p === '/api/status') return send(res, 200, { licensing: LICENSING, price: PRICE, online: skipcashEnabled && LICENSING });
+    if (p === '/api/status') {
+      const refId = parseRef(url.searchParams.get('ref'));
+      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: PRICE, refValid: !!refId, refDiscount: REF_DISCOUNT, online: skipcashEnabled && LICENSING });
+    }
+
+    // رابط الإحالة الخاص بالعميل وإحصائياته
+    if (p === '/api/myref' && req.method === 'POST') {
+      if (!LICENSING) return send(res, 400, { ok: false });
+      const t = readToken((await readBody(req)).token);
+      if (!t) return send(res, 401, { ok: false, error: 'سجّل دخولك بالكود أولاً' });
+      const mine = db.referrals.filter((r) => r.refId === t.c);
+      return send(res, 200, { ok: true, ref: refFor(t.c), discount: REF_DISCOUNT, reward: REF_REWARD, count: mine.length, earned: mine.reduce((s, r) => s + r.reward, 0), price: priceFor(t.c) });
+    }
 
     // ——— الدفع الإلكتروني (سكيب كاش) ———
     if (p === '/api/checkout' && req.method === 'POST') {
       if (!skipcashEnabled || !LICENSING) return send(res, 400, { ok: false, error: 'الدفع الإلكتروني غير مفعّل' });
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
-      const { name, phone, email } = await readBody(req);
+      const { name, phone, email, ref } = await readBody(req);
+      const refId = parseRef(ref);
       const nm = String(name || '').trim().slice(0, 60);
       const ph = String(phone || '').replace(/\D/g, '');
       const em = String(email || '').trim().slice(0, 100);
@@ -209,11 +245,11 @@ const server = http.createServer(async (req, res) => {
         return send(res, 400, { ok: false, error: 'اكتب الاسم ورقم الجوال والإيميل بشكل صحيح' });
       const full = ph.length === 8 ? '974' + ph : ph;
       const parts = nm.split(/\s+/);
-      const order = { id: crypto.randomBytes(8).toString('hex'), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'pending', online: true };
+      const order = { id: crypto.randomBytes(8).toString('hex'), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'pending', online: true, ref: refId || undefined, amount: priceFor(refId) };
       try {
         const pay = await createPayment({
           uid: crypto.randomUUID(),
-          amount: PRICE,
+          amount: order.amount,
           firstName: parts[0],
           lastName: parts.slice(1).join(' ') || parts[0],
           phone: full,
@@ -257,11 +293,12 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/api/order' && req.method === 'POST') {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
-      const { name, phone } = await readBody(req);
+      const { name, phone, ref } = await readBody(req);
+      const refId = parseRef(ref);
       const ph = String(phone || '').replace(/\D/g, '');
       if (!String(name || '').trim() || ph.length < 8) return send(res, 400, { ok: false, error: 'اكتب الاسم ورقم الجوال بشكل صحيح' });
       const full = ph.length === 8 ? '974' + ph : ph;
-      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), name: String(name).trim().slice(0, 80), phone: full.slice(0, 20), createdAt: Date.now(), status: 'new' });
+      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), name: String(name).trim().slice(0, 80), phone: full.slice(0, 20), createdAt: Date.now(), status: 'new', ref: refId || undefined, amount: priceFor(refId) });
       db.orders = db.orders.slice(0, 2000);
       saveDb();
       return send(res, 200, { ok: true });
@@ -297,13 +334,25 @@ const server = http.createServer(async (req, res) => {
       if (p === '/admin') return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }));
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt);
-        return send(res, 200, { list, orders: db.orders, paymentLink: PAYMENT_LINK, price: PRICE });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, paymentLink: PAYMENT_LINK, price: PRICE, refReward: REF_REWARD });
+      }
+      if (p === '/api/admin/referral' && req.method === 'POST') {
+        const { refId, paidOut } = await readBody(req);
+        for (const r of db.referrals) if (r.refId === refId && !r.paidOut && paidOut) r.paidOut = true, r.paidOutAt = Date.now();
+        saveDb();
+        return send(res, 200, { ok: true });
       }
       if (p === '/api/admin/order' && req.method === 'POST') {
         const { id, status } = await readBody(req);
         const o = db.orders.find((x) => x.id === id);
         if (!o) return send(res, 404, { error: 'غير موجود' });
-        if (['new', 'sent', 'paid', 'cancelled'].includes(status)) o.status = status;
+        if (status === 'check' && o.paymentId && skipcashEnabled) {
+          try {
+            if ((await getPayment(o.paymentId)).paid) markPaid(o);
+          } catch (e) {
+            console.error('[skipcash check]', e.message);
+          }
+        } else if (['new', 'sent', 'paid', 'cancelled'].includes(status) && o.status !== 'paid') o.status = status;
         if (status === 'paid' && LICENSING) markPaid(o);
         saveDb();
         return send(res, 200, { ok: true, order: o, code: o.codeId ? db.codes[o.codeId] : null });

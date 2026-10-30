@@ -1,7 +1,19 @@
 import type { Design, Project } from '../types/plan';
 
+/** اسم ملف آمن بحروف لاتينية (بعض المتصفحات ترفض الأسماء العربية عند التنزيل) */
 export function safeFileName(name: string): string {
-  return (name || 'enna').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').slice(0, 60);
+  const latin = (name || '')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return latin || 'enna';
+}
+
+/** ختم زمني قصير لأسماء الملفات */
+export function stamp(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
@@ -68,10 +80,10 @@ export function exportProjectJson(project: Project): void {
     exportedAt: new Date().toISOString(),
     payload: project,
   };
-  downloadBlob(new Blob([JSON.stringify(env, null, 2)], { type: 'application/json' }), `${safeFileName(project.name)}.enna.json`);
+  downloadBlob(new Blob([JSON.stringify(env, null, 2)], { type: 'application/json' }), `al-enna-project-${stamp()}.enna.json`);
 }
 
-export function exportDesignJson(design: Design, projectName: string): void {
+export function exportDesignJson(design: Design, _projectName?: string): void {
   const env: ExportEnvelope<Design> = {
     app: 'al-enna-planner',
     type: 'design',
@@ -81,7 +93,7 @@ export function exportDesignJson(design: Design, projectName: string): void {
   };
   downloadBlob(
     new Blob([JSON.stringify(env, null, 2)], { type: 'application/json' }),
-    `${safeFileName(projectName)}-${safeFileName(design.name)}.enna.json`,
+    `al-enna-design-${safeFileName(design.name)}-${stamp()}.enna.json`,
   );
 }
 

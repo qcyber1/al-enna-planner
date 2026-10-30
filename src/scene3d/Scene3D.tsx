@@ -30,7 +30,7 @@ import { LightFixture3D, LightRig } from './Lights3D';
 import { Camera3DOverlay } from './Camera3DOverlay';
 import { Extra3D } from './Extras3D';
 import { canvasToBlob } from '../render2d/exportImage';
-import { safeFileName, shareOrDownload } from '../lib/files';
+import { safeFileName, shareOrDownload, stamp } from '../lib/files';
 import { saveThumbs } from '../lib/storage';
 
 const BUDGET = { low: 8, medium: 20, high: 40 };
@@ -263,8 +263,8 @@ function CaptureHandler() {
     canvasToBlob(gl.domElement)
       .then((blob) =>
         capture.mode === 'share'
-          ? shareOrDownload(blob, `${safeFileName(st.project.name)}-${safeFileName(design.name)}-3d.png`, `${st.project.name} — ${design.name}`)
-          : shareOrDownload(blob, `${safeFileName(st.project.name)}-${safeFileName(design.name)}-3d.png`, design.name).then(() => 'downloaded' as const),
+          ? shareOrDownload(blob, `al-enna-3d-${safeFileName(design.name)}-${stamp()}.png`, `${st.project.name} — ${design.name}`)
+          : shareOrDownload(blob, `al-enna-3d-${safeFileName(design.name)}-${stamp()}.png`, design.name).then(() => 'downloaded' as const),
       )
       .then((r) => r !== 'cancelled' && st.toast('تم تصدير صورة المشهد 3D', 'success'))
       .catch(() => st.toast('تعذر تصدير الصورة', 'error'));

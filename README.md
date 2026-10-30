@@ -39,7 +39,8 @@ npm run dev
 - متغيرات Railway:
   - `LICENSE_SECRET` (إلزامي لتفعيل الحماية، 16 حرفاً عشوائياً على الأقل — لا تغيّره بعد البيع وإلا تبطل الأكواد)
   - `ADMIN_PASSWORD` كلمة مرور لوحة الإدارة
-  - `PRICE` السعر بالريال (افتراضي 350)، `MAX_DEVICES` (افتراضي 3)
+  - `PRICE` السعر بالريال (افتراضي 349)، `MAX_DEVICES` (افتراضي 3)
+  - الإحالة: `REF_DISCOUNT` خصم الصديق (افتراضي 50)، `REF_REWARD` مكافأة صاحب الرابط (افتراضي 50)
   - سكيب كاش: `SKIPCASH_CLIENT_ID`، `SKIPCASH_KEY_ID`، `SKIPCASH_KEY_SECRET`، `SKIPCASH_WEBHOOK_KEY`، `SKIPCASH_ENV` (`sandbox` أو `production`)
 - اربط Volume على `/data` لحفظ قائمة العملاء بين عمليات النشر.
 - في لوحة سكيب كاش: Return URL = `https://<الموقع>/?paid=1` و Webhook URL = `https://<الموقع>/api/skipcash/webhook`
