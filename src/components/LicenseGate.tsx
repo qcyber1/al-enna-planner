@@ -174,13 +174,29 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     );
   return (
     <div className="flex h-full items-center justify-center bg-dune p-4">
-      <div className="w-full max-w-sm space-y-4 rounded-2xl bg-sand-50 p-6 shadow-2xl" data-testid="license-gate">
-        <div className="sadu-band h-2 rounded" />
-        <div className="text-center">
-          <div className="text-4xl">⛺</div>
-          <h1 className="mt-2 text-xl font-bold text-dune">مخطط العنة</h1>
-          <p className="mt-1 text-sm text-sand-700">صمّم عنتك ثنائي وثلاثي الأبعاد قبل التركيب — خيام، ملعب، ممرات، وإنارة ليلية</p>
+      <div className="w-full max-w-sm space-y-4 overflow-hidden rounded-2xl bg-sand-50 shadow-2xl" data-testid="license-gate">
+        <div className="relative">
+          <img src="./og.jpg" alt="مجسم عنة قطرية في الليل" className="aspect-[1200/630] w-full object-cover object-left" />
+          <div className="sadu-band absolute inset-x-0 bottom-0 h-1.5" />
         </div>
+        <div className="space-y-4 px-6 pb-6">
+        <div className="text-center">
+          <h1 className="text-xl font-bold text-dune">مخطط العنة ⛺</h1>
+          <p className="mt-1 text-sm text-sand-700">صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون</p>
+        </div>
+        <ul className="grid grid-cols-2 gap-2 text-[12px] font-semibold text-dune">
+          {[
+            ['🧊', 'مجسم 3D تتمشّى فيه'],
+            ['🌙', 'إنارة الليل قبل الشراء'],
+            ['✨', 'يولّد لك 5 أفكار توزيع'],
+            ['📐', 'المقاسات والكميات محسوبة'],
+          ].map(([i, t]) => (
+            <li key={t} className="flex items-center gap-1.5 rounded-lg bg-white px-2 py-1.5">
+              <span className="text-base">{i}</span>
+              {t}
+            </li>
+          ))}
+        </ul>
         <div className="grid grid-cols-2 gap-1 rounded-lg bg-sand-200 p-1 text-sm font-semibold">
           <button type="button" onClick={() => { setMode('buy'); setError(''); }} className={mode === 'buy' ? 'rounded-md bg-white py-1.5 text-dune shadow' : 'py-1.5 text-sand-700'}>شراء</button>
           <button type="button" onClick={() => { setMode('code'); setError(''); }} className={mode === 'code' ? 'rounded-md bg-white py-1.5 text-dune shadow' : 'py-1.5 text-sand-700'}>عندي كود</button>
@@ -227,6 +243,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <p className="text-center text-[11px] text-sand-600">{info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.'}</p>
           </form>
         )}
+        </div>
       </div>
     </div>
   );
