@@ -280,6 +280,7 @@ function CaptureHandler() {
 export default function Scene3D() {
   const plan = usePlan();
   const time = useEditor((s) => s.time);
+  const hour = useEditor((s) => s.hour);
   const lightsMaster = useEditor((s) => s.lightsMaster);
   const quality = useEditor((s) => s.lightQuality);
   const selection = useEditor((s) => s.selection);
@@ -323,7 +324,7 @@ export default function Scene3D() {
         onPointerMissed={() => useEditor.getState().clearSelection()}
       >
         <WorldContext.Provider value={w}>
-          <SceneLighting time={time} land={plan.land} size={size} />
+          <SceneLighting time={time} hour={hour} land={plan.land} size={size} />
           <Ground3D land={plan.land} w={w} />
           <Fence3D land={plan.land} w={w} />
           <Surroundings3D land={plan.land} w={w} />

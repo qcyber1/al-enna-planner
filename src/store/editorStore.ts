@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { PRESET_HOUR, clampHour, timeFromHour } from '../lib/sunclock';
 import type {
   CameraPreset,
   Design,
@@ -77,6 +78,8 @@ interface State {
   selection: string[];
   view: ViewMode;
   time: TimeOfDay;
+  /** الساعة الفعلية لمشهد 3D (13..20) */
+  hour: number;
   lightsMaster: boolean;
   lightQuality: LightQuality;
   tool: Tool;
@@ -125,6 +128,7 @@ interface State {
   clearSelection: () => void;
   setView: (v: ViewMode) => void;
   setTime: (t: TimeOfDay) => void;
+  setHour: (h: number) => void;
   setLightsMaster: (on: boolean) => void;
   setLightQuality: (q: LightQuality) => void;
   setTool: (t: Tool) => void;
@@ -248,6 +252,7 @@ export const useEditor = create<State>()((set, get) => ({
   selection: [],
   view: typeof window !== 'undefined' && window.innerWidth < 768 ? '3d' : '2d',
   time: 'day',
+  hour: PRESET_HOUR.day,
   lightsMaster: true,
   lightQuality: 'medium',
   tool: 'select',
@@ -476,7 +481,11 @@ export const useEditor = create<State>()((set, get) => ({
   },
   clearSelection: () => set({ selection: [] }),
   setView: (view) => set({ view }),
-  setTime: (time) => set({ time }),
+  setTime: (time) => set({ time, hour: PRESET_HOUR[time] }),
+  setHour: (h) => {
+    const hour = clampHour(h);
+    set({ hour, time: timeFromHour(hour) });
+  },
   setLightsMaster: (lightsMaster) => set({ lightsMaster }),
   setLightQuality: (lightQuality) => set({ lightQuality }),
   setTool: (tool) => set({ tool }),

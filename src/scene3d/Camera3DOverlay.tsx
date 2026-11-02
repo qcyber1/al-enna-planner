@@ -3,6 +3,9 @@ import { Camera, Eye, Footprints, DoorOpen, Tent, Plane, Box, ArrowUp, ArrowDown
 import { useEditor } from '../store/editorStore';
 import type { CameraPreset } from '../types/plan';
 import { IconButton, Segmented } from '../components/ui';
+import { HOUR_MAX, HOUR_MIN, SUNSET, formatHour } from '../lib/sunclock';
+
+const shortHour = (h: number) => formatHour(h).replace(':00', '');
 
 const PRESETS: { id: CameraPreset; label: string; icon: typeof Eye }[] = [
   { id: 'top', label: 'منظر علوي', icon: Plane },
@@ -19,6 +22,8 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
   const quality = useEditor((s) => s.lightQuality);
   const setQuality = useEditor((s) => s.setLightQuality);
   const time = useEditor((s) => s.time);
+  const hour = useEditor((s) => s.hour);
+  const setHour = useEditor((s) => s.setHour);
   const capture = useEditor((s) => s.requestCapture3d);
   const walking = preset === 'walk';
   const hold = (k: 'f' | 's' | 'turn', v: number) => ({
@@ -40,8 +45,32 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
           <Camera size={17} />
         </IconButton>
       </div>
+      {!walking && (
+        <div className="pointer-events-auto absolute top-[3.6rem] right-2 w-52 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs shadow" data-testid="hour-slider">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sand-700">{time === 'day' ? '☀️' : time === 'sunset' ? '🌇' : '🌙'} الساعة</span>
+            <b className="tabular-nums text-dune" data-testid="hour-label">{formatHour(hour)}</b>
+          </div>
+          <input
+            type="range"
+            className="mt-1 w-full accent-[#c9973f]"
+            min={HOUR_MIN}
+            max={HOUR_MAX}
+            step={0.25}
+            value={hour}
+            onChange={(e) => setHour(parseFloat(e.target.value))}
+            aria-label="الساعة"
+            dir="ltr"
+          />
+          <div className="flex justify-between whitespace-nowrap text-[10px] text-sand-600" dir="ltr">
+            <span dir="rtl">{shortHour(HOUR_MIN)}</span>
+            <span dir="rtl">المغرب {shortHour(SUNSET)}</span>
+            <span dir="rtl">{shortHour(HOUR_MAX)}</span>
+          </div>
+        </div>
+      )}
       {time !== 'day' && (
-        <div className="pointer-events-auto absolute top-16 left-2 rounded-lg bg-white/95 p-1.5 text-xs shadow">
+        <div className="pointer-events-auto absolute top-[8.6rem] left-2 rounded-lg bg-white/95 p-1.5 text-xs shadow sm:top-16">
           <div className="mb-1 px-1 text-sand-700">جودة الإنارة</div>
           <Segmented size="sm" value={quality} onChange={setQuality} options={[{ value: 'low', label: 'منخفضة' }, { value: 'medium', label: 'متوسطة' }, { value: 'high', label: 'عالية' }]} />
         </div>

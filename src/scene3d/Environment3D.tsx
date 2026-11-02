@@ -8,38 +8,82 @@ import { groundTexture, fabricTexture } from './textures';
 import { useMat, scaledPlane, useGeometry } from './common';
 import { shade } from '../lib/color';
 import type { WorldInfo } from './world';
+import { PRESET_HOUR, sunAzimuth, sunElevation } from '../lib/sunclock';
 
 const SHADOW: [number, number] =
   typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches ? [1024, 1024] : [2048, 2048];
 
-/** اتجاه الشمس: عصر شتوي في قطر (سمت ~220°، ارتفاع ~32°) مع مراعاة اتجاه الشمال */
-export function sunDirection(northAngle: number, time: TimeOfDay): THREE.Vector3 {
-  const az = time === 'sunset' ? 245 : 215;
-  const el = time === 'sunset' ? 4 : time === 'night' ? 25 : 34;
+/** اتجاه من سمت وارتفاع (درجات) مع مراعاة اتجاه الشمال */
+function dirFrom(northAngle: number, az: number, el: number): THREE.Vector3 {
   const h = rotate({ x: 0, y: -1 }, northAngle + az);
   const ce = Math.cos(el * DEG);
   return new THREE.Vector3(h.x * ce, Math.sin(el * DEG), h.y * ce).normalize();
 }
 
-export function SceneLighting({ time, land, size }: { time: TimeOfDay; land: Land; size: number }) {
+/** اتجاه الشمس (للتوافق): عصر شتوي في قطر */
+export function sunDirection(northAngle: number, time: TimeOfDay): THREE.Vector3 {
+  const h = PRESET_HOUR[time];
+  return dirFrom(northAngle, sunAzimuth(h), time === 'night' ? 25 : Math.max(2, sunElevation(h)));
+}
+
+const C = (a: string) => new THREE.Color(a);
+const mix = (a: string, b: string, t: number) => C(a).lerp(C(b), Math.min(1, Math.max(0, t)));
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+
+/** إعدادات الإضاءة حسب الساعة: نهار ← مغرب ← غسق (قبل الليل) */
+export function daylight(hour: number) {
+  const el = sunElevation(hour);
+  const warm = clamp01((18 - el) / 18); // 0 نهار كامل، 1 الشمس على الأفق
+  const dusk = clamp01(-el / 6.5); // بعد المغرب
+  const hemiSky = mix('#cfe4ff', '#ffcf9e', warm).lerp(C('#4a5574'), dusk);
+  const hemiGround = mix('#d8b585', '#6b4a3a', warm).lerp(C('#1f1812'), dusk);
+  const hemiI = THREE.MathUtils.lerp(THREE.MathUtils.lerp(1.05, 0.55, warm), 0.3, dusk);
+  const sunI = THREE.MathUtils.lerp(THREE.MathUtils.lerp(2.7, 1.4, warm * warm), 0.08, dusk);
+  const sunColor = mix('#fff3df', '#ffa45c', warm);
+  const fog = mix('#e8dcc4', '#d49a72', warm).lerp(C('#2b2433'), dusk);
+  return {
+    el,
+    warm,
+    dusk,
+    hemiSky,
+    hemiGround,
+    hemiI,
+    sunI,
+    sunColor,
+    fog,
+    fogNear: THREE.MathUtils.lerp(140, 90, warm),
+    fogFar: THREE.MathUtils.lerp(THREE.MathUtils.lerp(1100, 800, warm), 600, dusk),
+    exposure: THREE.MathUtils.lerp(1.0, 1.05, warm) + dusk * 0.1,
+    turbidity: THREE.MathUtils.lerp(5, 9, warm),
+    rayleigh: THREE.MathUtils.lerp(1.1, 2.6, warm),
+    mie: THREE.MathUtils.lerp(0.005, 0.012, warm),
+  };
+}
+
+export function SceneLighting({ time, hour, land, size }: { time: TimeOfDay; hour: number; land: Land; size: number }) {
   const { scene, gl } = useThree();
-  const sun = useMemo(() => sunDirection(land.northAngle, time), [land.northAngle, time]);
+  const night = time === 'night';
+  const L = useMemo(() => daylight(hour), [hour]);
+  const az = sunAzimuth(hour);
+  const skySun = useMemo(() => dirFrom(land.northAngle, az, L.el), [land.northAngle, az, L.el]);
+  const sun = useMemo(() => dirFrom(land.northAngle, az, Math.max(2, L.el)), [land.northAngle, az, L.el]);
   const moon = useMemo(() => sunDirection(land.northAngle + 160, 'night'), [land.northAngle]);
   const shadowExtent = size / 2 + 12;
 
   useEffect(() => {
-    const cfg = {
-      day: { fog: '#e8dcc4', near: 140, far: 1100, exposure: 1.0, bg: null as string | null },
-      sunset: { fog: '#d49a72', near: 90, far: 800, exposure: 1.05, bg: null },
-      night: { fog: '#070b16', near: 50, far: 520, exposure: 1.15, bg: '#04060d' },
-    }[time];
-    scene.fog = new THREE.Fog(cfg.fog, cfg.near, cfg.far);
-    scene.background = cfg.bg ? new THREE.Color(cfg.bg) : null;
-    gl.toneMappingExposure = cfg.exposure;
-  }, [time, scene, gl]);
+    if (night) {
+      scene.fog = new THREE.Fog('#070b16', 50, 520);
+      scene.background = new THREE.Color('#04060d');
+      gl.toneMappingExposure = 1.15;
+    } else {
+      scene.fog = new THREE.Fog(L.fog, L.fogNear, L.fogFar);
+      scene.background = null;
+      gl.toneMappingExposure = L.exposure;
+    }
+  }, [night, L, scene, gl]);
 
   const dist = 260;
-  if (time === 'night') {
+  if (night) {
     return (
       <>
         <NightSky />
@@ -65,22 +109,21 @@ export function SceneLighting({ time, land, size }: { time: TimeOfDay; land: Lan
       </>
     );
   }
-  const sunset = time === 'sunset';
   return (
     <>
       <Sky
         distance={4500}
-        sunPosition={sun.clone().multiplyScalar(100).toArray()}
-        turbidity={sunset ? 9 : 5}
-        rayleigh={sunset ? 2.6 : 1.1}
-        mieCoefficient={sunset ? 0.012 : 0.005}
+        sunPosition={skySun.clone().multiplyScalar(100).toArray()}
+        turbidity={L.turbidity}
+        rayleigh={L.rayleigh}
+        mieCoefficient={L.mie}
         mieDirectionalG={0.85}
       />
-      <hemisphereLight args={[sunset ? '#ffcf9e' : '#cfe4ff', sunset ? '#6b4a3a' : '#d8b585', sunset ? 0.55 : 1.05]} />
+      <hemisphereLight args={[L.hemiSky, L.hemiGround, L.hemiI]} />
       <directionalLight
         position={sun.clone().multiplyScalar(dist).toArray()}
-        intensity={sunset ? 1.4 : 2.7}
-        color={sunset ? '#ffa45c' : '#fff3df'}
+        intensity={L.sunI}
+        color={L.sunColor}
         castShadow
         shadow-mapSize={SHADOW}
         shadow-camera-left={-shadowExtent}

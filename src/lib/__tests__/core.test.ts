@@ -51,3 +51,14 @@ describe('الاستيراد', () => {
     expect(plan.elements.length).toBe(1);
   });
 });
+
+import { formatHour, sunElevation, timeFromHour, PRESET_HOUR } from '../sunclock';
+describe('ساعة الشمس', () => {
+  it('المغرب ~4:45 والشمس تحت الأفق بعده', () => {
+    expect(Math.abs(sunElevation(16.75))).toBeLessThan(0.01);
+    expect(sunElevation(17)).toBeLessThan(0);
+    expect(sunElevation(13.5)).toBeGreaterThan(30);
+    expect(formatHour(16.75)).toBe('4:45 م');
+    for (const t of ['day', 'sunset', 'night'] as const) expect(timeFromHour(PRESET_HOUR[t])).toBe(t);
+  });
+});
