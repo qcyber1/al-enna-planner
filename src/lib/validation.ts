@@ -164,6 +164,8 @@ export function validatePlan(plan: Plan): ValidationResult {
       if (rule === 'ok') continue;
       if (!boundsIntersect(A.bounds, B.bounds)) continue;
       if (!shapesIntersect(A.shapes, B.shapes)) continue;
+      // مظلة السيارات فوق المواقف مسموحة
+      if ((A.el.kind === 'carport' && B.el.kind === 'parking') || (B.el.kind === 'carport' && A.el.kind === 'parking')) continue;
       // الأثاث داخل الخيمة مسموح
       if (A.cls === 'soft' && isTentKind(B.el.kind) && fullyInside(A.el, B.el)) continue;
       if (B.cls === 'soft' && isTentKind(A.el.kind) && fullyInside(B.el, A.el)) continue;

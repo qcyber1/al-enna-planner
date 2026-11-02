@@ -264,6 +264,110 @@ function Partition({ el }: P) {
   );
 }
 
+function Dakka({ el }: P) {
+  const w = el.width;
+  const d = el.depth;
+  const h = Math.max(0.4, Math.min(el.height, 1.2));
+  const top = h * 0.55;
+  const rug = useMat({ color: '#ffffff', map: carpetTexture(el.accent, '#1f3d2b'), roughness: 1 });
+  const n = Math.max(1, Math.round(w / 1.2));
+  return (
+    <group>
+      {/* القاعدة */}
+      <mesh position={[0, top / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[w, top, d]} />
+        <meshStandardMaterial color={el.color} roughness={0.9} />
+      </mesh>
+      {/* فرشة */}
+      <mesh position={[0, top + 0.06, 0.05]} material={rug} castShadow receiveShadow>
+        <boxGeometry args={[w - 0.1, 0.12, d - 0.25]} />
+      </mesh>
+      {/* مساند خلفية */}
+      {Array.from({ length: n }).map((_, i) => (
+        <mesh key={i} position={[-w / 2 + (w / n) * (i + 0.5), top + 0.32, -d / 2 + 0.2]} rotation={[-0.25, 0, 0]} castShadow>
+          <boxGeometry args={[(w / n) * 0.88, 0.45, 0.18]} />
+          <meshStandardMaterial color={shade(el.accent, 0.1)} roughness={1} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function Tannour({ el, night, lampsOn }: P) {
+  const r = Math.min(el.width, el.depth) / 2;
+  const h = el.height;
+  const lit = night && lampsOn;
+  return (
+    <group>
+      <mesh position={[0, h / 2, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[r * 0.62, r, h, 20]} />
+        <meshStandardMaterial color={el.color} roughness={1} />
+      </mesh>
+      <mesh position={[0, h + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[r * 0.4, 20]} />
+        <meshStandardMaterial color={lit ? '#ffb04a' : el.accent} emissive={lit ? '#ff7a1a' : '#000'} emissiveIntensity={lit ? 1.6 : 0} toneMapped={!lit} />
+      </mesh>
+      <mesh position={[0, 0.25, r * 0.86]}>
+        <boxGeometry args={[r * 0.5, 0.3, 0.1]} />
+        <meshStandardMaterial color="#2b1a10" />
+      </mesh>
+    </group>
+  );
+}
+
+function DieselTank({ el }: P) {
+  const w = el.width;
+  const d = el.depth;
+  const r = Math.min(d * 0.36, el.height * 0.4);
+  const len = w * 0.86;
+  return (
+    <group>
+      {/* حوض التسريب */}
+      <mesh position={[0, 0.12, 0]} receiveShadow castShadow>
+        <boxGeometry args={[w, 0.24, d]} />
+        <meshStandardMaterial color="#8d8d88" metalness={0.4} roughness={0.6} />
+      </mesh>
+      {[-len / 2 + 0.2, len / 2 - 0.2].map((x) => (
+        <mesh key={x} position={[x, 0.24 + 0.15, 0]}>
+          <boxGeometry args={[0.12, 0.3, d * 0.6]} />
+          <meshStandardMaterial color="#444" />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.54 + r, 0]} rotation={[0, 0, Math.PI / 2]} castShadow receiveShadow>
+        <cylinderGeometry args={[r, r, len, 20]} />
+        <meshStandardMaterial color={el.color} metalness={0.3} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 0.54 + 2 * r + 0.06, 0]}>
+        <cylinderGeometry args={[0.1, 0.1, 0.14, 10]} />
+        <meshStandardMaterial color={el.accent} />
+      </mesh>
+    </group>
+  );
+}
+
+function Carport({ el }: P) {
+  const w = el.width;
+  const d = el.depth;
+  const h = el.height;
+  const fab = useMat({ color: el.color, map: fabricTexture(), roughness: 0.9, side: THREE.DoubleSide });
+  const n = Math.max(1, Math.round(w / 3));
+  const slope = 0.35;
+  return (
+    <group>
+      {Array.from({ length: n + 1 }).flatMap((_, i) => {
+        const x = -w / 2 + (w / n) * i;
+        return [
+          <Pole key={`a${i}`} x={x} z={-d / 2 + 0.1} h={h} r={0.06} color={el.accent} />,
+          <Pole key={`b${i}`} x={x} z={d / 2 - 0.1} h={h - slope} r={0.06} color={el.accent} />,
+        ];
+      })}
+      <mesh position={[0, h - slope / 2 + 0.03, 0]} rotation={[-Math.atan2(slope, d), 0, 0]} material={fab} castShadow receiveShadow>
+        <boxGeometry args={[w + 0.3, 0.04, Math.hypot(d, slope) + 0.3]} />
+      </mesh>
+    </group>
+  );
+}
+
 export function Extra3D(props: P) {
   switch (props.el.kind) {
     case 'sleep-cabin':
@@ -280,6 +384,14 @@ export function Extra3D(props: P) {
       return <Kids {...props} />;
     case 'partition':
       return <Partition {...props} />;
+    case 'dakka':
+      return <Dakka {...props} />;
+    case 'tannour':
+      return <Tannour {...props} />;
+    case 'diesel-tank':
+      return <DieselTank {...props} />;
+    case 'carport':
+      return <Carport {...props} />;
     default:
       return null;
   }

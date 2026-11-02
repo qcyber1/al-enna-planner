@@ -347,6 +347,10 @@ export function costLines(s: Summary): CostLine[] {
     'screen',
     'kids-area',
     'partition',
+    'dakka',
+    'tannour',
+    'diesel-tank',
+    'carport',
   ];
   for (const k of pieceKinds) {
     if (s.counts[k] > 0) lines.push({ key: `kind:${k}`, label: kindLabel(k), unit: 'قطعة', qty: s.counts[k] });

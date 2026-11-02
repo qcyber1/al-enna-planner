@@ -62,3 +62,20 @@ describe('ساعة الشمس', () => {
     for (const t of ['day', 'sunset', 'night'] as const) expect(timeFromHour(PRESET_HOUR[t])).toBe(t);
   });
 });
+
+import { validatePlan as vp } from '../validation';
+import { createElement as ce } from '../catalog';
+import { createSamplePlan as csp } from '../sample';
+describe('عناصر جديدة: دكة، تنور، ديزل، مظلة سيارات', () => {
+  it('مظلة السيارات فوق المواقف بدون تنبيه، والعناصر تنضاف', () => {
+    const plan = csp();
+    const parking = plan.elements.find((e) => e.kind === 'parking')!;
+    const base = vp(plan).issues.length;
+    plan.elements.push(ce('carport', { x: parking.x, y: parking.y }, { rotation: parking.rotation }));
+    expect(vp(plan).issues.length).toBe(base);
+    for (const k of ['dakka', 'tannour', 'diesel-tank'] as const) {
+      const el = ce(k, { x: 3, y: 3 });
+      expect(el.width).toBeGreaterThan(0);
+    }
+  });
+});

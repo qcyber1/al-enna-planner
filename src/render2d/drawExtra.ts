@@ -180,6 +180,103 @@ function partition(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   outline(ctx, w, d, o);
 }
 
+function dakka(ctx: Ctx, el: PlanElement, o: DrawOpts) {
+  const w = el.width;
+  const d = el.depth;
+  ctx.fillStyle = 'rgba(60,40,20,0.16)';
+  ctx.fillRect(-w / 2 + 0.08, -d / 2 + 0.12, w, d);
+  ctx.fillStyle = el.color;
+  ctx.fillRect(-w / 2, -d / 2, w, d);
+  // مساند خلفية + دواوشك
+  ctx.fillStyle = el.accent;
+  ctx.fillRect(-w / 2, -d / 2, w, Math.min(0.35, d * 0.25));
+  const n = Math.max(1, Math.round(w / 1.2));
+  ctx.fillStyle = shade(el.accent, 0.25);
+  for (let i = 0; i < n; i++) {
+    const cx = -w / 2 + (w / n) * (i + 0.5);
+    ctx.fillRect(cx - (w / n) * 0.4, -d / 2 + Math.min(0.35, d * 0.25) + 0.05, (w / n) * 0.8, d * 0.45);
+  }
+  ctx.strokeStyle = shade(el.color, -0.4);
+  ctx.lineWidth = Math.max(px(o, 1), 0.02);
+  ctx.strokeRect(-w / 2, -d / 2, w, d);
+  label(ctx, 'دكة', 0, d * 0.28, o, 10);
+  outline(ctx, w, d, o);
+}
+
+function tannour(ctx: Ctx, el: PlanElement, o: DrawOpts) {
+  const w = el.width;
+  const d = el.depth;
+  ctx.fillStyle = el.color;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w / 2, d / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = shade(el.color, -0.35);
+  ctx.lineWidth = Math.max(px(o, 1.2), 0.02);
+  ctx.stroke();
+  const r = Math.min(w, d) * 0.22;
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+  g.addColorStop(0, o.night ? '#ffb04a' : '#3a2416');
+  g.addColorStop(1, el.accent);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  label(ctx, 'تنور', 0, d * 0.36, o, 9);
+  outline(ctx, w, d, o);
+}
+
+function dieselTank(ctx: Ctx, el: PlanElement, o: DrawOpts) {
+  const w = el.width;
+  const d = el.depth;
+  // حوض التسريب
+  ctx.fillStyle = '#8d8d88';
+  ctx.fillRect(-w / 2, -d / 2, w, d);
+  // الخزان الأسطواني (مسقط علوي)
+  const tw = w * 0.86;
+  const td = d * 0.72;
+  const g = ctx.createLinearGradient(0, -td / 2, 0, td / 2);
+  g.addColorStop(0, shade(el.color, 0.25));
+  g.addColorStop(0.5, el.color);
+  g.addColorStop(1, shade(el.color, -0.3));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.roundRect(-tw / 2, -td / 2, tw, td, td / 2);
+  ctx.fill();
+  ctx.fillStyle = el.accent;
+  ctx.fillRect(-0.12, -0.12, 0.24, 0.24);
+  label(ctx, 'ديزل', 0, 0, o, 10, '#fff');
+  outline(ctx, w, d, o);
+}
+
+function carport(ctx: Ctx, el: PlanElement, o: DrawOpts) {
+  const w = el.width;
+  const d = el.depth;
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = el.color;
+  ctx.fillRect(-w / 2, -d / 2, w, d);
+  ctx.restore();
+  ctx.strokeStyle = shade(el.color, -0.35);
+  ctx.lineWidth = Math.max(px(o, 0.8), 0.02);
+  for (let x = -w / 2 + 1.5; x < w / 2; x += 1.5) {
+    ctx.beginPath();
+    ctx.moveTo(x, -d / 2);
+    ctx.lineTo(x, d / 2);
+    ctx.stroke();
+  }
+  ctx.setLineDash([px(o, 6), px(o, 4)]);
+  ctx.strokeRect(-w / 2, -d / 2, w, d);
+  ctx.setLineDash([]);
+  ctx.fillStyle = el.accent;
+  const n = Math.max(1, Math.round(w / 3));
+  for (let i = 0; i <= n; i++) {
+    const x = -w / 2 + (w / n) * i;
+    for (const y of [-d / 2, d / 2]) ctx.fillRect(x - 0.1, y - 0.1, 0.2, 0.2);
+  }
+  label(ctx, 'مظلة سيارات', 0, -d / 2 + 0.45, o, 10);
+  outline(ctx, w, d, o);
+}
+
 export function drawExtra(ctx: Ctx, el: PlanElement, o: DrawOpts): boolean {
   switch (el.kind) {
     case 'sleep-cabin':
@@ -202,6 +299,18 @@ export function drawExtra(ctx: Ctx, el: PlanElement, o: DrawOpts): boolean {
       return true;
     case 'partition':
       partition(ctx, el, o);
+      return true;
+    case 'dakka':
+      dakka(ctx, el, o);
+      return true;
+    case 'tannour':
+      tannour(ctx, el, o);
+      return true;
+    case 'diesel-tank':
+      dieselTank(ctx, el, o);
+      return true;
+    case 'carport':
+      carport(ctx, el, o);
       return true;
   }
   return false;

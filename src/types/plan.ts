@@ -78,7 +78,11 @@ export type ElementKind =
   | 'prayer-area'
   | 'screen'
   | 'kids-area'
-  | 'partition';
+  | 'partition'
+  | 'dakka'
+  | 'tannour'
+  | 'diesel-tank'
+  | 'carport';
 
 export type TentStyle = 'majlis' | 'bedouin' | 'pyramid';
 export type Side = 'front' | 'back' | 'left' | 'right';
