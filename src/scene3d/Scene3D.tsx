@@ -35,7 +35,10 @@ import { safeFileName, shareOrDownload, stamp } from '../lib/files';
 import { saveThumbs } from '../lib/storage';
 
 const BUDGET = { low: 8, medium: 20, high: 40 };
+const MOBILE_BUDGET = { low: 6, medium: 12, high: 24 };
 const PROMO = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('promo');
+/** أجهزة اللمس الصغيرة (الجوال): دقة أقل لتوفير ذاكرة الآيفون */
+const MOBILE = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches && Math.min(window.innerWidth, window.innerHeight) < 900;
 
 interface ElProps {
   el: PlanElement;
@@ -312,7 +315,7 @@ export default function Scene3D() {
     <div className="relative h-full w-full bg-[#cfd9e3]" data-testid="scene-3d">
       <Canvas
         shadows
-        dpr={PROMO ? 1 : [1, 2]}
+        dpr={PROMO ? 1 : MOBILE ? [1, 1.5] : [1, 2]}
         frameloop={PROMO ? 'demand' : 'always'}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
         camera={{ fov: 50, near: 0.1, far: 4000, position: [30, 30, 40] }}
@@ -337,7 +340,7 @@ export default function Scene3D() {
               />
             </Placed>
           ))}
-          {lampsOn && <LightRig emitters={emitters} budget={BUDGET[quality]} w={w} />}
+          {lampsOn && <LightRig emitters={emitters} budget={(MOBILE ? MOBILE_BUDGET : BUDGET)[quality]} w={w} />}
           <CameraRig plan={plan} w={w} walking={walking} />
           {walking && <WalkControls plan={plan} w={w} move={move} />}
           <CaptureHandler />

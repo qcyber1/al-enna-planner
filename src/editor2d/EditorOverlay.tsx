@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Check,
   Grid3x3,
@@ -20,6 +21,8 @@ import {
   Copy,
   Lock,
   Unlock,
+  SlidersHorizontal,
+  MoreHorizontal,
 } from 'lucide-react';
 import { useEditor, usePlan } from '../store/editorStore';
 import { useViewport } from './viewport';
@@ -77,6 +80,7 @@ export function EditorOverlay({
   const requestFit = useViewport((s) => s.requestFit);
   const requestZoom = useViewport((s) => s.requestZoom);
   const lb = landBounds(plan.land);
+  const [more, setMore] = useState(false);
 
   const barM = niceScale(110 / scale);
   const barPx = barM * scale;
@@ -91,7 +95,11 @@ export function EditorOverlay({
               <t.icon size={17} />
             </IconButton>
           ))}
-          <span className="mx-1 h-6 w-px bg-sand-300" />
+          <IconButton label="خيارات العرض (الشبكة، الأبعاد، الإضاءة)" active={more} onClick={() => setMore(!more)} className="sm:hidden" data-testid="toolbar-more">
+            <MoreHorizontal size={17} />
+          </IconButton>
+          <div className={more ? 'flex basis-full flex-wrap items-center gap-1 border-t border-sand-200 pt-1 sm:contents' : 'hidden items-center gap-1 sm:contents'}>
+          <span className="mx-1 hidden h-6 w-px bg-sand-300 sm:block" />
           <IconButton label="إظهار الشبكة (G)" active={grid.show} onClick={() => setGrid({ show: !grid.show })}>
             <Grid3x3 size={17} />
           </IconButton>
@@ -132,6 +140,7 @@ export function EditorOverlay({
           >
             <Lightbulb size={17} />
           </IconButton>
+          </div>
         </div>
       </div>
 
@@ -178,7 +187,7 @@ export function EditorOverlay({
       )}
 
       {/* التكبير */}
-      <div className="pointer-events-auto absolute bottom-3 left-3 flex flex-col gap-1 rounded-xl border border-sand-300/80 bg-white/95 p-1 shadow-md">
+      <div className="pointer-events-auto absolute bottom-3 left-3 hidden flex-col gap-1 rounded-xl sm:flex border border-sand-300/80 bg-white/95 p-1 shadow-md">
         <IconButton label="تكبير" onClick={() => requestZoom(1.25)}>
           <ZoomIn size={17} />
         </IconButton>
@@ -191,7 +200,7 @@ export function EditorOverlay({
       </div>
 
       {/* مقياس الرسم والإحداثيات */}
-      <div className="absolute bottom-3 left-16 flex flex-col items-start gap-1">
+      <div className="absolute bottom-3 left-16 hidden flex-col items-start gap-1 sm:flex">
         <div className="rounded-md bg-white/90 px-2 py-1 shadow-sm" dir="ltr">
           <div className="flex h-2 border border-dune" style={{ width: barPx }}>
             <div className="h-full w-1/2 bg-dune" />
@@ -246,8 +255,11 @@ function SelectionBar() {
   const locked = els.every((e) => e.locked);
   const btn = 'flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-dune hover:bg-sand-100 active:scale-95';
   return (
-    <div className="pointer-events-auto absolute bottom-16 right-1/2 flex translate-x-1/2 items-center gap-0.5 rounded-2xl border border-sand-300 bg-white/97 p-1 shadow-xl" data-testid="selection-bar">
+    <div className="pointer-events-auto absolute bottom-[4.5rem] right-1/2 flex max-w-[96vw] translate-x-1/2 items-center gap-0.5 rounded-2xl border border-sand-300 bg-white/97 p-1 shadow-xl" data-testid="selection-bar">
       <span className="max-w-28 truncate px-2 text-[12px] font-bold text-sand-700">{els.length > 1 ? `${els.length} عناصر` : els[0].name}</span>
+      <button type="button" className={btn + ' lg:hidden'} onClick={() => window.dispatchEvent(new CustomEvent('enna-open-props'))} data-testid="sel-edit">
+        <SlidersHorizontal size={17} /> تعديل
+      </button>
       <button type="button" className={btn} onClick={() => st.rotateElements(selection, 90)} disabled={locked}>
         <RotateCw size={17} /> تدوير
       </button>

@@ -9,6 +9,9 @@ import { useMat, scaledPlane, useGeometry } from './common';
 import { shade } from '../lib/color';
 import type { WorldInfo } from './world';
 
+const SHADOW: [number, number] =
+  typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches ? [1024, 1024] : [2048, 2048];
+
 /** اتجاه الشمس: عصر شتوي في قطر (سمت ~220°، ارتفاع ~32°) مع مراعاة اتجاه الشمال */
 export function sunDirection(northAngle: number, time: TimeOfDay): THREE.Vector3 {
   const az = time === 'sunset' ? 245 : 215;
@@ -79,7 +82,7 @@ export function SceneLighting({ time, land, size }: { time: TimeOfDay; land: Lan
         intensity={sunset ? 1.4 : 2.7}
         color={sunset ? '#ffa45c' : '#fff3df'}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={SHADOW}
         shadow-camera-left={-shadowExtent}
         shadow-camera-right={shadowExtent}
         shadow-camera-top={shadowExtent}

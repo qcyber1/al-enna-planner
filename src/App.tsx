@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { PanelRight, PanelLeft, X } from 'lucide-react';
 import { TopBar } from './components/TopBar';
+import { MobileTopBar } from './components/MobileTopBar';
 import { Library } from './components/Library';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { DesignsDialog, HelpDialog, LandDialog, ProjectsDialog, ShareDialog, SharedLinkDialog, SummaryDialog, WelcomeDialog } from './components/Dialogs';
@@ -26,6 +27,7 @@ export default function App() {
   const selection = useEditor((s) => s.selection);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const isPhone = !useMediaQuery('(min-width: 640px)');
+  const isNarrow = !useMediaQuery('(min-width: 900px)');
   const [libOpen, setLibOpen] = useState(false);
   const [propsOpen, setPropsOpen] = useState(false);
   useShortcuts();
@@ -46,14 +48,20 @@ export default function App() {
     clearShareHash();
   }, []);
   useEffect(() => {
-    if (!isDesktop && selection.length) setPropsOpen(true);
-  }, [selection, isDesktop]);
+    // في الجوال لا نفتح الخصائص تلقائياً — الشريط السريع يظهر وزر «تعديل» يفتحها
+    const open = () => setPropsOpen(true);
+    window.addEventListener('enna-open-props', open);
+    return () => window.removeEventListener('enna-open-props', open);
+  }, []);
+  useEffect(() => {
+    if (!selection.length) setPropsOpen(false);
+  }, [selection.length]);
 
   const effectiveView = view === 'split' && !isDesktop ? '2d' : view;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <TopBar compact={isPhone} />
+      {isNarrow ? <MobileTopBar /> : <TopBar compact={isPhone} />}
       <div className="relative flex min-h-0 flex-1">
         {/* مكتبة العناصر (يمين في الواجهة العربية) */}
         {isDesktop ? (
@@ -83,8 +91,8 @@ export default function App() {
             </div>
           )}
           {!isDesktop && (
-            <div className="no-print absolute bottom-3 right-3 z-10 flex flex-col gap-2">
-              <button type="button" onClick={() => setLibOpen(true)} className="flex items-center gap-1 rounded-full bg-dune px-3 py-2 text-sm text-sand-50 shadow-lg">
+            <div className="no-print absolute right-3 z-10 flex gap-2" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
+              <button type="button" onClick={() => setLibOpen(true)} className="flex items-center gap-1 rounded-full bg-dune px-3 py-2 text-sm text-sand-50 shadow-lg" data-testid="open-library">
                 <PanelRight size={16} /> العناصر
               </button>
               <button type="button" onClick={() => setPropsOpen(true)} className="flex items-center gap-1 rounded-full bg-white px-3 py-2 text-sm text-dune shadow-lg">
