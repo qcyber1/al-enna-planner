@@ -112,7 +112,8 @@ export function turfTexture(): THREE.Texture {
   return cached('turf', () => {
     const size = 512;
     const [c, ctx] = makeCanvas(size, size);
-    ctx.fillStyle = '#3f8a2c';
+    // أخضر عشب صناعي فاتح (نهاري) — كان غامق جداً
+    ctx.fillStyle = '#5cae3e';
     ctx.fillRect(0, 0, size, size);
     const r = rng(5);
     for (let i = 0; i < 26000; i++) {
@@ -120,8 +121,8 @@ export function turfTexture(): THREE.Texture {
       const y = r() * size;
       const l = 3 + r() * 7;
       const a = -Math.PI / 2 + (r() - 0.5) * 0.9;
-      const g = 110 + r() * 90;
-      ctx.strokeStyle = `rgba(${40 + r() * 50},${g},${25 + r() * 35},${0.55 + r() * 0.4})`;
+      const g = 150 + r() * 80;
+      ctx.strokeStyle = `rgba(${70 + r() * 60},${g},${35 + r() * 40},${0.5 + r() * 0.4})`;
       ctx.lineWidth = 0.8 + r() * 0.8;
       ctx.beginPath();
       ctx.moveTo(x, y);
@@ -129,7 +130,7 @@ export function turfTexture(): THREE.Texture {
       ctx.stroke();
     }
     // خطوط تصنيع خفيفة
-    ctx.fillStyle = 'rgba(0,0,0,0.05)';
+    ctx.fillStyle = 'rgba(0,0,0,0.035)';
     for (let x = 0; x < size; x += 16) ctx.fillRect(x, 0, 2, size);
     return finish('turf', c);
   });

@@ -135,6 +135,21 @@ export function pathRibbonGeometry(
     side.push(a.x, 0, a.y, b.x, thickness, b.y, b.x, 0, b.y);
     sideUv.push(0, 0, 1, 1, 1, 0);
   }
+  // اتجاه اللف: الوجه الأمامي لازم يطالع فوق، وإلا مع DoubleSide ينقلب الناظم ويطلع السطح غامق
+  for (let i = 0; i < top.length; i += 9) {
+    const ax = top[i + 3] - top[i], az = top[i + 5] - top[i + 2];
+    const bx = top[i + 6] - top[i], bz = top[i + 8] - top[i + 2];
+    // مركبة y من (b − a) × (c − a)
+    if (az * bx - ax * bz < 0) {
+      for (let k = 0; k < 3; k++) {
+        const t = top[i + 3 + k]; top[i + 3 + k] = top[i + 6 + k]; top[i + 6 + k] = t;
+      }
+      const j = (i / 9) * 6;
+      for (let k = 0; k < 2; k++) {
+        const t = topUv[j + 2 + k]; topUv[j + 2 + k] = topUv[j + 4 + k]; topUv[j + 4 + k] = t;
+      }
+    }
+  }
   const gt = new THREE.BufferGeometry();
   gt.setAttribute('position', new THREE.Float32BufferAttribute(top, 3));
   gt.setAttribute('uv', new THREE.Float32BufferAttribute(topUv, 2));

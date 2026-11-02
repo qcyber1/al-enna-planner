@@ -29,9 +29,9 @@ export const Path3D = memo(function Path3D({ el, lampsOn }: { el: PlanElement; l
     },
     [geo],
   );
-  const topMat = useMat({ color: p.material === 'sand' ? '#f0dcae' : p.material === 'turf' || p.material === 'wood-turf' ? '#c4f59a' : '#ffffff', map: tex, roughness: p.material === 'tiles' ? 0.7 : 1, side: THREE.DoubleSide });
+  const topMat = useMat({ color: p.material === 'sand' ? '#f0dcae' : '#ffffff', map: tex, roughness: p.material === 'tiles' ? 0.7 : 1, side: THREE.DoubleSide });
   const sideMat = useMat({
-    color: p.material === 'wood-turf' ? '#ffffff' : p.material === 'turf' ? '#2f6a22' : '#a89a86',
+    color: p.material === 'wood-turf' ? '#ffffff' : p.material === 'turf' ? '#4f9634' : '#a89a86',
     map: p.material === 'wood-turf' ? woodTexture() : null,
     roughness: 0.9,
     side: THREE.DoubleSide,
