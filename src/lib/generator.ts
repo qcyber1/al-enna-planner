@@ -8,7 +8,9 @@ import {
   dist,
   dot,
   entranceInfo,
+  landEdges,
   landPolygon,
+  lerp,
   localToWorld,
   polygonInside,
   rectCorners,
@@ -277,12 +279,36 @@ function build(land: Land, input: GenInput, s: Strategy): GenResult {
   const mW = big >= 40 ? 12 : big >= 30 ? 10 : 8;
   const mD = big >= 40 ? 7 : big >= 30 ? 6.5 : 5.5;
   const majlis = mk('main-tent', { name: 'المجلس الرئيسي', width: mW, depth: mD });
+  // العنة البحرية: المجلس قريب من البحر وقدامه جلسة تطل على البحر
+  const entEdge = entranceInfo(land).edge;
+  const seaIdx = (land.surroundings ?? []).findIndex((k, i) => k === 'sea' && i !== entEdge);
+  const seaEdge = seaIdx >= 0 ? landEdges(land)[seaIdx] : null;
   if (input.tents >= 1) {
-    const want = at(f, s.anchors.majlis);
-    majlis.rotation = faceToward(want, s.yard.v < s.anchors.majlis.v ? add(want, scale(f.n, -1)) : yard, f);
+    let want = at(f, s.anchors.majlis);
+    if (seaEdge) {
+      const mid = lerp(seaEdge.a, seaEdge.b, 0.5);
+      // نحافظ على الإزاحة الجانبية للاستراتيجية حتى تختلف الأفكار الخمس
+      const lateral = (s.anchors.majlis.u * 0.35) * seaEdge.length;
+      want = add(add(mid, scale(seaEdge.dir, lateral)), scale(seaEdge.inward, mD / 2 + 7.5));
+      majlis.rotation = faceToward(want, add(want, seaEdge.inward), f);
+    } else {
+      majlis.rotation = faceToward(want, s.yard.v < s.anchors.majlis.v ? add(want, scale(f.n, -1)) : yard, f);
+    }
     if (!placeNear(P, majlis, want, 1.5)) skipped.push(majlis.name);
   }
   const hasMajlis = P.els.includes(majlis);
+  if (seaEdge && hasMajlis) {
+    // جلسة البحر: مظلة وسجاد بين المجلس والبحر، مفتوحة باتجاه البحر
+    const behind = localToWorld(majlis, { x: 0, y: -mD / 2 - 3.4 });
+    const seaRot = faceToward(behind, add(behind, scale(seaEdge.inward, -1)), f);
+    const canopy = mk('canopy', { name: 'جلسة البحر', width: Math.min(8, mW - 2), depth: 4.6, rotation: seaRot });
+    if (placeNear(P, canopy, behind, 0.6, 6)) {
+      const rug = mk('majlis-rug', { name: 'جلسة على البحر', width: canopy.width - 0.8, depth: 4, rotation: seaRot });
+      rug.x = canopy.x;
+      rug.y = canopy.y;
+      P.els.push(rug);
+    } else skipped.push('جلسة البحر');
+  }
 
   // 2) الممر الرئيسي من المدخل إلى المجلس + حجزه
   let pathPts: Vec2[] = [];
@@ -442,5 +468,9 @@ function build(land: Land, input: GenInput, s: Strategy): GenResult {
 
 /** يولّد عدة أفكار توزيع مختلفة لنفس المتطلبات */
 export function generateDesigns(land: Land, input: GenInput): GenResult[] {
-  return STRATEGIES.map((s) => build(land, input, s));
+  const sea = (land.surroundings ?? []).some((k, i) => k === 'sea' && i !== entranceInfo(land).edge);
+  return STRATEGIES.map((s) => {
+    const r = build(land, input, s);
+    return sea ? { ...r, description: r.description + ' — والمجلس يطل على البحر مع جلسة بحرية' } : r;
+  });
 }

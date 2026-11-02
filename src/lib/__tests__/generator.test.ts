@@ -20,3 +20,20 @@ describe('مولّد التصاميم', () => {
     expect(res).toHaveLength(5);
   });
 });
+
+describe('العنة البحرية', () => {
+  it('المجلس قريب من البحر وفيه جلسة تطل عليه بدون تداخلات', () => {
+    const land = { ...defaultLand(), surroundings: ['sea', 'open', 'open', 'open'] as ('sea' | 'open')[] };
+    const res = generateDesigns(land, { ...DEFAULT_GEN, tents: 3 });
+    for (const r of res) {
+      const m = r.plan.elements.find((e) => e.kind === 'main-tent' && e.name === 'المجلس الرئيسي')!;
+      const sea = r.plan.elements.find((e) => e.name === 'جلسة البحر');
+      console.log('بحر:', r.title, 'y المجلس', m.y, 'جلسة', !!sea, 'تنبيهات', r.issues, r.skipped.join('،'));
+      // البحر في الجهة الخلفية (y = 0): المجلس في النصف الخلفي
+      expect(m.y).toBeLessThan(25);
+      expect(sea).toBeTruthy();
+      expect(sea!.y).toBeLessThan(m.y);
+      expect(r.issues).toBe(0);
+    }
+  });
+});
