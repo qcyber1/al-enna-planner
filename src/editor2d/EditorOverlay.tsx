@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { WIND_FROM } from '../lib/wind';
 import {
   Check,
   Grid3x3,
@@ -226,6 +227,18 @@ export function EditorOverlay({
             <path d="M8 28 L14 14 L8 17 L2 14 Z" fill="#3b2a1e" />
           </svg>
         </div>
+      </div>
+
+      {/* ريح الشمال السائدة: السهم يبيّن وين تروح الريح */}
+      <div
+        className="absolute top-16 left-[4.5rem] flex h-14 w-14 flex-col items-center justify-center rounded-full border border-sky-200 bg-white/90 shadow"
+        title="الريح السائدة شتاءً (الشمال): تهب من الشمال/الشمال الغربي"
+        data-testid="wind-arrow"
+      >
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden style={{ transform: `rotate(${plan.land.northAngle + WIND_FROM + 180}deg)` }}>
+          <path d="M15 3 L21 11 L17 11 L17 27 L13 27 L13 11 L9 11 Z" fill="#2f7fb5" />
+                  </svg>
+        <span className="-mt-0.5 text-[9px] font-bold leading-none text-sky-800">الريح</span>
       </div>
 
       {/* مفتاح خريطة الإضاءة */}

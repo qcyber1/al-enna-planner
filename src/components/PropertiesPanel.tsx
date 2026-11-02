@@ -1,6 +1,6 @@
 import { AlertTriangle, Copy, Lock, Trash2, Unlock, ArrowUpToLine, ArrowDownToLine, RotateCcw, RotateCw, Plus, Ruler } from 'lucide-react';
 import type { PlanElement } from '../types/plan';
-import { useEditor, usePlan } from '../store/editorStore';
+import { getPlan, useEditor, usePlan } from '../store/editorStore';
 import { useValidation } from '../hooks/useDerived';
 import {
   CATALOG_BY_KIND,
@@ -30,6 +30,8 @@ import {
 import { estimateWoodTurf, DEFAULT_ESTIMATE } from '../lib/quantities';
 import { aimRotation } from '../lib/sample';
 import { stringBulbs } from '../lib/lighting';
+import { windNotes, type WindNote } from '../lib/wind';
+import { useMemo } from 'react';
 import { Button, ColorInput, Field, NumberInput, Section, Select, TextInput, Toggle, cx } from './ui';
 
 function useEl(): PlanElement[] {
@@ -90,6 +92,7 @@ function NothingSelected() {
           </ul>
         )}
       </Section>
+      <WindSection />
       <Section title={`القياسات (${plan.measurements.length})`}>
         {plan.measurements.length === 0 && <p className="text-[12px] text-sand-600">استخدم أداة القياس <Ruler size={12} className="inline" /> لقياس أي مسافة على المخطط.</p>}
         {plan.measurements.map((m, i) => (
@@ -169,6 +172,7 @@ function SingleElement({ el }: { el: PlanElement }) {
   const upd = (patch: Partial<PlanElement>, key?: string) => st.updateElement(el.id, patch, { mergeKey: key ? `${el.id}:${key}` : undefined });
   const dis = el.locked;
   const issues = v.byElement.get(el.id) ?? [];
+  const wind = useMemo(() => windNotes(plan).find((n) => n.elementId === el.id), [plan, el.id]);
   const lb = landBounds(plan.land);
 
   // المسافات
@@ -214,6 +218,12 @@ function SingleElement({ el }: { el: PlanElement }) {
               <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {i.message}
             </div>
           ))}
+        </div>
+      )}
+
+      {wind && (
+        <div className="border-b border-sand-200 px-4 py-2" data-testid="wind-note-el">
+          <WindNoteRow note={wind} disabled={dis} />
         </div>
       )}
 
@@ -461,5 +471,48 @@ function LightSection({ el, upd }: { el: PlanElement; upd: Upd }) {
       )}
       <p className="text-[11px] text-sand-600">بدّل إلى «ليل» لمشاهدة تأثير الإنارة، أو فعّل خريطة الإضاءة في المخطط 2D.</p>
     </Section>
+  );
+}
+
+/** ريح الشمال: ملاحظات معلوماتية على مداخل الخيام */
+function WindSection() {
+  const plan = usePlan();
+  const notes = useMemo(() => windNotes(plan), [plan]);
+  const hasTents = plan.elements.some((e) => e.tent);
+  if (!hasTents) return null;
+  return (
+    <Section title="🌬️ ريح الشمال">
+      {notes.length === 0 ? (
+        <div className="rounded-lg bg-sky-50 p-2.5 text-[12px] leading-relaxed text-sky-900" data-testid="wind-ok">
+          ✓ ما في مدخل خيمة بوجه ريح الشمال (تهب من الشمال/الشمال الغربي).
+        </div>
+      ) : (
+        <ul className="space-y-1.5" data-testid="wind-notes">
+          {notes.map((n) => (
+            <li key={n.elementId}>
+              <WindNoteRow note={n} showSelect />
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
+function WindNoteRow({ note, showSelect, disabled }: { note: WindNote; showSelect?: boolean; disabled?: boolean }) {
+  const st = useEditor.getState();
+  const apply = () => {
+    const cur = getPlan().elements.find((e) => e.id === note.elementId);
+    if (!cur?.tent || cur.locked) return;
+    st.updateElement(cur.id, { tent: { ...cur.tent, entranceSide: note.bestSide, entranceOffset: 0 } });
+  };
+  return (
+    <div className="rounded-lg bg-sky-50 p-2 text-[12px] leading-relaxed text-sky-900">
+      <div>🌬️ {note.message}</div>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        <Button size="sm" disabled={disabled} onClick={apply} data-testid="wind-fix">حوّل المدخل جهة {note.bestFacing}</Button>
+        {showSelect && <Button size="sm" variant="ghost" onClick={() => st.select([note.elementId])}>اختر الخيمة</Button>}
+      </div>
+    </div>
   );
 }

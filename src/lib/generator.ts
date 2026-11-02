@@ -20,6 +20,7 @@ import {
 } from './geometry';
 import { aimRotation } from './sample';
 import { validatePlan } from './validation';
+import { windNotes } from './wind';
 
 export interface GenInput {
   /** عدد الخيام الكلي (الأولى هي المجلس الرئيسي) */
@@ -479,7 +480,18 @@ function build(land: Land, input: GenInput, s: Strategy): GenResult {
   }
 
   const plan: Plan = { land: JSON.parse(JSON.stringify(land)) as Land, elements: els, measurements: [] };
-  return { title: s.title, description: s.description, plan, skipped, issues: validatePlan(plan).issues.length };
+  // مداخل الخيام بعيد عن ريح الشمال إذا ما يسبب تعارض جديد
+  let issues = validatePlan(plan).issues.length;
+  for (const n of windNotes(plan)) {
+    const el = plan.elements.find((e) => e.id === n.elementId);
+    if (!el?.tent) continue;
+    const prev = el.tent;
+    el.tent = { ...prev, entranceSide: n.bestSide, entranceOffset: 0 };
+    const now = validatePlan(plan).issues.length;
+    if (now > issues) el.tent = prev;
+    else issues = now;
+  }
+  return { title: s.title, description: s.description, plan, skipped, issues };
 }
 
 /** يولّد عدة أفكار توزيع مختلفة لنفس المتطلبات */
