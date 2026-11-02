@@ -37,3 +37,17 @@ describe('العنة البحرية', () => {
     }
   });
 });
+
+describe('كشافات الملعب', () => {
+  it('كل فكرة فيها ملعب تحصل على 4 كشافات بدون تنبيهات', () => {
+    for (const land of [defaultLand(), { ...defaultLand(), surroundings: ['sea', 'open', 'open', 'open'] as ('sea' | 'open')[] }]) {
+      for (const r of generateDesigns(land, { ...DEFAULT_GEN, tents: 4 })) {
+        if (!r.plan.elements.some((e) => e.kind === 'volleyball')) continue;
+        const floods = r.plan.elements.filter((e) => e.kind === 'flood-light').length;
+        console.log('كشافات:', r.title, floods, 'تنبيهات', r.issues);
+        expect(floods).toBe(4);
+        expect(r.issues).toBe(0);
+      }
+    }
+  });
+});

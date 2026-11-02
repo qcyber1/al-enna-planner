@@ -27,7 +27,7 @@ export default function App() {
   const selection = useEditor((s) => s.selection);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const isPhone = !useMediaQuery('(min-width: 640px)');
-  const isNarrow = !useMediaQuery('(min-width: 900px)');
+  const isNarrow = !useMediaQuery('(min-width: 1200px)');
   const [libOpen, setLibOpen] = useState(false);
   const [propsOpen, setPropsOpen] = useState(false);
   useShortcuts();

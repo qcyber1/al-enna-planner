@@ -453,12 +453,28 @@ function build(land: Land, input: GenInput, s: Strategy): GenResult {
       [-court.width / 2 + 2, court.depth / 2 + m],
       [court.width / 2 - 2, court.depth / 2 + m],
     ]) {
-      const p = localToWorld(court, { x: lx, y: ly });
-      const fl = createElement('flood-light', p, { name: 'كشاف الملعب', rotation: aimRotation(p, { x: court.x, y: court.y }) });
-      if (fits(P, fl, 0.1, 0)) {
+      const want = localToWorld(court, { x: lx, y: ly });
+      const center = { x: court.x, y: court.y };
+      const fl = createElement('flood-light', want, { name: 'كشاف الملعب' });
+      // أقرب نقطة صالحة (خارج منطقة الأمان وداخل الأرض) حول الموضع المثالي
+      let placed = false;
+      for (let r = 0; r <= 9 && !placed; r += 0.5) {
+        const n = r === 0 ? 1 : Math.max(8, Math.round((2 * Math.PI * r) / 0.5));
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * Math.PI * 2;
+          fl.x = round(want.x + Math.cos(a) * r, 2);
+          fl.y = round(want.y + Math.sin(a) * r, 2);
+          if (fits(P, fl, 0.1, 0)) {
+            placed = true;
+            break;
+          }
+        }
+      }
+      if (placed) {
+        fl.rotation = aimRotation({ x: fl.x, y: fl.y }, center);
         P.occupied.push(rectCorners(fl.x, fl.y, fl.width, fl.depth, 0));
         els.push(fl);
-      }
+      } else skipped.push('كشاف الملعب');
     }
   }
 
