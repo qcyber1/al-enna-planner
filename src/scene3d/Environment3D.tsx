@@ -154,8 +154,17 @@ export const Ground3D = memo(function Ground3D({ land, w }: { land: Land; w: Wor
       const d = 180 + rnd() * 380;
       arr.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, sx: 40 + rnd() * 90, sy: 6 + rnd() * 16, sz: 25 + rnd() * 50, r: rnd() * Math.PI });
     }
-    return arr;
-  }, []);
+    // إخفاء الكثبان الواقعة في جهة البحر (حتى ما تطلع فوق الماء)
+    const seaSides = landEdges(land)
+      .map((e, i) => ({ e, k: land.surroundings?.[i] }))
+      .filter((x) => x.k === 'sea')
+      .map(({ e }) => {
+        const mid = lerp(e.a, e.b, 0.5);
+        return { mx: mid.x - w.ox, mz: mid.y - w.oy, ox: -e.inward.x, oz: -e.inward.y };
+      });
+    if (!seaSides.length) return arr;
+    return arr.filter((d) => seaSides.every((sd) => (d.x - sd.mx) * sd.ox + (d.z - sd.mz) * sd.oz < -Math.max(d.sx, d.sz)));
+  }, [land, w.ox, w.oy]);
 
   return (
     <group>
