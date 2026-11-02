@@ -51,3 +51,18 @@ describe('كشافات الملعب', () => {
     }
   });
 });
+
+import { TEMPLATES, buildTemplate } from '../templates';
+import { validatePlan } from '../validation';
+describe('القوالب الجاهزة', () => {
+  it('كل قالب يطلع مخطط بدون تنبيهات وبمقاس أرضه', () => {
+    for (const t of TEMPLATES) {
+      const plan = buildTemplate(t);
+      expect(plan.elements.length).toBeGreaterThan(5);
+      expect(validatePlan(plan).issues).toHaveLength(0);
+      expect(plan.land.width).toBe(t.id === 'family' ? 25 : 50);
+    }
+    const sea = buildTemplate(TEMPLATES[2]);
+    expect(sea.land.surroundings?.[0]).toBe('sea');
+  });
+});

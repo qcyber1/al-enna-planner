@@ -15,11 +15,21 @@ import { createSamplePlan, defaultLand, emptyPlan } from '../lib/sample';
 import { loadThumbs } from '../lib/storage';
 import { validatePlan } from '../lib/validation';
 import { useViewport } from '../editor2d/viewport';
+import { TEMPLATES, buildTemplate, type Template } from '../lib/templates';
 
 // ——— الترحيب ———
 export function WelcomeDialog() {
   const open = useEditor((s) => s.dialog === 'welcome');
   const openDialog = useEditor((s) => s.openDialog);
+  const applyTemplate = (t: Template) => {
+    const st = useEditor.getState();
+    const plan = buildTemplate(t);
+    st.addDesign(t.title, 'blank');
+    st.setPlan(() => plan, { history: false });
+    openDialog(null);
+    setTimeout(() => useViewport.getState().requestFit(), 60);
+    st.toast(`تم فتح قالب «${t.title}» — عدّل عليه براحتك`, 'success');
+  };
   return (
     <Modal open={open} onClose={() => openDialog(null)} title="أهلاً بك في مخطط العنة ⛺">
       <div className="space-y-4 p-5">
@@ -33,6 +43,24 @@ export function WelcomeDialog() {
         <Button variant="gold" className="h-12 w-full text-base" onClick={() => openDialog('generator')} data-testid="welcome-generator">
           <Sparkles size={18} /> صمّم لي عنتي تلقائياً (5 أفكار)
         </Button>
+        <div>
+          <div className="mb-1.5 text-[13px] font-bold text-dune">أو ابدأ من قالب جاهز:</div>
+          <div className="grid grid-cols-3 gap-2">
+            {TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => applyTemplate(t)}
+                data-testid={`tpl-${t.id}`}
+                className="flex flex-col items-center gap-1 rounded-xl border border-sand-300 bg-white p-2.5 text-center transition hover:border-gold-500 hover:bg-sand-50"
+              >
+                <span className="text-2xl leading-none">{t.icon}</span>
+                <span className="text-[13px] font-bold leading-tight text-dune">{t.title}</span>
+                <span className="hidden text-[11px] leading-snug text-sand-600 sm:block">{t.blurb}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <Button variant="primary" onClick={() => openDialog(null)} data-testid="welcome-sample">
             <Sparkles size={16} /> استكشف المثال الجاهز
