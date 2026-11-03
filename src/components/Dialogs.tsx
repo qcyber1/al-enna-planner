@@ -17,6 +17,7 @@ import { validatePlan } from '../lib/validation';
 import { useViewport } from '../editor2d/viewport';
 import { TEMPLATES, buildTemplate, type Template } from '../lib/templates';
 import { openReport } from '../lib/report';
+import { DEV_LINE, OWNER_LINE } from '../lib/brand';
 import { markBackup } from './BackupNudge';
 
 // ——— الترحيب ———
@@ -691,6 +692,7 @@ export function HelpDialog() {
         </table>
         <p className="mt-3 text-[12px] text-sand-600">في 3D: اسحب للدوران، العجلة للتكبير، زر الفأرة الأيمن للتحريك. وضع التجول: W A S D مع الماوس.</p>
         <p className="mt-1 text-[12px] text-sand-600">{activeDesign(useEditor.getState().project).plan.elements.length} عنصر في التصميم الحالي • يتم الحفظ تلقائياً في هذا المتصفح.</p>
+        <p className="mt-3 border-t border-sand-200 pt-2 text-[12px] text-sand-700" data-testid="owner-help"><b>{DEV_LINE}</b><br />{OWNER_LINE}</p>
       </div>
     </Modal>
   );

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DEV_LINE, OWNER_LINE } from '../lib/brand';
 import {
   Menu,
   ClipboardCheck,
@@ -155,6 +156,7 @@ export function MobileTopBar() {
                 <HelpCircle size={19} /> المساعدة
               </button>
             </div>
+            <p className="mt-auto px-2 pt-3 text-center text-[11px] leading-relaxed text-sand-600">{DEV_LINE}<br />{OWNER_LINE}</p>
           </div>
         </div>
       )}

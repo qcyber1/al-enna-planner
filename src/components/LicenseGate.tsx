@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { DEV_LINE, OWNER_AR, OWNER_EN, OWNER_LINE } from '../lib/brand';
 import { checkEmail, checkName, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2 } from 'lucide-react';
 
@@ -282,9 +283,11 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               {busy && <Loader2 size={18} className="animate-spin" />} {info.online ? 'ادفع الآن (سكيب كاش)' : 'اطلب الآن'}
             </button>
             <p className="text-center text-[11px] text-sand-600">{info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.'}</p>
+            <p className="text-center text-[11px] text-sand-600" data-testid="seller-note">البائع: {OWNER_AR} ({OWNER_EN}) — وهذا الاسم اللي بيطلع في إيصال الدفع.</p>
           </form>
         )}
         </div>
+        <p className="mt-3 text-center text-[11px] leading-relaxed text-sand-300" data-testid="owner-footer">{DEV_LINE}<br />{OWNER_LINE}</p>
       </div>
     </div>
   );

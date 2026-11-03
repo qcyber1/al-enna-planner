@@ -3,6 +3,7 @@ import type { Project, Design } from '../types/plan';
 import { computeSummary, costLines, DEFAULT_ESTIMATE } from './quantities';
 import { renderPlanCanvas, dateLabel } from '../render2d/exportImage';
 import { loadThumbs } from './storage';
+import { DEV_LINE, OWNER_LINE } from './brand';
 import { formatArea, formatMeters, formatNumber, round } from './geometry';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -63,6 +64,7 @@ ${tents ? `<b style="font-size:13px">الخيام</b><ul>${tents}</ul>` : ''}
 <tbody>${rows || '<tr><td colspan="5">ما في بنود</td></tr>'}</tbody>
 <tfoot><tr><td colspan="4">الإجمالي التقديري${total ? '' : ' (ما انكتبت أسعار)'}</td><td class="n">${money(total)}</td></tr></tfoot></table>
 <p class="note">الكميات محسوبة تلقائياً من المخطط والأسعار مكتوبة من صاحب العنة — للتقدير فقط، والمقاسات النهائية تتأكد في الموقع.</p>
+<p class="note" style="border-top:1px solid #eee3cc;padding-top:6px">${esc(DEV_LINE)} • ${esc(OWNER_LINE)}</p>
 </body></html>`;
 }
 
