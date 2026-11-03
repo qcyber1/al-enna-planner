@@ -164,3 +164,13 @@ test('ملفات الموقع تنضغط (br/gzip) إذا موجودة', async (
   // الـ API ما ينضغط ولا يتأثر
   assert.equal((await api('/api/status')).status, 200);
 });
+
+test('سكربت لوحة الإدارة سليم (بدون أخطاء صياغة)', async () => {
+  const r = await fetch(BASE + '/admin', { headers: { authorization: ADMIN } });
+  assert.equal(r.status, 200);
+  const html = await r.text();
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  assert.ok(scripts.length > 0);
+  // يرمي SyntaxError لو فيه خطأ صياغة (بدون ما يشغّل الكود)
+  for (const s of scripts) new Function(s);
+});

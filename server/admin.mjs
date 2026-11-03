@@ -52,12 +52,14 @@ ${persistent ? '' : '<div class="warn">⚠ لم يتم ربط Volume على <b>/
 <section class="card" data-p="orders">
   <h3>الطلبات والمدفوعات</h3>
   <div class="row" style="margin-bottom:8px"><div style="flex:1;min-width:220px"><label for="pl">رابط الدفع (للطلبات اليدوية)</label><input id="pl" dir="ltr" placeholder="https://..."></div></div>
+  <div class="row" style="margin-bottom:8px"><input id="oq" placeholder="بحث بالاسم أو الرقم" style="flex:1;min-width:180px"><select id="of" style="max-width:170px"><option value="">كل الحالات</option><option value="new">طلب جديد</option><option value="pending">بانتظار الدفع</option><option value="sent">أُرسل رابط الدفع</option><option value="paid">مدفوع</option><option value="cancelled">ملغي</option></select><small id="oc" style="color:#7a6248"></small></div>
   <div class="tbl"><table><thead><tr><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th>مرجع الدفع</th><th></th></tr></thead><tbody id="ob"></tbody></table></div>
 </section>
 
 <section class="card" data-p="refs" hidden>
   <h3>الإحالات</h3>
   <p style="margin-top:0;color:#7a6248;font-size:13px">كل عميل عنده رابط خاص داخل التطبيق (زر «ادعُ أصحابك»). صديقه ياخذ خصم، وصاحب الرابط يستحق مكافأة بعد ما يدفع صديقه. ادفع له المكافأة (تحويل) ثم اضغط «تم الدفع له».</p>
+  <div class="row" style="margin-bottom:8px"><button id="rcsv" class="gold" type="button">⬇ تصدير المستحقين للتحويل (Excel)</button></div>
   <div class="tbl"><table><thead><tr><th>صاحب الرابط</th><th>عدد المشترين عن طريقه</th><th>المستحق</th><th>المدفوع له</th><th></th></tr></thead><tbody id="rb"></tbody></table></div>
 </section>
 
@@ -100,19 +102,27 @@ function stats(){
   s_owed.textContent=money(owed);s_refs.textContent=refs.length+' عملية إحالة';
   s_act.textContent=list.filter(r=>r.devices.length).length+' / '+list.length;
 }
-function renderOrders(){ob.innerHTML=orders.map(o=>{const c=o.codeId&&byId(o.codeId);const ref=o.ref?'<span class="pill p-ref">بإحالة من '+esc(byId(o.ref)?.name||o.ref)+'</span>':'';
+function renderOrders(){const q=oq.value.trim(),fs=of.value;const rows=orders.filter(o=>(!fs||o.status===fs)&&(!q||[o.name,o.phone,o.paymentId].join(' ').includes(q)));oc.textContent=rows.length+' من '+orders.length;ob.innerHTML=rows.map(o=>{const c=o.codeId&&byId(o.codeId);const ref=o.ref?'<span class="pill p-ref">بإحالة من '+esc(byId(o.ref)?.name||o.ref)+'</span>':'';
   const st='<span class="pill '+(o.status==='paid'?'p-paid':o.status==='cancelled'?'p-bad':'p-wait')+'">'+ST[o.status]+'</span>';
   const acts=o.status==='paid'?(c?'<a href="'+wa(c.phone,msg(c))+'" target="_blank"><button class="gold" type="button">إرسال الكود واتساب</button></a>':''):o.status==='cancelled'?'':
    (o.online?'<button class="ghost" type="button" data-o="'+o.id+'" data-s="check">تحقق من الدفع</button>':'<a href="'+wa(o.phone,payMsg(o))+'" target="_blank" data-o="'+o.id+'" data-s="sent"><button class="ghost" type="button">إرسال رابط الدفع</button></a>')+
    '<button class="ok" type="button" data-o="'+o.id+'" data-s="paid">تم الدفع ← توليد الكود</button><button class="bad" type="button" data-o="'+o.id+'" data-s="cancelled">إلغاء</button>';
-  return '<tr><td><b>'+esc(o.name)+'</b><br><small dir="ltr">'+esc(o.phone)+'</small> '+ref+'</td><td>'+day(o.createdAt)+(o.paidAt?'<br><small>دُفع: '+day(o.paidAt)+'</small>':'')+'</td><td>'+money(o.amount??PRICE)+'</td><td>'+st+'<br><small>'+(o.online?'سكيب كاش':'يدوي')+'</small></td><td><small dir="ltr">'+esc(o.paymentId||'—')+'</small></td><td><div class="row">'+acts+'</div></td></tr>'}).join('')||'<tr><td colspan="6">لا توجد طلبات بعد</td></tr>'}
-function renderRefs(){const g={};for(const r of refs){(g[r.refId]??={id:r.refId,n:0,owed:0,paid:0,buyers:[]});g[r.refId].n++;g[r.refId].buyers.push(r.buyer);if(r.paidOut)g[r.refId].paid+=r.reward;else g[r.refId].owed+=r.reward}
-  rb.innerHTML=Object.values(g).sort((a,b)=>b.owed-a.owed).map(x=>{const c=byId(x.id);return '<tr><td><b>'+esc(c?.name||x.id)+'</b><br><small dir="ltr">'+esc(c?.phone||'')+'</small></td><td>'+x.n+'<br><small>'+esc(x.buyers.join('، '))+'</small></td><td><b>'+money(x.owed)+'</b></td><td>'+money(x.paid)+'</td><td>'+(x.owed?'<button class="ok" type="button" data-r="'+x.id+'">تم الدفع له</button>':'✓')+'</td></tr>'}).join('')||'<tr><td colspan="5">لا توجد إحالات بعد</td></tr>'}
+  return '<tr><td><b>'+esc(o.name)+'</b><br><small dir="ltr">'+esc(o.phone)+'</small> '+ref+'</td><td>'+day(o.createdAt)+(o.paidAt?'<br><small>دُفع: '+day(o.paidAt)+'</small>':'')+'</td><td>'+money(o.amount??PRICE)+'</td><td>'+st+'<br><small>'+(o.online?'سكيب كاش':'يدوي')+'</small></td><td><small dir="ltr">'+esc(o.paymentId||'—')+'</small></td><td><div class="row">'+acts+'</div></td></tr>'}).join('')||'<tr><td colspan="6">'+(orders.length?'ما في نتائج للبحث':'لا توجد طلبات بعد')+'</td></tr>'}
+function refGroups(){const g={};for(const r of refs){(g[r.refId]??={id:r.refId,n:0,owed:0,paid:0,buyers:[]});g[r.refId].n++;g[r.refId].buyers.push(r.buyer);if(r.paidOut)g[r.refId].paid+=r.reward;else g[r.refId].owed+=r.reward}return Object.values(g)}
+function refMsg(c,x){return 'هلا '+(c?.name||'')+' 👋\\nشكراً إنك نشرت مخطط العنة 🙏\\nعن طريق رابطك اشترى '+x.n+' — لك مكافأة '+x.owed+' ر.ق، بنحوّلها لك اليوم.'}
+function renderRefs(){
+  rb.innerHTML=refGroups().sort((a,b)=>b.owed-a.owed).map(x=>{const c=byId(x.id);return '<tr><td><b>'+esc(c?.name||x.id)+'</b><br><small dir="ltr">'+esc(c?.phone||'')+'</small></td><td>'+x.n+'<br><small>'+esc(x.buyers.join('، '))+'</small></td><td><b>'+money(x.owed)+'</b></td><td>'+money(x.paid)+'</td><td><div class="row">'+(x.owed&&c?.phone?'<a href="'+wa(c.phone,refMsg(c,x))+'" target="_blank"><button class="gold" type="button">واتساب</button></a>':'')+(x.owed?'<button class="ok" type="button" data-r="'+x.id+'">تم الدفع له</button>':'✓')+'</div></td></tr>'}).join('')||'<tr><td colspan="5">لا توجد إحالات بعد</td></tr>'}
 function renderCodes(){const q=document.getElementById('q').value.trim();const rows=list.filter(r=>!q||[r.name,r.phone,r.code,r.note].join(' ').includes(q));
   tb.innerHTML=rows.map(r=>'<tr><td><b>'+esc(r.name||'—')+'</b><br><small dir="ltr">'+esc(r.phone)+'</small> <small>'+esc(r.note)+'</small></td><td><span class="code">'+esc(r.code||r.id)+'</span></td><td>'+day(r.createdAt)+'</td><td>'+money(r.price)+'</td><td>'+r.devices.length+' / '+MAX+'</td><td>'+(r.revoked?'<span class="pill p-bad">موقوف</span>':r.devices.length?'<span class="pill p-paid">مفعّل</span>':'<span class="pill p-wait">لم يُفعّل</span>')+'</td><td><div class="row">'+(r.code&&r.phone?'<a href="'+wa(r.phone,msg(r))+'" target="_blank"><button class="gold" type="button">واتساب</button></a>':'')+'<button class="ghost" type="button" data-a="reset" data-id="'+r.id+'">تصفير الأجهزة</button>'+(r.revoked?'<button class="ghost" type="button" data-a="restore" data-id="'+r.id+'">إعادة تفعيل</button>':'<button class="bad" type="button" data-a="revoke" data-id="'+r.id+'">إيقاف</button>')+'</div></td></tr>').join('')||'<tr><td colspan="7">لا يوجد عملاء بعد</td></tr>'}
 async function load(){const j=await api('/api/admin/list');list=j.list;orders=j.orders||[];refs=j.referrals||[];PRICE=j.price||349;REWARD=j.refReward??50;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';stats();renderOrders();renderRefs();renderCodes()}
 pl.onchange=()=>localStorage.setItem('pl',pl.value);
 q.oninput=renderCodes;
+oq.oninput=renderOrders;of.onchange=renderOrders;
+rcsv.onclick=()=>{const rows=[['صاحب الرابط','الجوال','الكود','عدد المشترين','المشترين','المستحق (ر.ق)','المدفوع له سابقاً (ر.ق)']];
+  for(const x of refGroups().filter(x=>x.owed>0).sort((a,b)=>b.owed-a.owed)){const c=byId(x.id);rows.push([c?.name||x.id,c?.phone||'',c?.code||x.id,x.n,x.buyers.join('، '),x.owed,x.paid])}
+  if(rows.length===1)return alert('ما في مكافآت مستحقة حالياً ✓');
+  const s='\\ufeff'+rows.map(r=>r.map(c=>'"'+String(c??'').replace(/"/g,'""')+'"').join(',')).join('\\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='al-enna-referrals-due-'+new Date().toISOString().slice(0,10)+'.csv';a.click()};
 tabs.onclick=e=>{const b=e.target.closest('button[data-t]');if(!b)return;for(const x of tabs.querySelectorAll('button[data-t]'))x.classList.toggle('on',x===b);for(const s of document.querySelectorAll('[data-p]'))s.hidden=s.dataset.p!==b.dataset.t};
 ob.onclick=async e=>{const t=e.target.closest('[data-o]');if(!t)return;
   if(t.dataset.s==='paid'&&!confirm('متأكد إن المبلغ وصلك؟ بيتولّد كود للعميل.'))return;
