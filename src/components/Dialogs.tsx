@@ -31,6 +31,15 @@ export function WelcomeDialog() {
     setTimeout(() => useViewport.getState().requestFit(), 60);
     st.toast(`تم فتح قالب «${t.title}» — عدّل عليه براحتك`, 'success');
   };
+  const startEmpty = (size: number) => {
+    const st = useEditor.getState();
+    const l = defaultLand();
+    st.addDesign(`أرض فاضية ${size}×${size}`, 'blank');
+    st.setPlan(() => emptyPlan({ ...l, width: size, depth: size, entrance: { ...l.entrance, offset: size / 2 } }), { history: false });
+    openDialog(null);
+    setTimeout(() => useViewport.getState().requestFit(), 60);
+    st.toast(`أرض ${size}×${size} جاهزة — ابدأ من مكتبة العناصر`, 'success');
+  };
   return (
     <Modal open={open} onClose={() => openDialog(null)} title="أهلاً بك في مخطط العنة ⛺">
       <div className="space-y-4 p-5">
@@ -69,6 +78,14 @@ export function WelcomeDialog() {
           <Button onClick={() => openDialog('land')} data-testid="welcome-land">
             حدد مقاسات أرضك
           </Button>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-2 text-[13px] text-sand-700">
+          <span>أو ابدأ من أرض فاضية:</span>
+          {[50, 25].map((n) => (
+            <button key={n} type="button" onClick={() => startEmpty(n)} className="rounded-lg border border-sand-300 bg-white px-3 py-1.5 font-semibold text-dune hover:border-gold-500" data-testid={`empty-${n}`}>
+              {n} × {n} م
+            </button>
+          ))}
         </div>
       </div>
     </Modal>
