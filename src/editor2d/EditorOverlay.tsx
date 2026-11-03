@@ -24,12 +24,15 @@ import {
   Unlock,
   SlidersHorizontal,
   MoreHorizontal,
+  Plus,
+  Minus,
 } from 'lucide-react';
 import { useEditor, usePlan } from '../store/editorStore';
 import { useViewport } from './viewport';
 import { IconButton, cx } from '../components/ui';
 import { LUX_STOPS } from '../lib/lighting';
 import { landBounds } from '../lib/geometry';
+import { CATALOG_BY_KIND } from '../lib/catalog';
 import type { Tool } from '../types/plan';
 
 const TOOLS: { id: Tool; label: string; icon: typeof MousePointer2; key: string }[] = [
@@ -266,10 +269,37 @@ function SelectionBar() {
   if (!els.length) return null;
   const st = useEditor.getState();
   const locked = els.every((e) => e.locked);
-  const btn = 'flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-dune hover:bg-sand-100 active:scale-95';
+  const btn = 'flex flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold text-dune hover:bg-sand-100 active:scale-95 disabled:opacity-35 sm:px-3';
+  // تكبير/تصغير سريع لعنصر واحد (مو الممرات)
+  const one = els.length === 1 ? els[0] : null;
+  const cat = one ? CATALOG_BY_KIND[one.kind] : null;
+  const canSize = !!one && !!cat && cat.geometry !== 'polyline' && !one.locked;
+  const step = one && Math.min(one.width, one.depth) >= 2 ? 0.5 : 0.1;
+  const resize = (dir: 1 | -1) => {
+    if (!one || !cat) return;
+    const r = (v: number) => Math.round(v * 100) / 100;
+    const w = r(Math.min(200, Math.max(cat.minSize, one.width + dir * step)));
+    const d = r(Math.min(200, Math.max(cat.minSize, one.depth + dir * step)));
+    if (w === one.width && d === one.depth) return;
+    st.updateElement(one.id, { width: w, depth: d }, { mergeKey: `${one.id}:quick-size` });
+  };
+  const fmt = (v: number) => (Math.round(v * 10) / 10).toString();
   return (
-    <div className="pointer-events-auto absolute bottom-[4.5rem] right-1/2 flex max-w-[96vw] translate-x-1/2 items-center gap-0.5 rounded-2xl border border-sand-300 bg-white/97 p-1 shadow-xl" data-testid="selection-bar">
-      <span className="max-w-28 truncate px-2 text-[12px] font-bold text-sand-700">{els.length > 1 ? `${els.length} عناصر` : els[0].name}</span>
+    <div className="pointer-events-auto absolute bottom-[4.5rem] right-1/2 flex max-w-[98vw] translate-x-1/2 items-center gap-0.5 rounded-2xl border border-sand-300 bg-white/97 p-1 shadow-xl" data-testid="selection-bar">
+      <span className={cx('max-w-28 truncate px-2 text-[12px] font-bold text-sand-700', canSize && 'hidden sm:block')}>{els.length > 1 ? `${els.length} عناصر` : els[0].name}</span>
+      {canSize && one && cat && (
+        <div className="flex items-center rounded-xl bg-sand-100 px-0.5" data-testid="sel-size">
+          <button type="button" className="rounded-lg p-1.5 text-dune active:scale-90 disabled:opacity-30" onClick={() => resize(1)} disabled={one.width >= 200 && one.depth >= 200} aria-label="تكبير" data-testid="sel-grow">
+            <Plus size={16} />
+          </button>
+          <span className="min-w-[3.4rem] text-center text-[11px] font-bold tabular-nums text-sand-800" dir="ltr" data-testid="sel-size-label">
+            {fmt(one.width)}×{fmt(one.depth)}
+          </span>
+          <button type="button" className="rounded-lg p-1.5 text-dune active:scale-90 disabled:opacity-30" onClick={() => resize(-1)} disabled={one.width <= cat.minSize && one.depth <= cat.minSize} aria-label="تصغير" data-testid="sel-shrink">
+            <Minus size={16} />
+          </button>
+        </div>
+      )}
       <button type="button" className={btn + ' lg:hidden'} onClick={() => window.dispatchEvent(new CustomEvent('enna-open-props'))} data-testid="sel-edit">
         <SlidersHorizontal size={17} /> تعديل
       </button>
