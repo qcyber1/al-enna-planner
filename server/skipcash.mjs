@@ -2,7 +2,8 @@
 import crypto from 'node:crypto';
 
 const ENV = process.env.SKIPCASH_ENV === 'production' ? 'production' : 'sandbox';
-const BASE = ENV === 'production' ? 'https://api.skipcash.app' : 'https://skipcashtest.azurewebsites.net';
+// SKIPCASH_BASE_URL اختياري (للاختبارات فقط)
+const BASE = (process.env.SKIPCASH_BASE_URL || (ENV === 'production' ? 'https://api.skipcash.app' : 'https://skipcashtest.azurewebsites.net')).replace(/\/$/, '');
 const CLIENT_ID = process.env.SKIPCASH_CLIENT_ID || '';
 const KEY_ID = process.env.SKIPCASH_KEY_ID || '';
 const KEY_SECRET = process.env.SKIPCASH_KEY_SECRET || '';
@@ -13,30 +14,35 @@ export const skipcashEnv = ENV;
 
 const sign = (data, key) => crypto.createHmac('sha256', key).update(data).digest('base64');
 
-/** ينشئ عملية دفع ويعيد رابط صفحة الدفع */
-export async function createPayment({ uid, amount, firstName, lastName, phone, email, transactionId, custom1 }) {
+/**
+ * ينشئ عملية دفع ويعيد رابط صفحة الدفع.
+ * مطابق لإضافة سكيب كاش الرسمية (WooCommerce): الحقول في الطلب بأسماء camelCase،
+ * والتوقيع = HMAC-SHA256 (base64) لنص "Uid=..,KeyId=..,Amount=..,..." بنفس الترتيب
+ * مع أول حرف كبير، بمفتاح Key Secret.
+ */
+export async function createPayment({ uid, amount, firstName, lastName, phone, email, transactionId }) {
   const fields = [
-    ['Uid', uid],
-    ['KeyId', KEY_ID],
-    ['Amount', Number(amount).toFixed(2)],
-    ['FirstName', firstName],
-    ['LastName', lastName],
-    ['Phone', phone],
-    ['Email', email],
-    ['TransactionId', transactionId],
-    ['Custom1', custom1],
+    ['uid', uid],
+    ['keyId', KEY_ID],
+    ['amount', Number(amount).toFixed(2)],
+    ['firstName', String(firstName || '').slice(0, 59)],
+    ['lastName', String(lastName || '').slice(0, 59)],
+    ['phone', String(phone || '').slice(0, 15)],
+    ['email', String(email || '').slice(0, 255)],
+    ['transactionId', transactionId],
   ].filter(([, v]) => v !== undefined && v !== null && String(v) !== '');
-  const signature = sign(fields.map(([k, v]) => `${k}=${v}`).join(','), KEY_SECRET);
+  const signature = sign(fields.map(([k, v]) => `${k[0].toUpperCase()}${k.slice(1)}=${v}`).join(','), KEY_SECRET);
   const body = Object.fromEntries(fields);
   const r = await fetch(`${BASE}/api/v1/payments`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json;charset=UTF-8', authorization: signature },
+    headers: { accept: 'application/json', 'content-type': 'application/json', authorization: signature },
     body: JSON.stringify(body),
   });
   const j = await r.json().catch(() => ({}));
-  const payUrl = j?.resultObj?.payUrl;
   const paymentId = j?.resultObj?.id;
-  if (!r.ok || !payUrl) throw new Error(j?.errorMessage || `SkipCash ${r.status}`);
+  // بعض الردود فيها payUrl، والإضافة الرسمية تبني الرابط من الـ id
+  const payUrl = j?.resultObj?.payUrl || (paymentId ? `${BASE}/pay/${paymentId}` : '');
+  if (!r.ok || !paymentId) throw new Error(j?.errorMessage || `SkipCash ${r.status}`);
   return { payUrl, paymentId };
 }
 

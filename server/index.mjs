@@ -295,7 +295,6 @@ const server = http.createServer(async (req, res) => {
           phone: full,
           email: em,
           transactionId: order.id,
-          custom1: order.id,
         });
         order.paymentId = pay.paymentId;
         db.orders.unshift(order);

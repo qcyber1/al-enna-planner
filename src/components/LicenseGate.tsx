@@ -72,7 +72,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       const q = new URLSearchParams(window.location.search);
       const orderId = q.get('custom1') || q.get('transId') || get(ORDER_KEY);
       const paymentId = q.get('id');
-      if ((q.has('id') || q.has('custom1') || q.has('paid')) && orderId) {
+      if ((q.has('id') || q.has('custom1') || q.has('paid')) && (orderId || paymentId)) {
         history.replaceState(null, '', window.location.pathname);
         for (let i = 0; i < 6; i++) {
           try {
