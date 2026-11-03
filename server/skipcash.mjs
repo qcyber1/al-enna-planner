@@ -54,8 +54,12 @@ export async function getPayment(paymentId) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j?.errorMessage || `SkipCash ${r.status}`);
   const o = j?.resultObj || {};
+  const statusId = Number(o.statusId);
   return {
-    paid: Number(o.statusId) === 2 || String(o.status || '').toLowerCase() === 'paid',
+    statusId,
+    paid: statusId === 2 || String(o.status || '').toLowerCase() === 'paid',
+    // 3 ملغي، 4 فشل، 5 مرفوض (حسب حالات سكيب كاش)
+    failed: [3, 4, 5].includes(statusId),
     transactionId: o.transactionId,
     amount: Number(o.amount),
   };

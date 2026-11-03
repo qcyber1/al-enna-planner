@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { adminPage } from './admin.mjs';
+import { validateBuyer } from './buyer.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -278,12 +279,11 @@ const server = http.createServer(async (req, res) => {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
       const { name, phone, email, ref } = await readBody(req);
       const refId = parseRef(ref);
-      const nm = String(name || '').trim().slice(0, 60);
-      const ph = String(phone || '').replace(/\D/g, '');
-      const em = String(email || '').trim().slice(0, 100);
-      if (!nm || ph.length < 8 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))
-        return send(res, 400, { ok: false, error: 'اكتب الاسم ورقم الجوال والإيميل بشكل صحيح' });
-      const full = ph.length === 8 ? '974' + ph : ph;
+      const v = validateBuyer({ name, phone, email }, true);
+      if (v.errors) return send(res, 400, { ok: false, error: Object.values(v.errors)[0], errors: v.errors });
+      const nm = v.name;
+      const full = v.phone;
+      const em = v.email;
       const parts = nm.split(/\s+/);
       const order = { id: crypto.randomBytes(8).toString('hex'), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'pending', online: true, ref: refId || undefined, amount: priceFor(refId) };
       try {
@@ -310,14 +310,22 @@ const server = http.createServer(async (req, res) => {
       const { paymentId, orderId } = await readBody(req);
       const o = db.orders.find((x) => (orderId && x.id === orderId) || (paymentId && x.paymentId === paymentId));
       if (!o) return send(res, 404, { ok: false, error: 'ما لقينا الطلب' });
+      let failed = false;
       if (o.status !== 'paid') {
         try {
           const st = await getPayment(o.paymentId || paymentId);
+          o.skipcashStatus = st.statusId;
+          o.lastCheck = Date.now();
+          delete o.lastError;
           if (st.paid) markPaid(o);
+          else if (st.failed) failed = true;
         } catch (e) {
+          o.lastError = String(e.message).slice(0, 200);
           console.error('[skipcash verify]', e.message);
         }
+        saveDb();
       }
+      if (failed) return send(res, 200, { ok: false, failed: true, error: 'الدفع ما تم (انلغى أو انرفضت البطاقة) — ما انخصم شي، جرّب مرة ثانية' });
       if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'الدفع ما اكتمل للحين' });
       return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code });
     }
@@ -334,10 +342,10 @@ const server = http.createServer(async (req, res) => {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
       const { name, phone, ref } = await readBody(req);
       const refId = parseRef(ref);
-      const ph = String(phone || '').replace(/\D/g, '');
-      if (!String(name || '').trim() || ph.length < 8) return send(res, 400, { ok: false, error: 'اكتب الاسم ورقم الجوال بشكل صحيح' });
-      const full = ph.length === 8 ? '974' + ph : ph;
-      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), name: String(name).trim().slice(0, 80), phone: full.slice(0, 20), createdAt: Date.now(), status: 'new', ref: refId || undefined, amount: priceFor(refId) });
+      const v = validateBuyer({ name, phone }, false);
+      if (v.errors) return send(res, 400, { ok: false, error: Object.values(v.errors)[0], errors: v.errors });
+      const full = v.phone;
+      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), name: v.name, phone: full.slice(0, 20), createdAt: Date.now(), status: 'new', ref: refId || undefined, amount: priceFor(refId) });
       db.orders = db.orders.slice(0, 2000);
       saveDb();
       return send(res, 200, { ok: true });

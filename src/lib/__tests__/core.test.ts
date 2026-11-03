@@ -105,3 +105,25 @@ describe('قائمة التجهيز', () => {
     expect(titles).toContain('السلامة');
   });
 });
+
+import { checkEmail, checkName, parsePhone } from '../buyer';
+describe('التحقق من بيانات المشتري', () => {
+  it('الجوال: قطري بأشكال مختلفة، أرقام عربية، ورسائل واضحة', () => {
+    expect(parsePhone('55123456').phone).toBe('97455123456');
+    expect(parsePhone('+974 5512 3456').phone).toBe('97455123456');
+    expect(parsePhone('00974-55123456').phone).toBe('97455123456');
+    expect(parsePhone('٥٥١٢٣٤٥٦').phone).toBe('97455123456');
+    expect(parsePhone('966501234567').phone).toBe('966501234567');
+    expect(parsePhone('فلص4ف34').error).toMatch(/أرقام بس/);
+    expect(parsePhone('12345678').error).toMatch(/يبدأ/);
+    expect(parsePhone('5512').error).toMatch(/8 أرقام/);
+  });
+  it('الاسم والإيميل', () => {
+    expect(checkName('ناصر')).toBeNull();
+    expect(checkName('ن')).toBeTruthy();
+    expect(checkName('ناصر2')).toMatch(/أرقام/);
+    expect(checkEmail('asdada@sdfs.com')).toBeNull();
+    expect(checkEmail('a@gmial.com')).toMatch(/gmail\.com/);
+    expect(checkEmail('abc')).toMatch(/مو صحيح/);
+  });
+});

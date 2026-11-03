@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { checkEmail, checkName, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2 } from 'lucide-react';
 
 const TOKEN_KEY = 'enna.license.token';
@@ -47,6 +48,14 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<'code' | 'buy'>('buy');
   const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean }>({ price: 349, online: false, basePrice: 349, refValid: false });
   const [buyer, setBuyer] = useState({ name: '', phone: '', email: '' });
+  const [fieldErr, setFieldErr] = useState<{ name?: string | null; phone?: string | null; email?: string | null }>({});
+  const checkField = (k: 'name' | 'phone' | 'email', v: string) =>
+    k === 'name' ? checkName(v) : k === 'phone' ? parsePhone(v).error ?? null : checkEmail(v);
+  // الخطأ يطلع بعد ما يطلع من الخانة، ويختفي أول ما يصلّحه
+  const onField = (k: 'name' | 'phone' | 'email', v: string) => {
+    setBuyer((b) => ({ ...b, [k]: v }));
+    if (fieldErr[k]) setFieldErr((f) => ({ ...f, [k]: checkField(k, v) }));
+  };
   const [paidCode, setPaidCode] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -77,6 +86,11 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         for (let i = 0; i < 6; i++) {
           try {
             const v = await post('/api/checkout/verify', { orderId, paymentId });
+            if ((v.data as { failed?: boolean }).failed) {
+              setError((v.data as { error?: string }).error || 'الدفع ما تم — جرّب مرة ثانية');
+              setMode('buy');
+              return setState('locked');
+            }
             const code = (v.data as { code?: string }).code;
             if (v.data.ok && code) {
               const a = await post('/api/activate', { code, device: deviceId() });
@@ -90,7 +104,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           }
           await new Promise((res) => setTimeout(res, 2500));
         }
-        setError('لم يتأكد الدفع بعد. إذا تم الخصم من حسابك تواصل معنا وسنرسل لك الكود.');
+        setError('الدفع للحين ما تأكد من سكيب كاش. إذا انخصم المبلغ من حسابك، تواصل معنا على الواتساب ونرسل لك الكود خلال دقائق.');
         return setState('locked');
       }
       const token = get(TOKEN_KEY);
@@ -130,8 +144,11 @@ export function LicenseGate({ children }: { children: ReactNode }) {
 
   const buy = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
     setError('');
+    const errs = { name: checkName(buyer.name), phone: parsePhone(buyer.phone).error ?? null, email: info.online ? checkEmail(buyer.email) : null };
+    setFieldErr(errs);
+    if (errs.name || errs.phone || errs.email) return;
+    setBusy(true);
     try {
       if (info.online) {
         const { data } = await post('/api/checkout', { ...buyer, ref: get(REF_KEY) || undefined });
@@ -141,7 +158,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           window.location.href = d.payUrl;
           return;
         }
-        setError(d.error || 'ما انفتحت صفحة الدفع — حاول مرة ثانية');
+        const fe = (d as { errors?: typeof fieldErr }).errors;
+        if (fe) setFieldErr(fe);
+        else setError(d.error || 'ما انفتحت صفحة الدفع — حاول مرة ثانية');
       } else {
         const { data } = await post('/api/order', { ...buyer, ref: get(REF_KEY) || undefined });
         if (data.ok) setNotice('وصلنا طلبك ✓ بنرسل لك رابط الدفع على الواتساب خلال دقائق، وبعد الدفع يوصلك كود التفعيل.');
@@ -233,11 +252,31 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               </div>
               <div className="text-xs text-sand-600">دفعة واحدة • استخدام مدى الحياة</div>
             </div>
-            <input required value={buyer.name} onChange={(e) => setBuyer({ ...buyer, name: e.target.value })} placeholder="الاسم" aria-label="الاسم" className="h-10 w-full rounded-lg border border-sand-300 bg-white px-3 outline-none focus:border-gold-500" />
-            <input required value={buyer.phone} onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })} placeholder="رقم الجوال" aria-label="رقم الجوال" inputMode="tel" dir="ltr" className="h-10 w-full rounded-lg border border-sand-300 bg-white px-3 text-right outline-none focus:border-gold-500" />
-            {info.online && (
-              <input required type="email" value={buyer.email} onChange={(e) => setBuyer({ ...buyer, email: e.target.value })} placeholder="الإيميل (لإيصال الدفع)" aria-label="الإيميل" dir="ltr" className="h-10 w-full rounded-lg border border-sand-300 bg-white px-3 text-right outline-none focus:border-gold-500" />
-            )}
+            {(
+              [
+                { k: 'name', ph: 'الاسم', label: 'الاسم', props: { autoComplete: 'name' } },
+                { k: 'phone', ph: 'رقم الجوال (مثل 55123456)', label: 'رقم الجوال', props: { inputMode: 'tel', dir: 'ltr', autoComplete: 'tel' } },
+                ...(info.online ? [{ k: 'email', ph: 'الإيميل (لإيصال الدفع)', label: 'الإيميل', props: { type: 'email', dir: 'ltr', autoComplete: 'email', inputMode: 'email' } }] : []),
+              ] as { k: 'name' | 'phone' | 'email'; ph: string; label: string; props: React.InputHTMLAttributes<HTMLInputElement> }[]
+            ).map((f) => (
+              <div key={f.k}>
+                <input
+                  {...f.props}
+                  value={buyer[f.k]}
+                  onChange={(e) => onField(f.k, e.target.value)}
+                  onBlur={(e) => {
+                    const v = e.target.value;
+                    if (v) setFieldErr((x) => ({ ...x, [f.k]: checkField(f.k, v) }));
+                  }}
+                  placeholder={f.ph}
+                  aria-label={f.label}
+                  aria-invalid={!!fieldErr[f.k]}
+                  className={`h-10 w-full rounded-lg border bg-white px-3 outline-none ${f.props.dir === 'ltr' ? 'text-right' : ''} ${fieldErr[f.k] ? 'border-red-400 focus:border-red-500' : 'border-sand-300 focus:border-gold-500'}`}
+                  data-testid={`buyer-${f.k}`}
+                />
+                {fieldErr[f.k] && <div className="mt-1 px-1 text-[12px] text-red-700" data-testid={`err-${f.k}`}>{fieldErr[f.k]}</div>}
+              </div>
+            ))}
             {error && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</div>}
             <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gold-500 font-bold text-dune disabled:opacity-50" data-testid="buy">
               {busy && <Loader2 size={18} className="animate-spin" />} {info.online ? 'ادفع الآن (سكيب كاش)' : 'اطلب الآن'}

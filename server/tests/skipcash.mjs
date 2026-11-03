@@ -98,3 +98,26 @@ test('بيانات ناقصة ترجع رسالة واضحة', async () => {
   const r = await post('/api/checkout', { name: 'x', phone: '1', email: 'bad' });
   assert.equal(r.status, 400);
 });
+
+test('دفع ملغي: رسالة واضحة إن ما انخصم شي', async () => {
+  const r = await post('/api/checkout', { name: 'سالم', phone: '+974 6612 3456', email: 's@example.com' });
+  assert.equal(r.status, 200);
+  assert.equal(lastBody.phone, '97466123456');
+  const id = r.json.payUrl.split('/pay/')[1];
+  payments.get(id).statusId = 3;
+  const v = await post('/api/checkout/verify', { paymentId: id });
+  assert.equal(v.json.failed, true);
+  assert.match(v.json.error, /ما انخصم/);
+});
+
+test('رسائل الخطأ لكل خانة لحالها', async () => {
+  const r = await post('/api/checkout', { name: 'ناصر', phone: 'فلص4ف34', email: 'asdada@sdfs.com' });
+  assert.equal(r.status, 400);
+  assert.ok(r.json.errors.phone);
+  assert.equal(r.json.errors.name, undefined);
+  assert.equal(r.json.errors.email, undefined);
+  // أرقام عربية تنقبل
+  const ok = await post('/api/checkout', { name: 'ناصر', phone: '٥٥١٢٣٤٥٦', email: 'n@example.com' });
+  assert.equal(ok.status, 200);
+  assert.equal(lastBody.phone, '97455123456');
+});
