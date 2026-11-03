@@ -9,6 +9,7 @@ import { Toasts } from './components/Toasts';
 import { GeneratorDialog } from './components/GeneratorDialog';
 import { InviteDialog } from './components/InviteDialog';
 import { Tour } from './components/Tour';
+import { BottomSheet } from './components/BottomSheet';
 import Editor2D from './editor2d/Editor2D';
 import { startAutosave, useEditor } from './store/editorStore';
 import { useMediaQuery } from './hooks/useDerived';
@@ -69,6 +70,12 @@ export default function App() {
           <aside className="no-print w-64 shrink-0 border-l border-sand-200 bg-sand-50" data-tour="library">
             <Library />
           </aside>
+        ) : isPhone ? (
+          libOpen && (
+            <BottomSheet title="مكتبة عناصر العنة" onClose={() => setLibOpen(false)} testId="library-sheet">
+              <Library sheet onPicked={() => setLibOpen(false)} />
+            </BottomSheet>
+          )
         ) : (
           libOpen && (
             <aside className="no-print absolute inset-y-0 right-0 z-20 w-72 max-w-[85%] border-l border-sand-200 bg-sand-50 shadow-2xl">

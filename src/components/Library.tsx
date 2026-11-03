@@ -30,23 +30,23 @@ function addAtCenter(item: CatalogItem) {
   st.toast(`تمت إضافة «${el.name}» — اسحبه إلى مكانه`, 'success');
 }
 
-export function Library({ onPicked }: { onPicked?: () => void }) {
+export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: boolean }) {
   const [q, setQ] = useState('');
   const items = CATALOG.filter((c) => !q || c.label.includes(q) || c.description.includes(q));
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-sand-200 p-3">
-        <h2 className="mb-2 text-sm font-bold text-dune">مكتبة عناصر العنة</h2>
+      <div className={sheet ? 'border-b border-sand-200 px-3 pb-2' : 'border-b border-sand-200 p-3'}>
+        {!sheet && <h2 className="mb-2 text-sm font-bold text-dune">مكتبة عناصر العنة</h2>}
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute top-2.5 right-2.5 text-sand-500" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="ابحث عن عنصر…"
-            className="h-9 w-full rounded-lg border border-sand-300 bg-white pr-8 pl-2 text-sm outline-none focus:border-gold-500"
+            className="h-9 w-full rounded-lg border border-sand-300 bg-white pr-8 pl-2 text-base outline-none focus:border-gold-500 sm:text-sm"
           />
         </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-sand-600">اسحب العنصر إلى المخطط أو انقر عليه لإضافته في منتصف العرض.</p>
+        {!sheet && <p className="mt-2 text-[11px] leading-relaxed text-sand-600">اسحب العنصر إلى المخطط أو انقر عليه لإضافته في منتصف العرض.</p>}
       </div>
       <div className="scroll-thin flex-1 overflow-y-auto p-2">
         {CATEGORY_ORDER.map((cat) => {
@@ -55,7 +55,7 @@ export function Library({ onPicked }: { onPicked?: () => void }) {
           return (
             <div key={cat} className="mb-3">
               <div className="mb-1.5 px-1 text-[11px] font-bold tracking-wide text-sand-600">{CATEGORY_LABELS[cat]}</div>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className={sheet ? 'grid grid-cols-3 gap-1.5' : 'grid grid-cols-2 gap-1.5'}>
                 {list.map((item) => (
                   <button
                     key={item.kind}
