@@ -53,7 +53,9 @@ export interface Summary {
   landArea: number;
   landPerimeter: number;
   fenceLength: number;
-  tents: { id: string; name: string; kind: ElementKind; width: number; depth: number; area: number }[];
+  tents: { id: string; name: string; kind: ElementKind; width: number; depth: number; area: number; capacity: number | null }[];
+  /** مجموع السعة التقديرية للجلوس في الخيام */
+  capacity: number;
   tentCount: number;
   tentArea: number;
   courts: { id: string; name: string; area: number; zoneArea: number; width: number; depth: number; margin: number }[];
@@ -216,7 +218,7 @@ export function computeSummary(plan: Plan, est: EstimateSettings = DEFAULT_ESTIM
   for (const el of plan.elements) {
     counts[el.kind]++;
     if (isTentKind(el.kind)) {
-      tents.push({ id: el.id, name: el.name, kind: el.kind, width: el.width, depth: el.depth, area: el.width * el.depth });
+      tents.push({ id: el.id, name: el.name, kind: el.kind, width: el.width, depth: el.depth, area: el.width * el.depth, capacity: tentCapacity(el) });
       if (el.tent?.entranceLight) lights.tentEntranceLights++;
     }
     switch (el.kind) {
@@ -285,6 +287,7 @@ export function computeSummary(plan: Plan, est: EstimateSettings = DEFAULT_ESTIM
     tents,
     tentCount: tents.length,
     tentArea: tents.reduce((s, t) => s + t.area, 0),
+    capacity: tents.reduce((s, t) => s + (t.capacity ?? 0), 0),
     courts,
     courtArea: courts.reduce((s, c) => s + c.area, 0),
     courtZoneArea: courts.reduce((s, c) => s + c.zoneArea, 0),
@@ -371,4 +374,22 @@ export function costLines(s: Summary): CostLine[] {
   }
   if (s.fenceLength > 0) lines.push({ key: 'fence', label: 'السياج أو التور', unit: 'م طولي', qty: s.fenceLength });
   return lines;
+}
+
+/**
+ * سعة الجلوس التقديرية للخيمة:
+ * - المجلس: جلسة أرضية على طول الجدران (≈ 75 سم للشخص مع المساند) ناقص الزوايا وفتحة المدخل
+ * - خيمة الطعام: ≈ 1.4 م² للشخص على السفرة
+ * غير ذلك (مطبخ/فاضية): ما نحسب
+ */
+export function tentCapacity(el: Pick<PlanElement, 'width' | 'depth' | 'tent'>): number | null {
+  const t = el.tent;
+  if (!t) return null;
+  if (t.interior === 'majlis') {
+    const seat = 0.8; // عمق الجلسة: الزوايا الأربع تتداخل
+    const walls = 2 * (el.width + el.depth) - 4 * seat - Math.min(t.entranceWidth, Math.max(el.width, el.depth));
+    return Math.max(0, Math.floor(walls / 0.75));
+  }
+  if (t.interior === 'dining') return Math.max(0, Math.floor((el.width * el.depth) / 1.4));
+  return null;
 }

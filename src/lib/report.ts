@@ -18,6 +18,7 @@ export function buildReportHtml(project: Project, design: Design): string {
   const stats: [string, string][] = [
     ['مساحة الأرض', formatArea(s.landArea, 0)],
     ['الخيام', `${s.tentCount} — ${formatArea(s.tentArea, 1)}`],
+    ['السعة التقديرية', s.capacity ? `≈ ${s.capacity} شخص جلوس` : '—'],
     ['أطوال الممرات', formatMeters(s.pathLength, 1)],
     ['العشب الصناعي (تقديري)', formatArea(s.turfArea, 1)],
     ['السياج أو التور', formatMeters(s.fenceLength, 1)],
@@ -31,7 +32,7 @@ export function buildReportHtml(project: Project, design: Design): string {
       return `<tr><td>${esc(l.label)}</td><td>${esc(l.unit)}</td><td class="n">${round(l.qty, 2)}</td><td class="n">${price !== undefined ? money(price) : '—'}</td><td class="n">${price !== undefined ? money(price * l.qty) : '—'}</td></tr>`;
     })
     .join('');
-  const tents = s.tents.map((t) => `<li>${esc(t.name)}: ${round(t.width, 2)} × ${round(t.depth, 2)} م</li>`).join('');
+  const tents = s.tents.map((t) => `<li>${esc(t.name)}: ${round(t.width, 2)} × ${round(t.depth, 2)} م${t.capacity != null ? ` — يكفي ~${t.capacity} شخص` : ''}</li>`).join('');
   return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(project.name)} — ${esc(design.name)}</title>
 <style>

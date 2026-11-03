@@ -254,7 +254,7 @@ export function SummaryDialog() {
       <div className="space-y-5 p-5" data-testid="summary">
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <Stat label="مساحة الأرض" value={formatArea(s.landArea, 0)} sub={`المحيط ${formatMeters(s.landPerimeter, 1)}`} />
-          <Stat label={`الخيام (${s.tentCount})`} value={formatArea(s.tentArea, 1)} />
+          <Stat label={`الخيام (${s.tentCount})`} value={formatArea(s.tentArea, 1)} sub={s.capacity ? `تكفي تقريباً ${s.capacity} شخص جلوس` : undefined} />
           <Stat label="الملعب + منطقة الأمان" value={formatArea(s.courtZoneArea, 0)} sub={`الملعب ${formatArea(s.courtArea, 0)}`} />
           <Stat label="المساحة الفارغة المتبقية" value={formatArea(s.freeArea, 0)} sub={`${formatNumber(s.freePct, 0)}% من الأرض`} />
           <Stat label="أطوال الممرات" value={formatMeters(s.pathLength, 1)} sub={`المساحة ${formatArea(s.pathArea, 1)}`} />
@@ -267,10 +267,10 @@ export function SummaryDialog() {
           <div className="rounded-xl border border-sand-200 bg-white p-3">
             <h3 className="mb-2 font-bold text-dune">الخيام</h3>
             <table className="w-full text-sm">
-              <thead className="text-[11px] text-sand-600"><tr><th className="text-right">الخيمة</th><th>الأبعاد</th><th>المساحة</th></tr></thead>
+              <thead className="text-[11px] text-sand-600"><tr><th className="text-right">الخيمة</th><th>الأبعاد</th><th>المساحة</th><th>السعة</th></tr></thead>
               <tbody>
                 {s.tents.map((t) => (
-                  <tr key={t.id} className="border-t border-sand-100"><td className="py-1">{t.name}</td><td className="text-center tabular-nums">{round(t.width, 2)} × {round(t.depth, 2)}</td><td className="text-center tabular-nums">{formatArea(t.area)}</td></tr>
+                  <tr key={t.id} className="border-t border-sand-100"><td className="py-1">{t.name}</td><td className="text-center tabular-nums">{round(t.width, 2)} × {round(t.depth, 2)}</td><td className="text-center tabular-nums">{formatArea(t.area)}</td><td className="text-center tabular-nums" data-testid="tent-capacity">{t.capacity != null ? `~${t.capacity}` : '—'}</td></tr>
                 ))}
               </tbody>
             </table>

@@ -27,7 +27,7 @@ import {
   round,
   shapesDistance,
 } from '../lib/geometry';
-import { estimateWoodTurf, DEFAULT_ESTIMATE } from '../lib/quantities';
+import { estimateWoodTurf, DEFAULT_ESTIMATE, tentCapacity } from '../lib/quantities';
 import { aimRotation } from '../lib/sample';
 import { stringBulbs } from '../lib/lighting';
 import { windNotes, type WindNote } from '../lib/wind';
@@ -323,8 +323,14 @@ function TentSection({ el, upd }: { el: PlanElement; upd: Upd }) {
   const t = el.tent!;
   const set = (p: Partial<typeof t>, key?: string) => upd({ tent: { ...t, ...p } }, key);
   const along = t.entranceSide === 'front' || t.entranceSide === 'back' ? el.width : el.depth;
+  const cap = tentCapacity(el);
   return (
     <Section title="الخيمة والمدخل">
+      {cap != null && (
+        <div className="mb-2 rounded-lg bg-turf-500/10 px-2.5 py-1.5 text-[12px] text-turf-700" data-testid="tent-capacity-hint">
+          👥 يكفي تقريباً <b>{cap}</b> شخص {t.interior === 'majlis' ? 'جلوس على الجدران' : 'على السفرة'}
+        </div>
+      )}
       <Field label="الشكل">
         <Select
           value={t.style}

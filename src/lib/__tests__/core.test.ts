@@ -79,3 +79,16 @@ describe('عناصر جديدة: دكة، تنور، ديزل، مظلة سيا�
     }
   });
 });
+
+import { tentCapacity, computeSummary as cs2 } from '../quantities';
+describe('سعة الخيام', () => {
+  it('المجلس 11×7 يكفي تقريباً 40 شخص، والمطبخ ما ينحسب', () => {
+    const plan = csp();
+    const m = plan.elements.find((e) => e.kind === 'main-tent')!;
+    const c = tentCapacity(m)!;
+    expect(c).toBeGreaterThan(32);
+    expect(c).toBeLessThan(48);
+    expect(tentCapacity({ width: 6, depth: 4, tent: { ...m.tent!, interior: 'kitchen' } })).toBeNull();
+    expect(cs2(plan).capacity).toBeGreaterThanOrEqual(c);
+  });
+});
