@@ -16,6 +16,7 @@ import { loadThumbs } from '../lib/storage';
 import { validatePlan } from '../lib/validation';
 import { useViewport } from '../editor2d/viewport';
 import { TEMPLATES, buildTemplate, type Template } from '../lib/templates';
+import { openReport } from '../lib/report';
 
 // ——— الترحيب ———
 export function WelcomeDialog() {
@@ -236,7 +237,16 @@ export function SummaryDialog() {
       footer={
         <>
           <Button onClick={exportCsv}><Download size={15} /> تصدير CSV</Button>
-          <Button onClick={() => window.print()}><Printer size={15} /> طباعة</Button>
+          <Button
+            variant="gold"
+            onClick={() => {
+              const r = openReport(project, design);
+              useEditor.getState().toast(r === 'opened' ? 'انفتح التقرير — اضغط «طباعة / PDF» واحفظه' : 'نزل التقرير كملف — افتحه واطبعه PDF', 'success');
+            }}
+            data-testid="open-report"
+          >
+            <Printer size={15} /> تقرير PDF للمقاول
+          </Button>
           <Button variant="primary" onClick={() => openDialog(null)}>إغلاق</Button>
         </>
       }
