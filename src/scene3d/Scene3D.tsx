@@ -277,6 +277,34 @@ function CaptureHandler() {
   return null;
 }
 
+/** لقطة 3D تلقائية للتصميم (للمقارنة) عند الخروج من وضع 3D أو تبديل التصميم — بدون إشعار */
+function AutoThumb() {
+  const { gl } = useThree();
+  const designId = useEditor((s) => s.project.activeDesignId);
+  useEffect(() => {
+    if (PROMO) return;
+    const since = performance.now();
+    const id = designId;
+    return () => {
+      // نحتاج المشهد يكون انرسم فعلاً (ثانيتين على الأقل)
+      if (performance.now() - since < 2000) return;
+      try {
+        const src = gl.domElement;
+        if (!src.width || !src.height) return;
+        const small = document.createElement('canvas');
+        small.width = 640;
+        small.height = Math.round((640 * src.height) / src.width);
+        small.getContext('2d')?.drawImage(src, 0, 0, small.width, small.height);
+        const url = small.toDataURL('image/jpeg', 0.75);
+        if (url.length > 2000) saveThumbs(id, { d3: url });
+      } catch {
+        /* تجاهل — اللقطة اختيارية */
+      }
+    };
+  }, [designId, gl]);
+  return null;
+}
+
 export default function Scene3D() {
   const plan = usePlan();
   const time = useEditor((s) => s.time);
@@ -345,6 +373,7 @@ export default function Scene3D() {
           <CameraRig plan={plan} w={w} walking={walking} />
           {walking && <WalkControls plan={plan} w={w} move={move} />}
           <CaptureHandler />
+          <AutoThumb />
         </WorldContext.Provider>
       </Canvas>
       {!ready && <div className="absolute inset-0 flex items-center justify-center text-sand-800">جاري تجهيز المشهد ثلاثي الأبعاد…</div>}
