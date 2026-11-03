@@ -38,10 +38,12 @@ export function GeneratorDialog() {
   const b = landBounds(plan.land);
   const thumbs = useMemo(() => (results ? results.map((r) => planThumbnail(r.plan, 520)) : []), [results]);
 
-  const run = () => {
+  const [seed, setSeed] = useState(0);
+  const run = (nextSeed = 0) => {
     setBusy(true);
+    setSeed(nextSeed);
     setTimeout(() => {
-      setResults(generateDesigns(plan.land, { ...input, tents: Math.max(1, input.tents) }));
+      setResults(generateDesigns(plan.land, { ...input, tents: Math.max(1, input.tents) }, nextSeed));
       setBusy(false);
     }, 30);
   };
@@ -67,12 +69,15 @@ export function GeneratorDialog() {
         results ? (
           <>
             <Button onClick={() => setResults(null)}>تعديل المتطلبات</Button>
+            <Button onClick={() => run(seed + 1)} disabled={busy} data-testid="gen-more">
+              🎲 {busy ? 'جاري…' : 'أفكار ثانية'}
+            </Button>
             <Button variant="primary" onClick={() => adopt(results)} data-testid="gen-add-all">
               <Layers size={15} /> أضف الأفكار الخمس كتصاميم للمقارنة
             </Button>
           </>
         ) : (
-          <Button variant="gold" onClick={run} disabled={busy} data-testid="gen-run">
+          <Button variant="gold" onClick={() => run(0)} disabled={busy} data-testid="gen-run">
             <Sparkles size={16} /> {busy ? 'جاري التوليد…' : 'ولّد 5 أفكار'}
           </Button>
         )

@@ -81,3 +81,15 @@ describe('المولّد مع البحر في كل الجهات والمقاسا
     }
   });
 });
+
+describe('أفكار ثانية', () => {
+  it('كل تنويع يطلع بدون تنبيهات ويختلف عن الأصل', () => {
+    const base = generateDesigns(defaultLand(), { ...DEFAULT_GEN, tents: 4 });
+    for (const seed of [1, 2, 3]) {
+      const res = generateDesigns(defaultLand(), { ...DEFAULT_GEN, tents: 4 }, seed);
+      for (const r of res) expect(r.issues).toBe(0);
+      const moved = res.some((r, i) => JSON.stringify(r.plan.elements.map((e) => [e.x, e.y])) !== JSON.stringify(base[i].plan.elements.map((e) => [e.x, e.y])));
+      expect(moved).toBe(true);
+    }
+  });
+});

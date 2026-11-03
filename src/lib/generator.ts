@@ -500,10 +500,28 @@ function build(land: Land, input: GenInput, s: Strategy): GenResult {
 }
 
 /** يولّد عدة أفكار توزيع مختلفة لنفس المتطلبات */
-export function generateDesigns(land: Land, input: GenInput): GenResult[] {
+/** نسخة معدّلة من الاستراتيجية لـ«أفكار ثانية»: عكس يمين/يسار + تحريك بسيط للمواقع (ثابت لنفس الرقم) */
+function variant(s: Strategy, seed: number, idx: number): Strategy {
+  if (!seed) return s;
+  let x = (seed * 9301 + idx * 49297 + 233280) % 233280;
+  const rnd = () => ((x = (x * 9301 + 49297) % 233280) / 233280) * 2 - 1;
+  const mirror = (seed + idx) % 2 === 1;
+  const clampU = (u: number) => Math.max(-0.92, Math.min(0.92, u));
+  const clampV = (v: number) => Math.max(0.06, Math.min(0.94, v));
+  const move = (a: Anchor, k = 0.12): Anchor => ({ u: clampU((mirror ? -a.u : a.u) + rnd() * k), v: clampV(a.v + rnd() * k * 0.6) });
+  const anchors = Object.fromEntries(Object.entries(s.anchors).map(([g, a]) => [g, g === 'majlis' ? move(a, 0.05) : move(a)])) as Record<Group, Anchor>;
+  return { ...s, anchors, yard: move(s.yard, 0.06), title: `${s.title} (${mirror ? 'معكوسة' : 'تنويع'} ${seed})` };
+}
+
+export function generateDesigns(land: Land, input: GenInput, seed = 0): GenResult[] {
   const sea = (land.surroundings ?? []).some((k, i) => k === 'sea' && i !== entranceInfo(land).edge);
-  return STRATEGIES.map((s) => {
-    const r = build(land, input, s);
+  return STRATEGIES.map((s0, i) => {
+    let r = build(land, input, variant(s0, seed, i));
+    // لو التنويع طلع فيه تنبيهات، نرجع للفكرة الأصلية معكوسة بس (أضمن)
+    if (seed && r.issues > 0) {
+      const safe = build(land, input, { ...variant(s0, 0, i), anchors: Object.fromEntries(Object.entries(s0.anchors).map(([g, a]) => [g, { u: -a.u, v: a.v }])) as Record<Group, Anchor>, yard: { u: -s0.yard.u, v: s0.yard.v }, title: `${s0.title} (معكوسة)` });
+      if (safe.issues <= r.issues) r = safe;
+    }
     return sea ? { ...r, description: r.description + ' — والمجلس يطل على البحر مع جلسة بحرية' } : r;
   });
 }
