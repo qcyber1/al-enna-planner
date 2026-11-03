@@ -202,6 +202,7 @@ const MIME = {
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
   '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
 };
 function serveStatic(req, res, urlPath) {
   let file = path.normalize(path.join(DIST, decodeURIComponent(urlPath)));

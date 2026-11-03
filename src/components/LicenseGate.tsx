@@ -63,6 +63,8 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       } catch {
         // بيئة التطوير بدون خادم: لا يوجد نظام أكواد
         if (import.meta.env.DEV) return setState('open');
+        // بدون إنترنت: اللي فعّل قبل يدخل عادي (التحقق يصير لما يرجع النت)
+        if (get(TOKEN_KEY)) return setState('open');
         setError('ما قدرنا نتصل — تأكد من الإنترنت وحدّث الصفحة');
         return setState('locked');
       }

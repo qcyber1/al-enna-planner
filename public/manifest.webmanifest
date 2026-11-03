@@ -1,0 +1,18 @@
+{
+  "name": "مخطط العنة — Al Enna Planner",
+  "short_name": "مخطط العنة",
+  "description": "صمّم عنتك قبل لا تركّبها: مخطط ومجسم 3D وإنارة الليل والكميات",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#3b2a1e",
+  "theme_color": "#3b2a1e",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

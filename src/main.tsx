@@ -15,6 +15,13 @@ if (new URLSearchParams(window.location.search).has('promo')) {
   (window as unknown as Record<string, unknown>).__enna = { useEditor, useViewport };
 }
 
+// العمل بدون إنترنت + «أضف للشاشة الرئيسية» (في النسخة المنشورة فقط)
+if ('serviceWorker' in navigator && import.meta.env.PROD && !new URLSearchParams(window.location.search).has('promo')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LicenseGate>
