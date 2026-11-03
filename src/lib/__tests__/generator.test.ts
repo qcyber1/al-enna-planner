@@ -66,3 +66,18 @@ describe('القوالب الجاهزة', () => {
     expect(sea.land.surroundings?.[0]).toBe('sea');
   });
 });
+
+describe('المولّد مع البحر في كل الجهات والمقاسات', () => {
+  it('البحر على أي ضلع (غير المدخل) وبمقاس 25 و50: صفر تنبيهات ومجلس قريب من البحر', () => {
+    for (const size of [25, 50]) {
+      for (const seaEdge of [0, 1, 3]) {
+        const surroundings = ['open', 'open', 'open', 'open'] as ('open' | 'sea')[];
+        surroundings[seaEdge] = 'sea';
+        const land = { ...defaultLand(), width: size, depth: size, entrance: { ...defaultLand().entrance, offset: size / 2 }, surroundings };
+        const res = generateDesigns(land, { ...DEFAULT_GEN, tents: size === 25 ? 1 : 3, court: size === 50 });
+        for (const r of res) expect(r.issues).toBe(0);
+        expect(res[0].description).toContain('البحر');
+      }
+    }
+  });
+});

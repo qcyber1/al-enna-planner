@@ -19,7 +19,7 @@ import {
   segmentRects,
 } from './geometry';
 import { aimRotation } from './sample';
-import { validatePlan } from './validation';
+import { tentEntranceZone, validatePlan } from './validation';
 import { windNotes } from './wind';
 
 export interface GenInput {
@@ -296,6 +296,11 @@ function build(land: Land, input: GenInput, s: Strategy): GenResult {
       majlis.rotation = faceToward(want, s.yard.v < s.anchors.majlis.v ? add(want, scale(f.n, -1)) : yard, f);
     }
     if (!placeNear(P, majlis, want, 1.5)) skipped.push(majlis.name);
+    else {
+      // حجز المساحة قدام باب المجلس (مهم لما يكون المدخل جانبي مثل العنة البحرية)
+      const z = tentEntranceZone(majlis, 2.5);
+      if (z) P.occupied.push(z);
+    }
   }
   const hasMajlis = P.els.includes(majlis);
   if (seaEdge && hasMajlis) {
