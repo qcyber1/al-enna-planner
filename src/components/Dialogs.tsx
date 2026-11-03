@@ -94,7 +94,7 @@ export function LandDialog() {
     st.updateLand(l);
     openDialog(null);
     setTimeout(() => useViewport.getState().requestFit(), 50);
-    st.toast('تم تحديث الأرض — راجع التنبيهات إن كانت هناك عناصر خارج الحدود', 'success');
+    st.toast('تم تحديث الأرض — شيّك التنبيهات لو فيه عناصر طلعت برا السور', 'success');
   };
   return (
     <Modal
@@ -299,7 +299,7 @@ export function SummaryDialog() {
                 <li>عشب صناعي: <b>{formatArea(s.woodTurf.turfArea, 1)}</b> ≈ {formatNumber(s.woodTurf.turfRollMeters, 1)} م طولي من لفة بعرض {est.turfRollWidth} م</li>
               </ul>
             ) : (
-              <p className="mb-2 text-sm text-sand-600">لا يوجد ممر من نوع «خشب + عشب صناعي» في هذا التصميم.</p>
+              <p className="mb-2 text-sm text-sand-600">ما في ممر «خشب + عشب صناعي» في هذا التصميم.</p>
             )}
             <div className="grid grid-cols-3 gap-2">
               <Field label="طول الخشبة"><NumberInput value={est.beamLength} min={0.5} max={12} onChange={(v) => setEstimate({ beamLength: v })} unit="م" /></Field>
@@ -314,7 +314,7 @@ export function SummaryDialog() {
 
         <div className="rounded-xl border border-sand-200 bg-white p-3">
           <h3 className="mb-1 font-bold text-dune">التكلفة التقديرية</h3>
-          <p className="mb-2 text-[12px] text-sand-600">الكميات محسوبة تلقائياً من المخطط. لا توجد أسعار افتراضية — أدخل سعر الوحدة بنفسك (بالريال القطري).</p>
+          <p className="mb-2 text-[12px] text-sand-600">الكميات محسوبة تلقائياً من المخطط. ما حطينا أسعار من عندنا — اكتب سعر الوحدة اللي عطاك إياه المورّد (بالريال القطري).</p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-sm">
               <thead className="text-[11px] text-sand-600"><tr><th className="text-right">البند</th><th>الكمية</th><th>الوحدة</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>
@@ -496,7 +496,7 @@ export function ShareDialog() {
     if (view === '2d') {
       setView('3d');
       openDialog(null);
-      toast('تم فتح العرض 3D — اختر الزاوية المناسبة ثم اضغط تصدير مرة أخرى', 'info');
+      toast('انفتح المجسم 3D — اختر الزاوية اللي تبيها واضغط تصدير مرة ثانية', 'info');
       return;
     }
     requestCapture3d(mode);
@@ -517,7 +517,7 @@ export function ShareDialog() {
       openDialog(null);
       setTimeout(() => useViewport.getState().requestFit(), 50);
     } catch (e) {
-      toast(e instanceof ImportError || e instanceof Error ? e.message : 'تعذر استيراد الملف', 'error');
+      toast(e instanceof ImportError || e instanceof Error ? e.message : 'ما قدرنا نفتح الملف', 'error');
     }
   };
   return (
@@ -540,7 +540,7 @@ export function ShareDialog() {
                 طول الرابط: {link.length.toLocaleString('en-US')} حرف {link.tooLong ? '— طويل جداً، استخدم ملف JSON' : link.risky ? '— قد لا تدعمه بعض التطبيقات، يُفضّل ملف JSON' : '— مناسب'}
               </div>
               <div className="flex gap-2">
-                <Button className="flex-1" disabled={link.tooLong} onClick={async () => toast((await copyText(link.url)) ? 'تم نسخ الرابط' : 'تعذر النسخ', 'success')}><Link2 size={15} /> نسخ الرابط</Button>
+                <Button className="flex-1" disabled={link.tooLong} onClick={async () => { const ok = await copyText(link.url); toast(ok ? 'تم نسخ الرابط' : 'ما قدرنا ننسخ — انسخه يدوياً', ok ? 'success' : 'warning'); }}><Link2 size={15} /> نسخ الرابط</Button>
                 <Button className="flex-1" disabled={link.tooLong} onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`تصميم العنة: ${design.name}\n${link.url}`)}`, '_blank')}><MessageCircle size={15} /> واتساب</Button>
               </div>
             </>

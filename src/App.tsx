@@ -37,7 +37,7 @@ export default function App() {
   useEffect(() => startAutosave(), []);
   useEffect(() => {
     const st = useEditor.getState();
-    if (!storageAvailable()) st.toast('التخزين المحلي غير متاح في هذا المتصفح — صدّر المشروع كملف للحفظ', 'warning');
+    if (!storageAvailable()) st.toast('المتصفح ما يسمح بالحفظ (يمكن التصفح الخفي) — صدّر المشروع كملف عشان ما يضيع', 'warning');
     try {
       const shared = readShareFromHash();
       if (shared) {

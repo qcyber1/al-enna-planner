@@ -261,7 +261,7 @@ function CaptureHandler() {
       small.height = Math.round((640 * gl.domElement.height) / gl.domElement.width);
       small.getContext('2d')?.drawImage(gl.domElement, 0, 0, small.width, small.height);
       const ok = saveThumbs(design.id, { d3: small.toDataURL('image/jpeg', 0.8) });
-      st.toast(ok ? 'تم حفظ لقطة 3D لهذا التصميم للمقارنة' : 'تعذر حفظ اللقطة (المساحة ممتلئة)', ok ? 'success' : 'warning');
+      st.toast(ok ? 'تم حفظ لقطة 3D لهذا التصميم للمقارنة' : 'ما انحفظت اللقطة (مساحة المتصفح فلّت)', ok ? 'success' : 'warning');
       return;
     }
     canvasToBlob(gl.domElement)
@@ -271,7 +271,7 @@ function CaptureHandler() {
           : shareOrDownload(blob, `al-enna-3d-${safeFileName(design.name)}-${stamp()}.png`, design.name).then(() => 'downloaded' as const),
       )
       .then((r) => r !== 'cancelled' && st.toast('تم تصدير صورة المشهد 3D', 'success'))
-      .catch(() => st.toast('تعذر تصدير الصورة', 'error'));
+      .catch(() => st.toast('ما قدرنا نصدّر الصورة — حاول مرة ثانية', 'error'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [capture.nonce]);
   return null;

@@ -186,7 +186,7 @@ export interface SanitizeReport {
 }
 
 export function sanitizePlan(raw: unknown, report?: SanitizeReport): Plan {
-  if (!isObj(raw)) throw new ImportError('بيانات المخطط غير صالحة');
+  if (!isObj(raw)) throw new ImportError('بيانات المخطط ناقصة أو خربانة');
   const land = sanitizeLand(raw.land);
   const rawEls = Array.isArray(raw.elements) ? raw.elements : [];
   const seen = new Set<string>();
@@ -214,7 +214,7 @@ export function sanitizePlan(raw: unknown, report?: SanitizeReport): Plan {
 }
 
 export function sanitizeDesign(raw: unknown, report?: SanitizeReport): Design {
-  if (!isObj(raw)) throw new ImportError('بيانات التصميم غير صالحة');
+  if (!isObj(raw)) throw new ImportError('بيانات التصميم ناقصة أو خربانة');
   const now = Date.now();
   return {
     id: str(raw.id, uid('d'), 80) || uid('d'),
@@ -227,7 +227,7 @@ export function sanitizeDesign(raw: unknown, report?: SanitizeReport): Design {
 }
 
 export function sanitizeProject(raw: unknown, report?: SanitizeReport): Project {
-  if (!isObj(raw)) throw new ImportError('ملف المشروع غير صالح');
+  if (!isObj(raw)) throw new ImportError('ملف المشروع خربان أو ناقص');
   const now = Date.now();
   const designsRaw = Array.isArray(raw.designs) ? raw.designs : [];
   const designs: Design[] = [];
@@ -242,7 +242,7 @@ export function sanitizeProject(raw: unknown, report?: SanitizeReport): Project 
       if (report) report.dropped++;
     }
   }
-  if (!designs.length) throw new ImportError('لا يحتوي الملف على أي تصميم صالح');
+  if (!designs.length) throw new ImportError('الملف ما فيه أي تصميم صالح');
   const active = str(raw.activeDesignId, designs[0].id);
   const prices: Record<string, number> = {};
   if (isObj(raw.prices)) {
@@ -282,9 +282,9 @@ export function parseImport(text: string): { kind: ImportKind; project?: Project
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new ImportError('الملف ليس بصيغة JSON صحيحة');
+    throw new ImportError('الملف مو بصيغة JSON صحيحة');
   }
-  if (!isObj(raw)) throw new ImportError('محتوى الملف غير متوقع');
+  if (!isObj(raw)) throw new ImportError('محتوى الملف مو متوقع');
   const report: SanitizeReport = { dropped: 0 };
   const payload = isObj(raw.payload) ? raw.payload : raw;
   if (Array.isArray(payload.designs)) return { kind: 'project', project: sanitizeProject(payload, report), report };
@@ -297,5 +297,5 @@ export function parseImport(text: string): { kind: ImportKind; project?: Project
       report,
     };
   }
-  throw new ImportError('لم يتم التعرف على الملف كمخطط عنة');
+  throw new ImportError('هذا الملف مو مخطط عنة — اختر ملف JSON اللي صدّرته من التطبيق');
 }

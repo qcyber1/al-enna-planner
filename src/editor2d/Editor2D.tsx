@@ -367,7 +367,7 @@ export default function Editor2D() {
   handlers.current.onDblClick = (id) => {
     const el = getPlan().elements.find((x) => x.id === id);
     if (!el) return;
-    if (el.locked) useEditor.getState().toast('العنصر مقفل — يمكنك إلغاء القفل من لوحة الخصائص', 'info');
+    if (el.locked) useEditor.getState().toast('العنصر مقفل — فك القفل من الشريط تحت أو من الخصائص', 'info');
   };
 
   // ——— المحوّل (تدوير وتغيير المقاس) ———

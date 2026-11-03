@@ -33,7 +33,7 @@ export function InviteDialog() {
     fetch('/api/myref', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) })
       .then((r) => r.json())
       .then((j: RefInfo & { ok?: boolean; error?: string }) => (j.ok ? setInfo(j) : setError(j.error || 'رابط الدعوة متاح للمشتركين فقط')))
-      .catch(() => setError('تعذر الاتصال'));
+      .catch(() => setError('ما قدرنا نتصل — تأكد من الإنترنت'));
   }, [open]);
   const link = info ? `${window.location.origin}/?ref=${info.ref}` : '';
   const text = info
@@ -58,7 +58,7 @@ export function InviteDialog() {
               <Button variant="gold" onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')}>
                 <MessageCircle size={16} /> أرسل في الواتساب
               </Button>
-              <Button onClick={async () => toast((await copyText(text)) ? 'تم نسخ رسالة الدعوة' : 'تعذر النسخ', 'success')}>
+              <Button onClick={async () => { const ok = await copyText(text); toast(ok ? 'تم نسخ رسالة الدعوة' : 'ما قدرنا ننسخ — انسخها يدوياً', ok ? 'success' : 'warning'); }}>
                 <Copy size={16} /> نسخ الرسالة
               </Button>
             </div>

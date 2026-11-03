@@ -370,7 +370,7 @@ export const useEditor = create<State>()((set, get) => ({
     const plan = activeDesign(get().project).plan;
     const removable = plan.elements.filter((e) => set_.has(e.id) && !e.locked).map((e) => e.id);
     if (!removable.length) {
-      get().toast('العناصر المحددة مقفلة — ألغِ القفل أولاً', 'warning');
+      get().toast('العناصر المحددة مقفلة — فك القفل أول', 'warning');
       return;
     }
     const rm = new Set(removable);
@@ -557,7 +557,7 @@ export const useEditor = create<State>()((set, get) => ({
   deleteDesign: (id) => {
     const s = get();
     if (s.project.designs.length <= 1) {
-      get().toast('لا يمكن حذف التصميم الوحيد في المشروع', 'warning');
+      get().toast('ما تقدر تحذف آخر تصميم في المشروع', 'warning');
       return;
     }
     const designs = s.project.designs.filter((d) => d.id !== id);
@@ -605,7 +605,7 @@ export const useEditor = create<State>()((set, get) => ({
     flushSave();
     const p = storage.loadProject(id);
     if (!p) {
-      get().toast('تعذر فتح المشروع — ربما يكون تالفاً', 'error');
+      get().toast('ما قدرنا نفتح المشروع — يمكن الملف خربان', 'error');
       return false;
     }
     set({ project: p, past: [], future: [], selection: [], gestureBase: null, saveState: 'saved' });
@@ -679,7 +679,7 @@ function doSave(): void {
     lastSaved = project;
     useEditor.setState({ saveState: 'saved', saveError: null, projects: storage.listProjects() });
   } catch (e) {
-    useEditor.setState({ saveState: 'error', saveError: e instanceof Error ? e.message : 'تعذر الحفظ' });
+    useEditor.setState({ saveState: 'error', saveError: e instanceof Error ? e.message : 'ما انحفظ التعديل' });
   }
 }
 

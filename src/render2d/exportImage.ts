@@ -201,7 +201,7 @@ function niceBar(m: number): number {
 
 export function canvasToBlob(canvas: HTMLCanvasElement, type = 'image/png', quality = 0.92): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('تعذر إنشاء الصورة'))), type, quality);
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('ما قدرنا نجهّز الصورة'))), type, quality);
   });
 }
 

@@ -63,7 +63,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       } catch {
         // بيئة التطوير بدون خادم: لا يوجد نظام أكواد
         if (import.meta.env.DEV) return setState('open');
-        setError('تعذر الاتصال بالخادم — تأكد من الإنترنت وحدّث الصفحة');
+        setError('ما قدرنا نتصل — تأكد من الإنترنت وحدّث الصفحة');
         return setState('locked');
       }
       // العودة من صفحة الدفع
@@ -118,9 +118,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       if (data.ok && data.token) {
         set(TOKEN_KEY, data.token);
         setState('open');
-      } else setError(data.error || 'تعذر التفعيل');
+      } else setError(data.error || 'ما تفعّل الكود — حاول مرة ثانية');
     } catch {
-      setError('تعذر الاتصال — تأكد من الإنترنت وحاول مرة ثانية');
+      setError('ما قدرنا نتصل — تأكد من الإنترنت وحاول مرة ثانية');
     } finally {
       setBusy(false);
     }
@@ -139,14 +139,14 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           window.location.href = d.payUrl;
           return;
         }
-        setError(d.error || 'تعذر فتح صفحة الدفع');
+        setError(d.error || 'ما انفتحت صفحة الدفع — حاول مرة ثانية');
       } else {
         const { data } = await post('/api/order', { ...buyer, ref: get(REF_KEY) || undefined });
         if (data.ok) setNotice('وصلنا طلبك ✓ بنرسل لك رابط الدفع على الواتساب خلال دقائق، وبعد الدفع يوصلك كود التفعيل.');
-        else setError(data.error || 'تعذر إرسال الطلب');
+        else setError(data.error || 'ما انرسل الطلب — حاول مرة ثانية');
       }
     } catch {
-      setError('تعذر الاتصال — حاول مرة ثانية');
+      setError('ما قدرنا نتصل — حاول مرة ثانية');
     } finally {
       setBusy(false);
     }

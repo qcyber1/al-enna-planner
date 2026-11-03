@@ -98,10 +98,10 @@ function recordFor(id) {
 /** يسجل الجهاز على الكود ضمن الحد المسموح */
 function bindDevice(id, device) {
   const rec = recordFor(id);
-  if (rec.revoked) return { ok: false, error: 'هذا الكود موقوف — تواصل مع البائع' };
+  if (rec.revoked) return { ok: false, error: 'هذا الكود موقوف — تواصل معنا' };
   if (!rec.devices.find((d) => d.id === device)) {
     if (rec.devices.length >= MAX_DEVICES)
-      return { ok: false, error: `هذا الكود مستخدم على ${MAX_DEVICES} أجهزة (الحد الأقصى) — تواصل مع البائع لإعادة التعيين` };
+      return { ok: false, error: `هذا الكود مفعّل على ${MAX_DEVICES} أجهزة (الحد الأقصى) — تواصل معنا ونفكّه لك` };
     rec.devices.push({ id: device, at: Date.now() });
     if (!rec.activatedAt) rec.activatedAt = Date.now();
     saveDb();
@@ -268,14 +268,14 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { ok: true, payUrl: pay.payUrl, orderId: order.id });
       } catch (e) {
         console.error('[skipcash]', e.message);
-        return send(res, 502, { ok: false, error: 'تعذر فتح صفحة الدفع الآن — حاول بعد قليل' });
+        return send(res, 502, { ok: false, error: 'ما قدرنا نفتح صفحة الدفع الحين — حاول بعد شوي' });
       }
     }
 
     if (p === '/api/checkout/verify' && req.method === 'POST') {
       const { paymentId, orderId } = await readBody(req);
       const o = db.orders.find((x) => (orderId && x.id === orderId) || (paymentId && x.paymentId === paymentId));
-      if (!o) return send(res, 404, { ok: false, error: 'لم يتم العثور على الطلب' });
+      if (!o) return send(res, 404, { ok: false, error: 'ما لقينا الطلب' });
       if (o.status !== 'paid') {
         try {
           const st = await getPayment(o.paymentId || paymentId);
@@ -284,7 +284,7 @@ const server = http.createServer(async (req, res) => {
           console.error('[skipcash verify]', e.message);
         }
       }
-      if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'لم يكتمل الدفع بعد' });
+      if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'الدفع ما اكتمل للحين' });
       return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code });
     }
 
@@ -314,8 +314,8 @@ const server = http.createServer(async (req, res) => {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
       const { code, device } = await readBody(req);
       const id = parseCode(code);
-      if (!id) return send(res, 400, { ok: false, error: 'الكود غير صحيح — تأكد من كتابته كما وصلك' });
-      if (!device || String(device).length > 80) return send(res, 400, { ok: false, error: 'طلب غير صالح' });
+      if (!id) return send(res, 400, { ok: false, error: 'الكود غلط — تأكد إنك كتبته مثل ما وصلك بالضبط' });
+      if (!device || String(device).length > 80) return send(res, 400, { ok: false, error: 'الطلب ناقص — حدّث الصفحة وحاول مرة ثانية' });
       const r = bindDevice(id, String(device));
       if (!r.ok) return send(res, 403, r);
       return send(res, 200, { ok: true, token: makeToken(id, String(device)), name: r.rec.name || '' });
@@ -402,7 +402,7 @@ const server = http.createServer(async (req, res) => {
     return serveStatic(req, res, p);
   } catch (e) {
     console.error(e);
-    return send(res, 500, { ok: false, error: 'خطأ في الخادم' });
+    return send(res, 500, { ok: false, error: 'صار خطأ عندنا — حاول بعد شوي' });
   }
 });
 

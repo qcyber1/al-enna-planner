@@ -166,7 +166,7 @@ export function TopBar({ compact }: { compact: boolean }) {
           )}
           {saveState === 'error' && (
             <>
-              <AlertCircle size={13} className="text-red-400" /> فشل الحفظ
+              <AlertCircle size={13} className="text-red-400" /> ما انحفظ
             </>
           )}
         </span>

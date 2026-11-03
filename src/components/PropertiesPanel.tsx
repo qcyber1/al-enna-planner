@@ -71,7 +71,7 @@ function NothingSelected() {
       </Section>
       <Section title={`التنبيهات (${v.issues.length})`}>
         {v.issues.length === 0 ? (
-          <div className="rounded-lg bg-turf-500/10 p-2.5 text-[13px] text-turf-700">✓ لا توجد تداخلات أو تجاوزات للحدود</div>
+          <div className="rounded-lg bg-turf-500/10 p-2.5 text-[13px] text-turf-700">✓ ما في تداخلات ولا شي طالع برا السور</div>
         ) : (
           <ul className="space-y-1.5">
             {v.issues.slice(0, 40).map((i) => (

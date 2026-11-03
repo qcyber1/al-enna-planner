@@ -22,7 +22,7 @@ function safeSet(key: string, value: string): void {
     localStorage.setItem(key, value);
   } catch (e) {
     const quota = e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22);
-    throw new StorageError(quota ? 'مساحة التخزين في المتصفح ممتلئة — احذف مشاريع قديمة أو صدّرها كملف' : 'تعذر الحفظ في المتصفح');
+    throw new StorageError(quota ? 'مساحة الحفظ في المتصفح فلّت — احذف مشاريع قديمة أو صدّرها كملف' : 'ما قدرنا نحفظ في المتصفح — صدّر المشروع كملف احتياط');
   }
 }
 
