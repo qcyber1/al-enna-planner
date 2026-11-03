@@ -8,6 +8,7 @@ import { DesignsDialog, HelpDialog, LandDialog, ProjectsDialog, ShareDialog, Sha
 import { Toasts } from './components/Toasts';
 import { GeneratorDialog } from './components/GeneratorDialog';
 import { InviteDialog } from './components/InviteDialog';
+import { Tour } from './components/Tour';
 import Editor2D from './editor2d/Editor2D';
 import { startAutosave, useEditor } from './store/editorStore';
 import { useMediaQuery } from './hooks/useDerived';
@@ -65,7 +66,7 @@ export default function App() {
       <div className="relative flex min-h-0 flex-1">
         {/* مكتبة العناصر (يمين في الواجهة العربية) */}
         {isDesktop ? (
-          <aside className="no-print w-64 shrink-0 border-l border-sand-200 bg-sand-50">
+          <aside className="no-print w-64 shrink-0 border-l border-sand-200 bg-sand-50" data-tour="library">
             <Library />
           </aside>
         ) : (
@@ -77,7 +78,7 @@ export default function App() {
           )
         )}
 
-        <main className="relative flex min-w-0 flex-1">
+        <main className="relative flex min-w-0 flex-1" data-tour="canvas">
           {(effectiveView === '2d' || effectiveView === 'split') && (
             <div className={cx('relative h-full min-w-0', effectiveView === 'split' ? 'w-1/2 border-l border-sand-300' : 'w-full')}>
               <Editor2D />
@@ -92,7 +93,7 @@ export default function App() {
           )}
           {!isDesktop && (
             <div className="no-print absolute right-3 z-10 flex gap-2" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
-              <button type="button" onClick={() => setLibOpen(true)} className="flex items-center gap-1 rounded-full bg-dune px-3 py-2 text-sm text-sand-50 shadow-lg" data-testid="open-library">
+              <button type="button" onClick={() => setLibOpen(true)} className="flex items-center gap-1 rounded-full bg-dune px-3 py-2 text-sm text-sand-50 shadow-lg" data-testid="open-library" data-tour="library">
                 <PanelRight size={16} /> العناصر
               </button>
               <button type="button" onClick={() => setPropsOpen(true)} className="flex items-center gap-1 rounded-full bg-white px-3 py-2 text-sm text-dune shadow-lg">
@@ -119,6 +120,7 @@ export default function App() {
           )
         )}
       </div>
+      <Tour />
       <WelcomeDialog />
       <LandDialog />
       <SummaryDialog />

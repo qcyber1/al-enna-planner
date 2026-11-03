@@ -133,8 +133,8 @@ export function TopBar({ compact }: { compact: boolean }) {
       </div>
 
       <div className="mx-auto flex items-center gap-2">
-        <Segmented tone="dark" value={view} onChange={setView} options={viewOpts} />
-        <Segmented tone="dark" value={time} onChange={setTime} options={timeOpts} />
+        <span data-tour="view"><Segmented tone="dark" value={view} onChange={setView} options={viewOpts} /></span>
+        <span data-tour="time"><Segmented tone="dark" value={time} onChange={setTime} options={timeOpts} /></span>
         {!compact && (
           <IconButton tone="dark" label={lights ? 'إطفاء كل الإنارة' : 'تشغيل كل الإنارة'} active={lights} onClick={() => setLights(!lights)}>
             {lights ? <Lightbulb size={17} /> : <LightbulbOff size={17} />}

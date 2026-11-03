@@ -61,7 +61,7 @@ export function MobileTopBar() {
   return (
     <header className="no-print relative z-30 shrink-0 bg-dune text-sand-50 shadow-md" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <div className="flex h-14 items-center gap-1.5 px-2">
-        <button type="button" onClick={() => setMenu(true)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10" aria-label="القائمة" data-testid="mobile-menu">
+        <button type="button" onClick={() => setMenu(true)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10" aria-label="القائمة" data-testid="mobile-menu" data-tour="time">
           <Menu size={21} />
         </button>
         <button
@@ -73,7 +73,7 @@ export function MobileTopBar() {
           <Layers size={15} className="shrink-0 text-gold-400" />
           <span className="truncate">{active?.name}</span>
         </button>
-        <Segmented tone="dark" value={view === 'split' ? '2d' : view} onChange={setView} options={[{ value: '2d', label: '2D' }, { value: '3d', label: '3D' }]} />
+        <span data-tour="view" className="shrink-0"><Segmented tone="dark" value={view === 'split' ? '2d' : view} onChange={setView} options={[{ value: '2d', label: '2D' }, { value: '3d', label: '3D' }]} /></span>
         <button type="button" onClick={undo} disabled={!canUndo} className="flex h-10 w-9 shrink-0 items-center justify-center rounded-xl disabled:opacity-30" aria-label="تراجع" data-testid="undo">
           <Undo2 size={19} />
         </button>

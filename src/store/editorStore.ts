@@ -726,4 +726,6 @@ export function startAutosave(): () => void {
 
 export const usePlan = () => useEditor((s) => activeDesign(s.project).plan);
 export const useActiveDesign = () => useEditor((s) => activeDesign(s.project));
+/** أول تشغيل على هذا الجهاز (لا يوجد مشروع محفوظ) */
+export const isFirstRun = () => init.firstRun;
 export const getPlan = () => activeDesign(useEditor.getState().project).plan;
