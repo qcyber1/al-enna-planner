@@ -17,6 +17,7 @@ import { validatePlan } from '../lib/validation';
 import { useViewport } from '../editor2d/viewport';
 import { TEMPLATES, buildTemplate, type Template } from '../lib/templates';
 import { openReport } from '../lib/report';
+import { markBackup } from './BackupNudge';
 
 // ——— الترحيب ———
 export function WelcomeDialog() {
@@ -577,7 +578,7 @@ export function ShareDialog() {
         <div className="space-y-2 rounded-xl border border-sand-200 bg-white p-4 md:col-span-2">
           <h3 className="font-bold text-dune">ملفات المشروع (JSON)</h3>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => exportProjectJson(project)} data-testid="export-json"><FileJson size={15} /> تصدير المشروع كاملاً ({project.designs.length} تصاميم)</Button>
+            <Button onClick={() => { exportProjectJson(project); markBackup(); }} data-testid="export-json"><FileJson size={15} /> تصدير المشروع كاملاً ({project.designs.length} تصاميم)</Button>
             <Button onClick={() => exportDesignJson(design, project.name)}><FileJson size={15} /> تصدير التصميم الحالي فقط</Button>
             <Button variant="primary" onClick={() => fileRef.current?.click()}><Upload size={15} /> استيراد ملف</Button>
             <input
