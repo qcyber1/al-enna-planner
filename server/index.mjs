@@ -4,6 +4,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { adminPage } from './admin.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
@@ -210,11 +211,44 @@ function serveStatic(req, res, urlPath) {
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, 'index.html');
   const ext = path.extname(file);
   const immutable = urlPath.startsWith('/assets/');
-  res.writeHead(200, {
+  const headers = {
     'content-type': MIME[ext] || 'application/octet-stream',
     'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
-  });
+    vary: 'Accept-Encoding',
+  };
+  // ضغط الملفات النصية (JS/CSS/HTML...) — يقلل التحميل الأول تقريباً للربع على الجوال
+  const accept = String(req.headers['accept-encoding'] || '');
+  const enc = !COMPRESSIBLE.has(ext) ? null : /\bbr\b/.test(accept) ? 'br' : /\bgzip\b/.test(accept) ? 'gzip' : null;
+  if (enc) {
+    const body = compressed(file, enc);
+    if (body) {
+      res.writeHead(200, { ...headers, 'content-encoding': enc, 'content-length': body.length });
+      return res.end(req.method === 'HEAD' ? undefined : body);
+    }
+  }
+  res.writeHead(200, headers);
   fs.createReadStream(file).pipe(res);
+}
+
+const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.svg', '.json', '.webmanifest', '.txt']);
+const zcache = new Map();
+/** نسخة مضغوطة من الملف (محفوظة في الذاكرة ومربوطة بوقت التعديل) */
+function compressed(file, enc) {
+  try {
+    const st = fs.statSync(file);
+    const key = `${enc}:${file}`;
+    const hit = zcache.get(key);
+    if (hit && hit.mtime === st.mtimeMs) return hit.body;
+    const raw = fs.readFileSync(file);
+    const body =
+      enc === 'br'
+        ? zlib.brotliCompressSync(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length } })
+        : zlib.gzipSync(raw, { level: 9 });
+    zcache.set(key, { mtime: st.mtimeMs, body });
+    return body;
+  } catch {
+    return null;
+  }
 }
 
 // ——— الخادم ———

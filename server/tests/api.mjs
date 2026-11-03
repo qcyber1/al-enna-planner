@@ -154,3 +154,13 @@ test('الدفع الإلكتروني مقفول بدون مفاتيح سكيب 
   const r = await api('/api/checkout', { name: 'x y', phone: '55123456', email: 'a@b.co' });
   assert.equal(r.status, 400);
 });
+
+test('ملفات الموقع تنضغط (br/gzip) إذا موجودة', async (t) => {
+  const r = await fetch(BASE + '/', { headers: { 'accept-encoding': 'gzip' } });
+  if (!r.headers.get('content-type')?.includes('text/html')) return t.skip('ما في dist');
+  assert.equal(r.headers.get('content-encoding'), 'gzip');
+  const html = await r.text();
+  assert.match(html, /<div id="root">/);
+  // الـ API ما ينضغط ولا يتأثر
+  assert.equal((await api('/api/status')).status, 200);
+});

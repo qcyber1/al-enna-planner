@@ -18,7 +18,18 @@ import { clearShareHash, readShareFromHash } from './lib/share';
 import { storageAvailable } from './lib/storage';
 import { cx } from './components/ui';
 
-const Scene3D = lazy(() => import('./scene3d/Scene3D'));
+const loadScene3D = () => import('./scene3d/Scene3D');
+const Scene3D = lazy(loadScene3D);
+
+// تحميل الـ3D بهدوء بعد ما تستقر الصفحة (أول فتح صار أسرع، والتبديل لـ3D يظل فوري)
+if (typeof window !== 'undefined') {
+  const warm = () => void loadScene3D().catch(() => {});
+  window.addEventListener('load', () => {
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+    if (ric) ric(warm, { timeout: 6000 });
+    else setTimeout(warm, 3000);
+  });
+}
 
 function Loading3D() {
   return <div className="flex h-full items-center justify-center bg-[#cfd9e3] text-sand-800">جاري تحميل العرض ثلاثي الأبعاد…</div>;
