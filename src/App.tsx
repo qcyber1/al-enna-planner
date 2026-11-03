@@ -9,6 +9,7 @@ import { Toasts } from './components/Toasts';
 import { GeneratorDialog } from './components/GeneratorDialog';
 import { InviteDialog } from './components/InviteDialog';
 import { Tour } from './components/Tour';
+import { ChecklistDialog } from './components/ChecklistDialog';
 import { BottomSheet } from './components/BottomSheet';
 import Editor2D from './editor2d/Editor2D';
 import { startAutosave, useEditor } from './store/editorStore';
@@ -139,6 +140,7 @@ export default function App() {
         )}
       </div>
       <Tour />
+      <ChecklistDialog />
       <WelcomeDialog />
       <LandDialog />
       <SummaryDialog />

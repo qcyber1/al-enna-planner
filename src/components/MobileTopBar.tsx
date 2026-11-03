@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   Menu,
+  ClipboardCheck,
   Undo2,
   Redo2,
   Sun,
@@ -137,6 +138,9 @@ export function MobileTopBar() {
               </button>
               <button type="button" className={item} onClick={() => go('summary')} data-testid="open-summary">
                 <Calculator size={19} /> القياسات والكميات والتكلفة
+              </button>
+              <button type="button" className={item} onClick={() => go('checklist')} data-testid="open-checklist">
+                <ClipboardCheck size={19} /> قائمة التجهيز قبل التركيب
               </button>
               <button type="button" className={item} onClick={() => go('compare')}>
                 <Columns2 size={19} /> مقارنة التصاميم

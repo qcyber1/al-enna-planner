@@ -236,6 +236,7 @@ export function SummaryDialog() {
       title={`القياسات وحصر الكميات — ${design.name}`}
       footer={
         <>
+          <Button onClick={() => openDialog('checklist')} data-testid="summary-checklist">✅ قائمة التجهيز</Button>
           <Button onClick={exportCsv}><Download size={15} /> تصدير CSV</Button>
           <Button
             variant="gold"

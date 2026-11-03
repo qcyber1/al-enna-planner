@@ -92,3 +92,16 @@ describe('سعة الخيام', () => {
     expect(cs2(plan).capacity).toBeGreaterThanOrEqual(c);
   });
 });
+
+import { buildChecklist, checklistCount } from '../checklist';
+describe('قائمة التجهيز', () => {
+  it('المثال يطلع قائمة فيها الخيام والإنارة والسلامة بدون تكرار', () => {
+    const groups = buildChecklist(cs2(csp()));
+    const ids = groups.flatMap((g) => g.items.map((i) => i.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(checklistCount(groups)).toBeGreaterThan(15);
+    const titles = groups.map((g) => g.title);
+    expect(titles).toContain('الإنارة والكهرباء');
+    expect(titles).toContain('السلامة');
+  });
+});

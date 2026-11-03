@@ -19,6 +19,7 @@ import {
   HelpCircle,
   Sparkles,
   Gift,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useEditor } from '../store/editorStore';
 import { IconButton, Segmented, cx } from './ui';
@@ -43,15 +44,16 @@ export function TopBar({ compact }: { compact: boolean }) {
   const [menu, setMenu] = useState(false);
   const active = project.designs.find((d) => d.id === project.activeDesignId);
 
-  const viewOpts: { value: ViewMode; label: string }[] = compact
+  const viewOpts: { value: ViewMode; label: React.ReactNode }[] = compact
     ? [
         { value: '2d', label: '2D' },
         { value: '3d', label: '3D' },
       ]
     : [
-        { value: '2d', label: 'مخطط 2D' },
-        { value: '3d', label: 'مجسم 3D' },
-        { value: 'split', label: 'مقسوم' },
+        // الكلمات الطويلة تطلع بس في الشاشات العريضة (وإلا تنكسر لسطرين)
+        { value: '2d', label: <span className="whitespace-nowrap"><span className="hidden min-[1440px]:inline">مخطط </span>2D</span> },
+        { value: '3d', label: <span className="whitespace-nowrap"><span className="hidden min-[1440px]:inline">مجسم </span>3D</span> },
+        { value: 'split', label: <span className="whitespace-nowrap">مقسوم</span> },
       ];
   const timeOpts: { value: TimeOfDay; label: React.ReactNode; title: string }[] = [
     { value: 'day', label: <Sun size={15} />, title: 'نهار' },
@@ -64,7 +66,7 @@ export function TopBar({ compact }: { compact: boolean }) {
       <div className="flex min-w-0 items-center gap-2">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold-500 text-lg">⛺</div>
         {!compact && (
-          <div className="leading-tight">
+          <div className="whitespace-nowrap leading-tight">
             <div className="text-[15px] font-bold">مخطط العنة</div>
             <div className="text-[10px] text-sand-300">Al Enna Planner</div>
           </div>
@@ -178,6 +180,9 @@ export function TopBar({ compact }: { compact: boolean }) {
             <IconButton tone="dark" label="القياسات وحصر الكميات" onClick={() => openDialog('summary')} data-testid="open-summary">
               <Calculator size={17} />
             </IconButton>
+            <IconButton tone="dark" label="قائمة التجهيز قبل التركيب" onClick={() => openDialog('checklist')} data-testid="open-checklist-desk">
+              <ClipboardCheck size={17} />
+            </IconButton>
             <IconButton tone="dark" label="مقارنة التصاميم" onClick={() => openDialog('compare')}>
               <Columns2 size={17} />
             </IconButton>
@@ -198,7 +203,7 @@ export function TopBar({ compact }: { compact: boolean }) {
           data-testid="open-generator"
           title="مولّد التصاميم"
         >
-          <Sparkles size={16} /> {!compact && 'ولّد تصاميم'}
+          <Sparkles size={16} /> {!compact && <span className="whitespace-nowrap"><span className="hidden min-[1440px]:inline">ولّد تصاميم</span><span className="min-[1440px]:hidden">ولّد</span></span>}
         </button>
         <button
           type="button"
@@ -206,7 +211,7 @@ export function TopBar({ compact }: { compact: boolean }) {
           className="mr-1 flex h-9 items-center gap-1.5 rounded-lg bg-gold-500 px-3 text-sm font-semibold text-dune hover:bg-gold-400"
           data-testid="open-share"
         >
-          <Share2 size={16} /> {!compact && 'مشاركة وتصدير'}
+          <Share2 size={16} /> {!compact && <span className="whitespace-nowrap"><span className="hidden min-[1440px]:inline">مشاركة وتصدير</span><span className="min-[1440px]:hidden">مشاركة</span></span>}
         </button>
       </div>
     </header>
