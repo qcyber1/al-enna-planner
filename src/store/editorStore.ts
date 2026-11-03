@@ -109,6 +109,8 @@ interface State {
   updateElements: (patches: Record<string, Partial<PlanElement>>, opts?: SetPlanOptions) => void;
   removeElements: (ids: string[]) => void;
   duplicateElements: (ids: string[]) => void;
+  /** تكرار عنصر بصف: count إجمالي (مع الأصل)، gap المسافة بين القطع، axis: x جنب بعض / y ورا بعض */
+  repeatElement: (id: string, count: number, gap: number, axis: 'x' | 'y') => void;
   moveElements: (ids: string[], dx: number, dy: number, opts?: SetPlanOptions) => void;
   rotateElements: (ids: string[], delta: number) => void;
   setLocked: (ids: string[], locked: boolean) => void;
@@ -388,6 +390,25 @@ export const useEditor = create<State>()((set, get) => ({
       return c;
     });
     get().addElements(copies);
+  },
+
+  repeatElement: (id, count, gap, axis) => {
+    const plan = activeDesign(get().project).plan;
+    const src = plan.elements.find((e) => e.id === id);
+    if (!src || src.points?.length) return;
+    const n = Math.max(2, Math.min(30, Math.round(count)));
+    const step = (axis === 'x' ? src.width : src.depth) + Math.max(0, gap);
+    const r = (src.rotation * Math.PI) / 180;
+    const ux = axis === 'x' ? Math.cos(r) : -Math.sin(r);
+    const uy = axis === 'x' ? Math.sin(r) : Math.cos(r);
+    const copies: PlanElement[] = [];
+    for (let i = 1; i < n; i++) {
+      const c = cloneElement(src, ux * step * i, uy * step * i);
+      c.name = `${src.name} ${i + 1}`;
+      copies.push(c);
+    }
+    get().setPlan((p) => ({ ...p, elements: [...p.elements, ...copies] }));
+    set({ selection: [src.id, ...copies.map((c) => c.id)] });
   },
 
   moveElements: (ids, dx, dy, opts) => {

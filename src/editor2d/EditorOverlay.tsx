@@ -264,6 +264,7 @@ export function EditorOverlay({
 function SelectionBar() {
   const selection = useEditor((s) => s.selection);
   const plan = usePlan();
+  const [copyMenu, setCopyMenu] = useState<string | null>(null);
   if (!selection.length) return null;
   const els = plan.elements.filter((e) => selection.includes(e.id));
   if (!els.length) return null;
@@ -306,14 +307,74 @@ function SelectionBar() {
       <button type="button" className={btn} onClick={() => st.rotateElements(selection, 90)} disabled={locked}>
         <RotateCw size={17} /> تدوير
       </button>
-      <button type="button" className={btn} onClick={() => st.duplicateElements(selection)}>
+      <button
+        type="button"
+        className={btn}
+        onClick={() => (one && cat?.geometry !== 'polyline' ? setCopyMenu(copyMenu === one.id ? null : one.id) : st.duplicateElements(selection))}
+        data-testid="sel-copy"
+      >
         <Copy size={17} /> نسخ
       </button>
+      {one && copyMenu === one.id && <RepeatMenu key={one.id} id={one.id} onDone={() => setCopyMenu(null)} />}
       <button type="button" className={btn} onClick={() => st.setLocked(selection, !locked)}>
         {locked ? <Unlock size={17} /> : <Lock size={17} />} {locked ? 'فك' : 'قفل'}
       </button>
       <button type="button" className={btn + ' text-red-700'} onClick={() => st.removeElements(selection)} disabled={locked}>
         <Trash2 size={17} /> حذف
+      </button>
+    </div>
+  );
+}
+
+/** قائمة النسخ: نسخة وحدة أو صف (مثلاً 6 ليتات أو 4 خيام بمسافة ثابتة) */
+function RepeatMenu({ id, onDone }: { id: string; onDone: () => void }) {
+  const [count, setCount] = useState(4);
+  const [gap, setGap] = useState(1);
+  const [axis, setAxis] = useState<'x' | 'y'>('x');
+  const st = useEditor.getState();
+  const stepper = (label: string, value: string, dec: () => void, inc: () => void, testId: string) => (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[12px] text-sand-700">{label}</span>
+      <div className="flex items-center rounded-lg bg-sand-100">
+        <button type="button" className="px-2.5 py-1.5 text-dune" onClick={dec} aria-label={`تقليل ${label}`}><Minus size={14} /></button>
+        <span className="min-w-[3.2rem] text-center text-[13px] font-bold tabular-nums" data-testid={testId}>{value}</span>
+        <button type="button" className="px-2.5 py-1.5 text-dune" onClick={inc} aria-label={`زيادة ${label}`}><Plus size={14} /></button>
+      </div>
+    </div>
+  );
+  return (
+    <div className="absolute bottom-full left-1/2 mb-2 w-64 -translate-x-1/2 space-y-2 rounded-2xl border border-sand-300 bg-white p-3 shadow-xl" data-testid="repeat-menu">
+      <button
+        type="button"
+        className="w-full rounded-lg bg-sand-100 py-2 text-[13px] font-semibold text-dune active:scale-95"
+        onClick={() => {
+          st.duplicateElements([id]);
+          onDone();
+        }}
+      >
+        نسخة وحدة
+      </button>
+      <div className="border-t border-sand-200 pt-2 text-[12px] font-bold text-dune">أو صف كامل:</div>
+      {stepper('العدد', `${count}`, () => setCount(Math.max(2, count - 1)), () => setCount(Math.min(30, count + 1)), 'repeat-count')}
+      {stepper('المسافة بينها', `${gap} م`, () => setGap(Math.max(0, Math.round((gap - 0.5) * 10) / 10)), () => setGap(Math.min(20, Math.round((gap + 0.5) * 10) / 10)), 'repeat-gap')}
+      <div className="grid grid-cols-2 gap-1 rounded-lg bg-sand-100 p-0.5 text-[12px]">
+        {(['x', 'y'] as const).map((a) => (
+          <button key={a} type="button" className={cx('rounded-md py-1.5', axis === a ? 'bg-white font-bold text-dune shadow' : 'text-sand-700')} onClick={() => setAxis(a)}>
+            {a === 'x' ? 'جنب بعض' : 'ورا بعض'}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        className="w-full rounded-lg bg-dune py-2 text-[13px] font-bold text-sand-50 active:scale-95"
+        onClick={() => {
+          st.repeatElement(id, count, gap, axis);
+          st.toast(`تم — صار عندك ${count} في صف`, 'success');
+          onDone();
+        }}
+        data-testid="repeat-go"
+      >
+        سوّ الصف ({count})
       </button>
     </div>
   );
