@@ -84,14 +84,14 @@ ${persistent ? '' : '<div class="warn">⚠ لم يتم ربط Volume على <b>/
   <form id="f" class="grid">
     <div><label for="name">اسم العميل</label><input id="name" required></div>
     <div><label for="phone">رقم الواتساب</label><input id="phone" dir="ltr" placeholder="974xxxxxxxx"></div>
-    <div><label for="price">المبلغ (ر.ق) — 0 للهدية</label><input id="price" type="number" value="349" dir="ltr"></div>
+    <div><label for="price">المبلغ (ر.ق) — 0 للهدية</label><input id="price" type="number" value="299" dir="ltr"></div>
     <div><label for="note">ملاحظة</label><input id="note"></div>
     <div style="align-self:end"><button class="gold">توليد الكود</button></div>
   </form><div id="out"></div>
 </section>
 </main>
 <script>
-let list=[],orders=[],refs=[],PRICE=349,REWARD=50;const MAX=${maxDevices};
+let list=[],orders=[],refs=[],PRICE=299,REWARD=30;const MAX=${maxDevices};
 const SCS={0:'جديد',1:'قيد الدفع',2:'مدفوع',3:'ملغي',4:'فشل',5:'مرفوض',6:'مسترجع'};
 const ST={pending:'بانتظار الدفع',new:'طلب جديد',sent:'أُرسل رابط الدفع',paid:'مدفوع ✓',cancelled:'ملغي'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -130,7 +130,7 @@ function stHint(){const p=+st_price.value||0,l=+st_list.value||0,d=+st_rd.value|
 for(const el of [st_price,st_list,st_rd,st_rr])el.oninput=stHint;
 st_save.onclick=async()=>{try{await api('/api/admin/settings',{price:st_price.value,listPrice:st_list.value||0,refDiscount:st_rd.value,refReward:st_rr.value});st_save.textContent='تم الحفظ ✓';setTimeout(()=>st_save.textContent='حفظ الأسعار',1800);await load()}catch(err){alert(err.message)}};
 let stLoaded=false;
-async function load(){const j=await api('/api/admin/list');if(j.settings&&!stLoaded){stLoaded=true;st_price.value=j.settings.price;st_list.value=j.settings.listPrice||0;st_rd.value=j.settings.refDiscount;st_rr.value=j.settings.refReward;stHint()}list=j.list;orders=j.orders||[];refs=j.referrals||[];PRICE=j.price||349;REWARD=j.refReward??50;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';stats();renderOrders();renderRefs();renderCodes()}
+async function load(){const j=await api('/api/admin/list');if(j.settings&&!stLoaded){stLoaded=true;st_price.value=j.settings.price;st_list.value=j.settings.listPrice||0;st_rd.value=j.settings.refDiscount;st_rr.value=j.settings.refReward;stHint()}list=j.list;orders=j.orders||[];refs=j.referrals||[];PRICE=j.price||299;REWARD=j.refReward??50;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';stats();renderOrders();renderRefs();renderCodes()}
 pl.onchange=()=>localStorage.setItem('pl',pl.value);
 q.oninput=renderCodes;
 oq.oninput=renderOrders;of.onchange=renderOrders;
@@ -147,7 +147,7 @@ rb.onclick=async e=>{const b=e.target.closest('button[data-r]');if(!b)return;if(
 tb.onclick=async e=>{const b=e.target.closest('button[data-a]');if(!b)return;if(b.dataset.a==='revoke'&&!confirm('إيقاف الكود؟ العميل ما بيقدر يدخل.'))return;try{await api('/api/admin/update',{id:b.dataset.id,action:b.dataset.a});await load()}catch(err){alert(err.message)}};
 f.onsubmit=async e=>{e.preventDefault();try{const{created}=await api('/api/admin/create',{name:name.value,phone:phone.value,price:price.value,note:note.value});const r=created[0];
   out.innerHTML='<div class="new"><div>كود <b>'+esc(r.name)+'</b>: <span class="code">'+esc(r.code)+'</span></div><div class="row">'+(r.phone?'<a href="'+wa(r.phone,msg(r))+'" target="_blank"><button class="gold" type="button">إرسال واتساب</button></a>':'')+'<button class="ghost" type="button" id="cp">نسخ الرسالة</button></div></div>';
-  cp.onclick=()=>navigator.clipboard.writeText(msg(r)).then(()=>cp.textContent='تم النسخ ✓');f.reset();price.value=349;await load()}catch(err){alert(err.message)}};
+  cp.onclick=()=>navigator.clipboard.writeText(msg(r)).then(()=>cp.textContent='تم النسخ ✓');f.reset();price.value=PRICE;await load()}catch(err){alert(err.message)}};
 csv.onclick=()=>{const rows=[['التاريخ','العميل','الجوال','المبلغ','الحالة','الطريقة','بإحالة من','مرجع الدفع','الكود']];
   for(const o of orders)rows.push([day(o.paidAt||o.createdAt),o.name,o.phone,o.amount??PRICE,ST[o.status],o.online?'سكيب كاش':'يدوي',o.ref?(byId(o.ref)?.name||o.ref):'',o.paymentId||'',o.codeId?(byId(o.codeId)?.code||''):'']);
   for(const r of list)if(!orders.some(o=>o.codeId===r.id))rows.push([day(r.createdAt),r.name,r.phone,r.price||0,'مدفوع ✓','كود يدوي','','',r.code||'']);
