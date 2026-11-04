@@ -1,3 +1,4 @@
+import { drawWatermark } from './watermark';
 import type { Plan } from '../types/plan';
 import { landBounds } from '../lib/geometry';
 import { computeSummary } from '../lib/quantities';
@@ -171,6 +172,9 @@ export function renderPlanCanvas(plan: Plan, opts: PlanImageOptions = {}): HTMLC
       ctx.fillText(`⚠ ${validation.issues.length} تنبيه`, bx, y0 + footer * 0.3);
     }
   }
+
+  // علامتنا الخفيفة على المخطط
+  drawWatermark(ctx, 0, header, W, mapH, !!opts.night);
 
   if (opts.lightMap) {
     // مفتاح خريطة الإضاءة

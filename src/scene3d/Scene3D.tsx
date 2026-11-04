@@ -33,6 +33,7 @@ import { SelectionBar } from '../editor2d/EditorOverlay';
 import { Extra3D } from './Extras3D';
 import { Surroundings3D } from './Surroundings3D';
 import { canvasToBlob } from '../render2d/exportImage';
+import { withWatermark } from '../render2d/watermark';
 import { safeFileName, shareOrDownload, stamp } from '../lib/files';
 import { saveThumbs } from '../lib/storage';
 
@@ -403,7 +404,7 @@ function CaptureHandler() {
       st.toast(ok ? 'تم حفظ لقطة 3D لهذا التصميم للمقارنة' : 'ما انحفظت اللقطة (مساحة المتصفح فلّت)', ok ? 'success' : 'warning');
       return;
     }
-    canvasToBlob(gl.domElement)
+    canvasToBlob(withWatermark(gl.domElement))
       .then((blob) =>
         capture.mode === 'share'
           ? shareOrDownload(blob, `al-enna-3d-${safeFileName(design.name)}-${stamp()}.png`, `${st.project.name} — ${design.name}`)
