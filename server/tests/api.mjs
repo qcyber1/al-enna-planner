@@ -174,3 +174,23 @@ test('سكربت لوحة الإدارة سليم (بدون أخطاء صياغ�
   // يرمي SyntaxError لو فيه خطأ صياغة (بدون ما يشغّل الكود)
   for (const s of scripts) new Function(s);
 });
+
+test('تغيير السعر والعرض من لوحة الإدارة', async () => {
+  const bad = await admin('/api/admin/settings', { price: 0, refDiscount: 10, refReward: 10 });
+  assert.equal(bad.status, 400);
+  const bad2 = await admin('/api/admin/settings', { price: 100, refDiscount: 150, refReward: 10 });
+  assert.equal(bad2.status, 400);
+  const ok = await admin('/api/admin/settings', { price: 299, listPrice: 399, refDiscount: 30, refReward: 40 });
+  assert.equal(ok.status, 200);
+  const s = (await api('/api/status')).json;
+  assert.equal(s.price, 299);
+  assert.equal(s.basePrice, 399);
+  assert.equal(s.sale, true);
+  assert.equal((await api('/api/status?ref=' + ref)).json.price, 269);
+  assert.equal((await api('/api/admin/settings', { price: 1 })).status, 401, 'بدون كلمة سر ممنوع');
+  // يرجع للوضع الطبيعي
+  await admin('/api/admin/settings', { price: 349, listPrice: 0, refDiscount: 50, refReward: 50 });
+  const s2 = (await api('/api/status')).json;
+  assert.equal(s2.price, 349);
+  assert.equal(s2.sale, false);
+});

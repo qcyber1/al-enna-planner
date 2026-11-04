@@ -47,7 +47,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'code' | 'buy'>('buy');
-  const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean }>({ price: 349, online: false, basePrice: 349, refValid: false });
+  const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean; sale?: boolean }>({ price: 349, online: false, basePrice: 349, refValid: false });
   const [buyer, setBuyer] = useState({ name: '', phone: '', email: '' });
   const [fieldErr, setFieldErr] = useState<{ name?: string | null; phone?: string | null; email?: string | null }>({});
   const checkField = (k: 'name' | 'phone' | 'email', v: string) =>
@@ -69,7 +69,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         const r = await fetch('/api/status' + (ref ? `?ref=${encodeURIComponent(ref)}` : ''));
         const s = (await r.json()) as { licensing?: boolean; price?: number; basePrice?: number; refValid?: boolean; online?: boolean };
         if (!s.licensing) return setState('open');
-        setInfo({ price: s.price ?? 349, online: !!s.online, basePrice: s.basePrice ?? s.price ?? 349, refValid: !!s.refValid });
+        setInfo({ price: s.price ?? 349, online: !!s.online, basePrice: s.basePrice ?? s.price ?? 349, refValid: !!s.refValid, sale: !!(s as { sale?: boolean }).sale });
       } catch {
         // بيئة التطوير بدون خادم: لا يوجد نظام أكواد
         if (import.meta.env.DEV) return setState('open');
@@ -244,11 +244,11 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         ) : (
           <form onSubmit={buy} className="space-y-2.5">
             <div className="rounded-lg bg-white p-3 text-center">
-              {info.refValid && info.basePrice > info.price && (
-                <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700">🎁 وصلك خصم من صديقك</div>
+              {info.basePrice > info.price && (
+                <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700" data-testid="price-badge">{info.refValid ? '🎁 وصلك خصم من صديقك' : '🔥 عرض لفترة محدودة'}</div>
               )}
               <div className="text-2xl font-bold text-dune">
-                {info.refValid && info.basePrice > info.price && <span className="ml-2 text-base text-sand-500 line-through">{info.basePrice}</span>}
+                {info.basePrice > info.price && <span className="ml-2 text-base text-sand-500 line-through" data-testid="price-old">{info.basePrice}</span>}
                 {info.price} ر.ق
               </div>
               <div className="text-xs text-sand-600">دفعة واحدة • استخدام مدى الحياة</div>

@@ -41,6 +41,17 @@ ${persistent ? '' : '<div class="warn">⚠ لم يتم ربط Volume على <b>/
   <div class="card"><small>أكواد مفعّلة</small><b id="s_act">0</b></div>
 </section>
 
+<section class="card" style="margin-bottom:12px">
+  <h3 style="margin-top:0">💰 السعر والعروض</h3>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+    <div><label for="st_price">السعر الحالي (ر.ق)</label><input id="st_price" type="number" min="1" dir="ltr"></div>
+    <div><label for="st_list">السعر قبل الخصم (للعرض) — 0 = بدون عرض</label><input id="st_list" type="number" min="0" dir="ltr"></div>
+    <div><label for="st_rd">خصم الإحالة للمشتري (ر.ق)</label><input id="st_rd" type="number" min="0" dir="ltr"></div>
+    <div><label for="st_rr">مكافأة صاحب الرابط (ر.ق)</label><input id="st_rr" type="number" min="0" dir="ltr"></div>
+  </div>
+  <div class="row" style="margin-top:8px;justify-content:space-between"><small id="st_hint" style="color:#7a6248"></small><button id="st_save" class="ok" type="button">حفظ الأسعار</button></div>
+</section>
+
 <div class="tabs" id="tabs">
   <button class="on" data-t="orders">الطلبات والمدفوعات</button>
   <button data-t="refs">الإحالات</button>
@@ -115,7 +126,11 @@ function renderRefs(){
   rb.innerHTML=refGroups().sort((a,b)=>b.owed-a.owed).map(x=>{const c=byId(x.id);return '<tr><td><b>'+esc(c?.name||x.id)+'</b><br><small dir="ltr">'+esc(c?.phone||'')+'</small></td><td>'+x.n+'<br><small>'+esc(x.buyers.join('، '))+'</small></td><td><b>'+money(x.owed)+'</b></td><td>'+money(x.paid)+'</td><td><div class="row">'+(x.owed&&c?.phone?'<a href="'+wa(c.phone,refMsg(c,x))+'" target="_blank"><button class="gold" type="button">واتساب</button></a>':'')+(x.owed?'<button class="ok" type="button" data-r="'+x.id+'">تم الدفع له</button>':'✓')+'</div></td></tr>'}).join('')||'<tr><td colspan="5">لا توجد إحالات بعد</td></tr>'}
 function renderCodes(){const q=document.getElementById('q').value.trim();const rows=list.filter(r=>!q||[r.name,r.phone,r.code,r.note].join(' ').includes(q));
   tb.innerHTML=rows.map(r=>'<tr><td><b>'+esc(r.name||'—')+'</b><br><small dir="ltr">'+esc(r.phone)+'</small> <small>'+esc(r.note)+'</small></td><td><span class="code">'+esc(r.code||r.id)+'</span></td><td>'+day(r.createdAt)+'</td><td>'+money(r.price)+'</td><td>'+r.devices.length+' / '+MAX+'</td><td>'+(r.revoked?'<span class="pill p-bad">موقوف</span>':r.devices.length?'<span class="pill p-paid">مفعّل</span>':'<span class="pill p-wait">لم يُفعّل</span>')+'</td><td><div class="row">'+(r.code&&r.phone?'<a href="'+wa(r.phone,msg(r))+'" target="_blank"><button class="gold" type="button">واتساب</button></a>':'')+'<button class="ghost" type="button" data-a="reset" data-id="'+r.id+'">تصفير الأجهزة</button>'+(r.revoked?'<button class="ghost" type="button" data-a="restore" data-id="'+r.id+'">إعادة تفعيل</button>':'<button class="bad" type="button" data-a="revoke" data-id="'+r.id+'">إيقاف</button>')+'</div></td></tr>').join('')||'<tr><td colspan="7">لا يوجد عملاء بعد</td></tr>'}
-async function load(){const j=await api('/api/admin/list');list=j.list;orders=j.orders||[];refs=j.referrals||[];PRICE=j.price||349;REWARD=j.refReward??50;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';stats();renderOrders();renderRefs();renderCodes()}
+function stHint(){const p=+st_price.value||0,l=+st_list.value||0,d=+st_rd.value||0;st_hint.textContent='العميل يشوف: '+(l>p?l+' ← ':'')+p+' ر.ق • بالإحالة: '+Math.max(0,p-d)+' ر.ق'}
+for(const el of [st_price,st_list,st_rd,st_rr])el.oninput=stHint;
+st_save.onclick=async()=>{try{await api('/api/admin/settings',{price:st_price.value,listPrice:st_list.value||0,refDiscount:st_rd.value,refReward:st_rr.value});st_save.textContent='تم الحفظ ✓';setTimeout(()=>st_save.textContent='حفظ الأسعار',1800);await load()}catch(err){alert(err.message)}};
+let stLoaded=false;
+async function load(){const j=await api('/api/admin/list');if(j.settings&&!stLoaded){stLoaded=true;st_price.value=j.settings.price;st_list.value=j.settings.listPrice||0;st_rd.value=j.settings.refDiscount;st_rr.value=j.settings.refReward;stHint()}list=j.list;orders=j.orders||[];refs=j.referrals||[];PRICE=j.price||349;REWARD=j.refReward??50;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';stats();renderOrders();renderRefs();renderCodes()}
 pl.onchange=()=>localStorage.setItem('pl',pl.value);
 q.oninput=renderCodes;
 oq.oninput=renderOrders;of.onchange=renderOrders;

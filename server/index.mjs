@@ -33,9 +33,15 @@ function loadDb() {
 }
 let db = loadDb();
 if (!db.orders) db.orders = [];
-const PRICE = Number(process.env.PRICE || 349);
-const REF_DISCOUNT = Number(process.env.REF_DISCOUNT || 50);
-const REF_REWARD = Number(process.env.REF_REWARD || 50);
+// الأسعار: من لوحة الإدارة (محفوظة في البيانات) وإلا من متغيرات Railway
+if (!db.settings) db.settings = {};
+const envNum = (k, d) => (process.env[k] !== undefined && process.env[k] !== '' && Number.isFinite(Number(process.env[k])) ? Number(process.env[k]) : d);
+const setNum = (k, d) => (Number.isFinite(db.settings[k]) ? db.settings[k] : d);
+const price = () => setNum('price', envNum('PRICE', 349));
+const refDiscount = () => setNum('refDiscount', envNum('REF_DISCOUNT', 50));
+const refReward = () => setNum('refReward', envNum('REF_REWARD', 50));
+/** «السعر قبل الخصم» للعروض العامة (يطلع مشطوب) — 0 يعني ما في عرض */
+const listPrice = () => setNum('listPrice', 0);
 if (!db.referrals) db.referrals = [];
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 function saveDb() {
@@ -124,7 +130,7 @@ function parseRef(ref) {
   return id;
 }
 function priceFor(refId) {
-  return refId ? Math.max(0, PRICE - REF_DISCOUNT) : PRICE;
+  return refId ? Math.max(0, price() - refDiscount()) : price();
 }
 
 /** يعلّم الطلب مدفوعاً ويولّد كود العميل (مرة واحدة فقط) */
@@ -134,13 +140,13 @@ function markPaid(o) {
     return;
   }
   const { id: cid, code } = makeCode();
-  const amount = o.amount ?? PRICE;
+  const amount = o.amount ?? price();
   db.codes[cid] = { id: cid, code, name: o.name, phone: o.phone, note: (o.online ? 'دفع إلكتروني (سكيب كاش)' : 'طلب من الموقع') + (o.ref ? ' • بإحالة' : ''), price: amount, createdAt: Date.now(), devices: [], revoked: false, ref: o.ref };
   o.codeId = cid;
   o.status = 'paid';
   o.paidAt = Date.now();
   if (o.ref && o.ref !== cid && !db.referrals.some((r) => r.orderId === o.id)) {
-    db.referrals.push({ refId: o.ref, orderId: o.id, buyer: o.name, at: Date.now(), reward: REF_REWARD, paidOut: false });
+    db.referrals.push({ refId: o.ref, orderId: o.id, buyer: o.name, at: Date.now(), reward: refReward(), paidOut: false });
   }
   saveDb();
 }
@@ -261,7 +267,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === '/api/status') {
       const refId = parseRef(url.searchParams.get('ref'));
-      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: PRICE, refValid: !!refId, refDiscount: REF_DISCOUNT, online: skipcashEnabled && LICENSING });
+      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING });
     }
 
     // رابط الإحالة الخاص بالعميل وإحصائياته
@@ -270,7 +276,7 @@ const server = http.createServer(async (req, res) => {
       const t = readToken((await readBody(req)).token);
       if (!t) return send(res, 401, { ok: false, error: 'سجّل دخولك بالكود أولاً' });
       const mine = db.referrals.filter((r) => r.refId === t.c);
-      return send(res, 200, { ok: true, ref: refFor(t.c), discount: REF_DISCOUNT, reward: REF_REWARD, count: mine.length, earned: mine.reduce((s, r) => s + r.reward, 0), price: priceFor(t.c) });
+      return send(res, 200, { ok: true, ref: refFor(t.c), discount: refDiscount(), reward: refReward(), count: mine.length, earned: mine.reduce((s, r) => s + r.reward, 0), price: priceFor(t.c) });
     }
 
     // ——— الدفع الإلكتروني (سكيب كاش) ———
@@ -381,7 +387,21 @@ const server = http.createServer(async (req, res) => {
       if (p === '/admin') return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }));
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt);
-        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, paymentLink: PAYMENT_LINK, price: PRICE, refReward: REF_REWARD });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward() } });
+      }
+      if (p === '/api/admin/settings' && req.method === 'POST') {
+        const b = await readBody(req);
+        const num = (v, min, max) => {
+          const n = Math.round(Number(v));
+          return Number.isFinite(n) && n >= min && n <= max ? n : null;
+        };
+        const next = { price: num(b.price, 1, 100000), listPrice: num(b.listPrice ?? 0, 0, 100000), refDiscount: num(b.refDiscount, 0, 100000), refReward: num(b.refReward, 0, 100000) };
+        if (next.price === null || next.listPrice === null || next.refDiscount === null || next.refReward === null)
+          return send(res, 400, { error: 'تأكد من الأرقام (السعر 1 أو أكثر)' });
+        if (next.refDiscount >= next.price) return send(res, 400, { error: 'خصم الإحالة لازم يكون أقل من السعر' });
+        db.settings = next;
+        saveDb();
+        return send(res, 200, { ok: true, settings: next });
       }
       if (p === '/api/admin/referral' && req.method === 'POST') {
         const { refId, paidOut } = await readBody(req);
