@@ -6,6 +6,34 @@ import { landBounds } from '../lib/geometry';
 import { DND_MIME } from '../editor2d/Editor2D';
 import { useViewport } from '../editor2d/viewport';
 import { cx } from './ui';
+import type { PlanElement } from '../types/plan';
+
+type Box = { minX: number; minY: number; maxX: number; maxY: number };
+const half = (e: { width: number; depth: number; rotation: number }) => {
+  const r = (e.rotation * Math.PI) / 180;
+  const c = Math.abs(Math.cos(r));
+  const s = Math.abs(Math.sin(r));
+  return { hx: (e.width * c + e.depth * s) / 2, hy: (e.width * s + e.depth * c) / 2 };
+};
+/** أقرب نقطة (بخطوات نص متر بشكل حلزوني) ما يتداخل فيها العنصر مع غيره وداخل حدود الأرض */
+export function freeSpot(el: PlanElement, others: PlanElement[], land: Box): { x: number; y: number } {
+  const me = half(el);
+  const boxes = others.filter((o) => !o.points).map((o) => ({ ...half(o), x: o.x, y: o.y }));
+  const ok = (x: number, y: number) =>
+    x - me.hx >= land.minX && x + me.hx <= land.maxX && y - me.hy >= land.minY && y + me.hy <= land.maxY &&
+    boxes.every((o) => Math.abs(x - o.x) >= me.hx + o.hx + 0.5 || Math.abs(y - o.y) >= me.hy + o.hy + 0.5);
+  if (!Number.isFinite(land.minX) || ok(el.x, el.y)) return { x: el.x, y: el.y };
+  for (let r = 1; r <= 120; r++) {
+    for (let i = -r; i <= r; i++) {
+      for (const [dx, dy] of [[i, -r], [i, r], [-r, i], [r, i]]) {
+        const x = el.x + dx * 0.5;
+        const y = el.y + dy * 0.5;
+        if (ok(x, y)) return { x, y };
+      }
+    }
+  }
+  return { x: el.x, y: el.y };
+}
 
 function addAtCenter(item: CatalogItem) {
   const st = useEditor.getState();
@@ -23,11 +51,14 @@ function addAtCenter(item: CatalogItem) {
   if (host && st.view !== '3d') {
     p = { x: (host.clientWidth / 2 - vp.x) / vp.scale, y: (host.clientHeight / 2 - vp.y) / vp.scale };
   }
-  const n = plan.elements.filter((e) => e.kind === item.kind).length;
-  const el = createElement(item.kind, { x: Math.round(p.x * 2) / 2 + (n % 4) * 0.5, y: Math.round(p.y * 2) / 2 + (n % 4) * 0.5 }, item.kind === 'prayer-area' ? { rotation: qiblaRotation(plan.land.northAngle) } : {});
+  const el = createElement(item.kind, { x: Math.round(p.x * 2) / 2, y: Math.round(p.y * 2) / 2 }, item.kind === 'prayer-area' ? { rotation: qiblaRotation(plan.land.northAngle) } : {});
+  // ندوّر له أقرب مكان فاضي عشان ما ينحط فوق شي ثاني
+  const spot = freeSpot(el, plan.elements, b);
+  el.x = spot.x;
+  el.y = spot.y;
   st.setTool('select');
   st.addElement(el);
-  st.toast(`تمت إضافة «${el.name}» — اسحبه إلى مكانه`, 'success');
+  st.toast(`تمت إضافة «${el.name}» — اضغط عليه واسحبه لمكانه`, 'success');
 }
 
 export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: boolean }) {

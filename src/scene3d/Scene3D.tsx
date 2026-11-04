@@ -4,7 +4,8 @@ import { CameraControls, PointerLockControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CameraPreset, Plan, PlanElement } from '../types/plan';
 import { activeDesign, useEditor, usePlan } from '../store/editorStore';
-import { DEG, entranceInfo, landBounds, isFiniteBounds } from '../lib/geometry';
+import { DEG, entranceInfo, landBounds, isFiniteBounds, snapValue } from '../lib/geometry';
+import { getValidation } from '../hooks/useDerived';
 import { isLightKind, isTentKind } from '../lib/catalog';
 import { collectEmitters } from '../lib/lighting';
 import { WorldContext, type WorldInfo } from './world';
@@ -56,6 +57,7 @@ const Element3D = memo(function Element3D({ el, night, lampsOn, selected, showSa
     e.stopPropagation();
     onSelect(el.id, e);
   };
+
   if (el.kind === 'path') return <group onClick={click}><Path3D el={el} lampsOn={lampsOn} /></group>;
   if (el.kind === 'string-lights') return <group onClick={click}><StringLights3D el={el} lampsOn={lampsOn} poleSpots={poleSpots} /></group>;
   let body: React.ReactNode = null;
@@ -119,11 +121,125 @@ const Element3D = memo(function Element3D({ el, night, lampsOn, selected, showSa
   );
 });
 
+const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+interface Grab {
+  ids: string[];
+  starts: Map<string, { x: number; y: number; points?: { x: number; y: number }[] }>;
+  hit: THREE.Vector3;
+  pointerId: number;
+  sx: number;
+  sy: number;
+  active: boolean;
+}
+type GrabRef = React.MutableRefObject<Grab | null>;
+
+/** سحب العناصر بالإصبع/الماوس في المجسم: الضغط على عنصر وتحريكه ينقله على الأرض بدل ما يلف الكاميرا */
+function DragController({ grab }: { grab: GrabRef }) {
+  const { camera, gl, controls, scene } = useThree();
+  useEffect(() => {
+    const el = gl.domElement;
+    const ray = new THREE.Raycaster();
+    const v = new THREE.Vector2();
+    const hitAt = (e: PointerEvent) => {
+      const r = el.getBoundingClientRect();
+      v.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(v, camera);
+      return ray.ray.intersectPlane(GROUND, new THREE.Vector3());
+    };
+    const ctl = () => controls as unknown as { enabled: boolean } | null;
+    // نلقط الضغطة قبل الكاميرا: إذا كانت على عنصر نبدأ سحبه، وإلا تكمل الكاميرا عادي
+    const down = (e: PointerEvent) => {
+      if (!e.isPrimary) {
+        // إصبع ثاني (تكبير/تدوير): نلغي السحب ونخلي الكاميرا
+        if (grab.current && !grab.current.active) grab.current = null;
+        return;
+      }
+      if (e.target !== el || e.button !== 0 || e.shiftKey) return;
+      const r = el.getBoundingClientRect();
+      v.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(v, camera);
+      let id: string | null = null;
+      for (const h of ray.intersectObjects(scene.children, true)) {
+        let o: THREE.Object3D | null = h.object;
+        while (o && !o.userData.elId) o = o.parent;
+        if (o) {
+          id = o.userData.elId as string;
+          break;
+        }
+      }
+      if (!id) return;
+      const st = useEditor.getState();
+      const plan = activeDesign(st.project).plan;
+      const target = plan.elements.find((x) => x.id === id);
+      if (!target || target.locked) return;
+      const hit = ray.ray.intersectPlane(GROUND, new THREE.Vector3());
+      if (!hit) return;
+      if (!st.selection.includes(id)) st.select([id]);
+      const sel = useEditor.getState().selection;
+      const starts: Grab['starts'] = new Map();
+      for (const x of plan.elements) if (sel.includes(x.id) && !x.locked) starts.set(x.id, { x: x.x, y: x.y, points: x.points });
+      grab.current = { ids: [id, ...sel.filter((i) => i !== id && starts.has(i))], starts, hit, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, active: false };
+      // الكاميرا ما تشوف هالضغطة
+      e.stopPropagation();
+    };
+    const move = (e: PointerEvent) => {
+      const g = grab.current;
+      if (!g || e.pointerId !== g.pointerId) return;
+      if (!g.active) {
+        if (Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 6) return;
+        g.active = true;
+        const c = ctl();
+        if (c) c.enabled = false;
+        el.style.touchAction = 'none';
+        useEditor.getState().beginGesture();
+      }
+      const p = hitAt(e);
+      if (!p) return;
+      const grid = useEditor.getState().grid;
+      let dx = p.x - g.hit.x;
+      let dy = p.z - g.hit.z;
+      const lead = g.starts.get(g.ids[0]);
+      if (grid.snap && lead && !lead.points) {
+        dx = snapValue(lead.x + dx, grid.size) - lead.x;
+        dy = snapValue(lead.y + dy, grid.size) - lead.y;
+      }
+      const r3 = (n: number) => Math.round(n * 1000) / 1000;
+      const patches: Record<string, Partial<PlanElement>> = {};
+      for (const [id, s] of g.starts)
+        patches[id] = s.points ? { points: s.points.map((q) => ({ x: r3(q.x + dx), y: r3(q.y + dy) })) } : { x: r3(s.x + dx), y: r3(s.y + dy) };
+      useEditor.getState().updateElements(patches, { history: false });
+    };
+    const up = (e: PointerEvent) => {
+      const g = grab.current;
+      if (!g || e.pointerId !== g.pointerId) return;
+      grab.current = null;
+      if (!g.active) return;
+      const c = ctl();
+      if (c) c.enabled = true;
+      const st = useEditor.getState();
+      st.endGesture();
+      const errs = getValidation(activeDesign(st.project).plan).issues.filter((i) => i.severity === 'error' && i.elementIds.some((x) => g.ids.includes(x)));
+      if (errs.length) st.toast(`⚠ ${errs[0].message}`, 'error');
+    };
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+    return () => {
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+    };
+  }, [camera, gl, controls, scene, grab]);
+  return null;
+}
+
 /** يضع العناصر المستطيلة في موضعها (العناصر الخطية تستخدم إحداثيات المخطط مباشرة) */
 function Placed({ el, w, children }: { el: PlanElement; w: WorldInfo; children: React.ReactNode }) {
-  if (el.points) return <group position={[-w.ox, 0, -w.oy]}>{children}</group>;
+  if (el.points) return <group position={[-w.ox, 0, -w.oy]} userData={{ elId: el.id }}>{children}</group>;
   return (
-    <group position={[el.x - w.ox, 0, el.y - w.oy]} rotation={[0, -el.rotation * DEG, 0]}>
+    <group position={[el.x - w.ox, 0, el.y - w.oy]} rotation={[0, -el.rotation * DEG, 0]} userData={{ elId: el.id }}>
       {children}
     </group>
   );
@@ -339,6 +455,7 @@ export default function Scene3D() {
     },
     [],
   );
+  const grab = useRef<Grab | null>(null);
 
   return (
     <div className="relative h-full w-full bg-[#cfd9e3]" data-testid="scene-3d">
@@ -372,6 +489,7 @@ export default function Scene3D() {
           {lampsOn && <LightRig emitters={emitters} budget={(MOBILE ? MOBILE_BUDGET : BUDGET)[quality]} w={w} />}
           <CameraRig plan={plan} w={w} walking={walking} />
           {walking && <WalkControls plan={plan} w={w} move={move} />}
+          {!walking && <DragController grab={grab} />}
           <CaptureHandler />
           <AutoThumb />
         </WorldContext.Provider>
