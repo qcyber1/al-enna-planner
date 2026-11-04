@@ -46,7 +46,7 @@ if (!db.referrals) db.referrals = [];
 if (!db.feedback) db.feedback = [];
 if (!db.content) db.content = {};
 // نصوص صفحة الدخول اللي تتعدل من اللوحة (فاضي = النص الافتراضي)
-const CONTENT_KEYS = { banner: 120, title: 40, tagline: 140, f1: 40, f2: 40, f3: 40, f4: 40, buyNote: 160 };
+const CONTENT_KEYS = { banner: 120, title: 40, tagline: 140, f1: 40, f2: 40, f3: 40, f4: 40, buyNote: 160, support: 20 };
 const cleanText = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 function saveDb() {
@@ -511,6 +511,11 @@ const server = http.createServer(async (req, res) => {
         for (const [k, max] of Object.entries(CONTENT_KEYS)) {
           const v = cleanText(b[k], max);
           if (v) next[k] = v;
+        }
+        if (next.support) {
+          const ph = parsePhone(next.support);
+          if (ph.error) return send(res, 400, { error: 'رقم الواتساب للدعم: ' + ph.error });
+          next.support = ph.phone;
         }
         db.content = next;
         saveDb();

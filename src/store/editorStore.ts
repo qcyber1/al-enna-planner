@@ -45,6 +45,8 @@ export interface Toast {
   id: string;
   kind: 'info' | 'success' | 'warning' | 'error';
   text: string;
+  /** زر داخل التنبيه (مثل «رجّعه») */
+  action?: { label: string; run: () => void };
 }
 
 export interface GridSettings {
@@ -140,7 +142,7 @@ interface State {
   setOverlays: (patch: Partial<Overlays>) => void;
   setCamera: (preset: CameraPreset) => void;
   openDialog: (d: DialogName | null) => void;
-  toast: (text: string, kind?: Toast['kind']) => void;
+  toast: (text: string, kind?: Toast['kind'], action?: Toast['action']) => void;
   dismissToast: (id: string) => void;
   requestCapture3d: (mode: 'download' | 'share' | 'thumb') => void;
 
@@ -516,10 +518,10 @@ export const useEditor = create<State>()((set, get) => ({
   setOverlays: (patch) => set({ overlays: { ...get().overlays, ...patch } }),
   setCamera: (preset) => set({ camera: { preset, nonce: get().camera.nonce + 1 } }),
   openDialog: (dialog) => set({ dialog }),
-  toast: (text, kind = 'info') => {
-    const t: Toast = { id: uid('t'), kind, text };
+  toast: (text, kind = 'info', action) => {
+    const t: Toast = { id: uid('t'), kind, text, action };
     set({ toasts: [...get().toasts.slice(-3), t] });
-    setTimeout(() => get().dismissToast(t.id), kind === 'error' ? 6500 : 3500);
+    setTimeout(() => get().dismissToast(t.id), action ? 9000 : kind === 'error' ? 6500 : 3500);
   },
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
   requestCapture3d: (mode) => set({ capture3d: { nonce: get().capture3d.nonce + 1, mode } }),

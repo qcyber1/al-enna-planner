@@ -3,6 +3,7 @@ import { DEV_LINE, OWNER_AR, OWNER_EN, OWNER_LINE } from '../lib/brand';
 import { checkEmail, checkName, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2, LogIn } from 'lucide-react';
 import { LangToggle } from './LangToggle';
+import { getLang } from '../lib/i18n';
 
 const TOKEN_KEY = 'enna.license.token';
 const DEVICE_KEY = 'enna.license.device';
@@ -41,7 +42,8 @@ type State = 'checking' | 'locked' | 'open' | 'paid' | 'setpw';
 const PW_SKIP_KEY = 'enna.pw.skip';
 /** نذكّره يحط كلمة مرور كل 3 أيام لين يحطها */
 const pwSkippedRecently = () => Date.now() - Number(get(PW_SKIP_KEY) || 0) < 3 * 86400000;
-type SiteContent = Partial<Record<'banner' | 'title' | 'tagline' | 'f1' | 'f2' | 'f3' | 'f4' | 'buyNote', string>>;
+type SiteContent = Partial<Record<'banner' | 'title' | 'tagline' | 'f1' | 'f2' | 'f3' | 'f4' | 'buyNote' | 'support', string>>;
+const waLink = (phone: string, text: string) => `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
 const DEFAULT_TEXT = { title: 'مخطط العنة ⛺', tagline: 'صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون' };
 const localPhone = (ph?: string) => (ph && ph.startsWith('974') && ph.length === 11 ? ph.slice(3) : ph || '');
 const ORDER_KEY = 'enna.order';
@@ -223,7 +225,8 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     );
   if (state === 'paid' || state === 'setpw')
     return (
-      <div className="flex h-full items-center justify-center overflow-y-auto bg-dune p-4">
+      <div className="h-full overflow-y-auto bg-dune">
+      <div className="flex min-h-full items-center justify-center p-4">
         <div className="w-full max-w-md space-y-4 rounded-2xl bg-sand-50 p-6 shadow-2xl" data-testid={state}>
           {state === 'paid' ? (
             <div className="space-y-3 text-center">
@@ -242,6 +245,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           <SetPassword initialPhone={acctPhone} onDone={() => setState('open')} onSkip={() => { set(PW_SKIP_KEY, String(Date.now())); setState('open'); }} skipLabel={state === 'paid' ? 'بعدين — ابدأ التصميم' : 'بعدين'} />
         </div>
       </div>
+      </div>
     );
 
   const title = info.content.title || DEFAULT_TEXT.title;
@@ -256,7 +260,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     <div className="flex min-h-full items-center justify-center p-4 lg:p-8">
       <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-sand-50 shadow-2xl md:max-w-xl lg:grid lg:max-w-5xl lg:grid-cols-[1.15fr_1fr]" data-testid="license-gate">
         <div className="relative lg:flex lg:flex-col lg:bg-dune">
-          <img src="./og.jpg" alt="مجسم عنة قطرية في الليل" className="aspect-[1200/630] w-full object-cover object-left lg:aspect-auto lg:min-h-0 lg:flex-1" />
+          <img src={getLang() === 'en' ? './og-en.jpg' : './og.jpg'} alt="مجسم عنة قطرية في الليل" className="aspect-[1200/630] w-full object-cover object-left lg:aspect-auto lg:min-h-0 lg:flex-1" />
           <div className="sadu-band absolute inset-x-0 bottom-0 h-1.5 lg:hidden" />
           <LangToggle className="absolute top-3 left-3 shadow" />
           <div className="hidden space-y-4 p-8 text-sand-50 lg:block">
@@ -294,7 +298,13 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               </button>
               <div className="flex justify-between text-[12px]">
                 <button type="button" className="font-semibold text-gold-700 underline" onClick={() => { setMode('code'); setError(''); }} data-testid="use-code">أول مرة؟ ادخل بالكود</button>
-                <span className="text-sand-600">نسيت كلمة المرور؟ تواصل معنا</span>
+                {info.content.support ? (
+                  <a href={waLink(info.content.support, 'هلا، نسيت كلمة المرور حق مخطط العنة')} target="_blank" rel="noreferrer" className="font-semibold text-gold-700 underline" data-testid="support-link">
+                    نسيت كلمة المرور؟ تواصل معنا
+                  </a>
+                ) : (
+                  <span className="text-sand-600">نسيت كلمة المرور؟ تواصل مع البائع</span>
+                )}
               </div>
             </form>
           ) : mode === 'code' ? (
@@ -358,8 +368,13 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               {busy && <Loader2 size={18} className="animate-spin" />} {info.online ? 'ادفع الآن (سكيب كاش)' : 'اطلب الآن'}
             </button>
             <p className="text-center text-[11px] text-sand-600">{info.content.buyNote || (info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.')}</p>
-            <p className="text-center text-[11px] text-sand-600" data-testid="seller-note">البائع: {OWNER_AR} ({OWNER_EN}) — وهذا الاسم اللي بيطلع في إيصال الدفع.</p>
+            <p className="text-center text-[11px] text-sand-600" data-testid="seller-note">{`البائع: ${OWNER_AR} (${OWNER_EN}) — وهذا الاسم اللي بيطلع في إيصال الدفع.`}</p>
           </form>
+          )}
+          {info.content.support && (
+            <a href={waLink(info.content.support, 'هلا، عندي سؤال عن مخطط العنة')} target="_blank" rel="noreferrer" className="block text-center text-[12px] font-semibold text-turf-700" data-testid="support-footer">
+              💬 تحتاج مساعدة؟ كلمنا واتساب
+            </a>
           )}
           <p className="text-center text-[11px] leading-relaxed text-sand-500 lg:hidden" data-testid="owner-footer">{DEV_LINE}<br />{OWNER_LINE}</p>
         </div>

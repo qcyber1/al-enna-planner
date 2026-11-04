@@ -44,43 +44,83 @@ function score(plan: Plan, id: string): number {
   return s;
 }
 
-/** يدوّر أقرب مكان (بخطوات نص متر بشكل حلزوني) ما فيه أي تنبيه للعنصر */
-export function fixIssue(plan: Plan, issue: Issue, maxRadius = 25, preferId?: string): FixResult | null {
-  const el = pickMover(plan, issue, preferId);
-  if (!el) return null;
+interface Cand {
+  el: PlanElement;
+  patch: Partial<PlanElement>;
+  moved: number;
+  score: number;
+  cost: number;
+}
+
+/** يدوّر لعنصر واحد أقرب مكان سليم (ومع دوران 90° إذا يساعد) */
+function searchFor(plan: Plan, el: PlanElement, weight: number, maxRadius: number, costLimit: number): Cand | null {
   const others = plan.elements.filter((e) => e.id !== el.id);
   const ob = others.map((o) => ({ o, b: elementBounds(o) }));
-  const eb = elementBounds(el);
-  // نفحص بس العناصر القريبة من المكان المقترح (أسرع بوايد) — 7 م تكفي لمنطقة أمان الملعب ومداخل الخيام
   const M = 7;
-  const at = (dx: number, dy: number): Plan => {
-    const near = ob.filter(({ b }) => b.minX < eb.maxX + dx + M && b.maxX > eb.minX + dx - M && b.minY < eb.maxY + dy + M && b.maxY > eb.minY + dy - M).map(({ o }) => o);
-    return { ...plan, elements: [...near, { ...el, ...shift(el, dx, dy) }] };
-  };
-  const base = score(at(0, 0), el.id);
-  if (base === 0) return null;
-  let best = { s: base, dx: 0, dy: 0 };
-  // حلقات حول المكان الحالي: نص متر قريب، وبعدين متر
-  let budget = 2500;
-  const rings: number[] = [];
-  for (let d = 0.5; d <= Math.min(8, maxRadius); d += 0.5) rings.push(d);
-  for (let d = 9; d <= maxRadius; d += 1) rings.push(d);
-  for (const d of rings) {
-    if (budget <= 0) break;
-    const n = Math.max(8, Math.round((2 * Math.PI * d) / 0.5));
-    let ringBest: { s: number; dx: number; dy: number } | null = null;
-    for (let k = 0; k < n && budget > 0; k++, budget--) {
-      const t = (k / n) * Math.PI * 2;
-      const dx = Math.round(Math.cos(t) * d * 2) / 2;
-      const dy = Math.round(Math.sin(t) * d * 2) / 2;
-      const s = score(at(dx, dy), el.id);
-      if (s < best.s) best = { s, dx, dy };
-      if (s === 0 && (!ringBest || Math.hypot(dx, dy) < Math.hypot(ringBest.dx, ringBest.dy))) ringBest = { s, dx, dy };
+  const variants: Partial<PlanElement>[] = [{}];
+  if (!el.points && !el.tent && el.kind !== 'volleyball' && Math.abs(el.width - el.depth) > 0.3) variants.push({ rotation: (el.rotation + 90) % 360 });
+  let best: Cand | null = null;
+  for (const v of variants) {
+    const base = { ...el, ...v };
+    const eb = elementBounds(base);
+    const rotCost = v.rotation !== undefined ? 3 : 0;
+    const at = (dx: number, dy: number): Plan => {
+      const near = ob.filter(({ b }) => b.minX < eb.maxX + dx + M && b.maxX > eb.minX + dx - M && b.minY < eb.maxY + dy + M && b.maxY > eb.minY + dy - M).map(({ o }) => o);
+      return { ...plan, elements: [...near, { ...base, ...shift(base, dx, dy) }] };
+    };
+    const consider = (dx: number, dy: number) => {
+      const sc = score(at(dx, dy), el.id);
+      const moved = Math.hypot(dx, dy);
+      const cost = (moved + rotCost) * weight + sc * 100;
+      if (!best || cost < best.cost) best = { el, patch: { ...v, ...shift(base, dx, dy) }, moved, score: sc, cost };
+      return sc;
+    };
+    if (v.rotation !== undefined && consider(0, 0) === 0) continue;
+    let budget = 1800;
+    const rings: number[] = [];
+    for (let d = 0.5; d <= Math.min(8, maxRadius); d += 0.5) rings.push(d);
+    for (let d = 9; d <= maxRadius; d += 1) rings.push(d);
+    for (const d of rings) {
+      // ما في داعي نكمل إذا أي مكان أبعد بيكون أسوأ من أحسن نتيجة عندنا
+      const b = best as Cand | null;
+      if (budget <= 0 || (b && b.score === 0 && (d + rotCost) * weight >= b.cost) || (d + rotCost) * weight > costLimit) break;
+      const n = Math.max(8, Math.round((2 * Math.PI * d) / 0.5));
+      let found = false;
+      for (let k = 0; k < n && budget > 0; k++, budget--) {
+        const t = (k / n) * Math.PI * 2;
+        if (consider(Math.round(Math.cos(t) * d * 2) / 2, Math.round(Math.sin(t) * d * 2) / 2) === 0) found = true;
+      }
+      if (found) break;
     }
-    if (ringBest) return { id: el.id, name: el.name, patch: shift(el, ringBest.dx, ringBest.dy), moved: Math.hypot(ringBest.dx, ringBest.dy) };
   }
-  if (best.s < base) return { id: el.id, name: el.name, patch: shift(el, best.dx, best.dy), moved: Math.hypot(best.dx, best.dy) };
-  return null;
+  return best;
+}
+
+/**
+ * أفضل تصليح: يجرّب يحرك أي عنصر من اللي في التنبيه (ويدوّره 90° إذا يفيد)،
+ * ويختار أقل تحريك — الخيام والملعب «أثقل» من القطع الصغيرة، والعنصر المختار أخف.
+ */
+export function fixIssue(plan: Plan, issue: Issue, maxRadius = 25, preferId?: string): FixResult | null {
+  const pick = pickMover(plan, issue, preferId);
+  if (!pick) return null;
+  const movers = issue.elementIds
+    .map((id) => plan.elements.find((e) => e.id === id))
+    .filter((e): e is PlanElement => !!e && !e.locked && !e.points);
+  if (!movers.length) movers.push(pick);
+  const before = score(plan, pick.id) + movers.reduce((a, m) => a + (m === pick ? 0 : score(plan, m.id)), 0);
+  if (before === 0) return null;
+  let best: Cand | null = null;
+  for (const m of movers.sort((a, b) => (a.id === pick.id ? -1 : b.id === pick.id ? 1 : 0))) {
+    // «ثقل» التحريك: الكبير أثقل، والملعب أثقل، واللي المستخدم مختاره (غالباً توه حاطه) أخف بوايد
+    let w = 1 + Math.min(2, (m.width * m.depth) / 50);
+    if (m.kind === 'volleyball') w += 2;
+    if (m.id === preferId) w *= 0.4;
+    if (issue.code === 'tent-entrance-blocked' && m.id === issue.elementIds[0]) w *= 3; // نحرك اللي يسد المدخل مو الخيمة
+    const c = searchFor(plan, m, w, maxRadius, best ? best.cost : Infinity);
+    if (c && (!best || c.cost < best.cost)) best = c;
+  }
+  if (!best || best.score >= score(plan, best.el.id)) return null;
+  return { id: best.el.id, name: best.el.name, patch: best.patch, moved: best.moved };
 }
 
 /** يصلح كل اللي يقدر عليه، واحد ورا الثاني */

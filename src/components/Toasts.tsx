@@ -19,6 +19,19 @@ export function Toasts() {
           )}
         >
           <span className="flex-1">{t.text}</span>
+          {t.action && (
+            <button
+              type="button"
+              onClick={() => {
+                t.action!.run();
+                dismiss(t.id);
+              }}
+              className="shrink-0 rounded-lg bg-white/90 px-2.5 py-1 text-[12px] font-bold text-dune shadow active:scale-95"
+              data-testid="toast-action"
+            >
+              {t.action.label}
+            </button>
+          )}
           <button type="button" onClick={() => dismiss(t.id)} aria-label="إغلاق"><X size={15} /></button>
         </div>
       ))}
