@@ -9,6 +9,7 @@ import App from './App';
 import { LicenseGate } from './components/LicenseGate';
 import { useEditor } from './store/editorStore';
 import { useViewport } from './editor2d/viewport';
+import { getLang, initI18n } from './lib/i18n';
 
 // وضع تصوير الفيديو التسويقي (?promo)
 if (new URLSearchParams(window.location.search).has('promo')) {
@@ -22,10 +23,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD && !new URLSearchParams
   });
 }
 
-createRoot(document.getElementById('root')!).render(
+// الإنجليزي: نجهّز القاموس قبل أول رسم عشان ما يطلع عربي لحظة
+const ready = getLang() === 'en' ? initI18n().catch(() => {}) : Promise.resolve();
+void ready.then(() => createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LicenseGate>
       <App />
     </LicenseGate>
   </StrictMode>,
-);
+));

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useEditor } from '../store/editorStore';
 import { Segmented, cx } from './ui';
+import { LangToggle } from './LangToggle';
 import type { DialogName } from '../store/editorStore';
 
 function hasLicense(): boolean {
@@ -102,6 +103,7 @@ export function MobileTopBar() {
                   <div className="text-[11px] text-sand-600">{project.name}</div>
                 </div>
               </div>
+              <LangToggle />
               <button type="button" onClick={() => setMenu(false)} className="rounded-lg p-2 text-sand-700" aria-label="إغلاق">
                 <X size={20} />
               </button>

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { DEV_LINE, OWNER_AR, OWNER_EN, OWNER_LINE } from '../lib/brand';
 import { checkEmail, checkName, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2, LogIn } from 'lucide-react';
+import { LangToggle } from './LangToggle';
 
 const TOKEN_KEY = 'enna.license.token';
 const DEVICE_KEY = 'enna.license.device';
@@ -257,6 +258,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         <div className="relative lg:flex lg:flex-col lg:bg-dune">
           <img src="./og.jpg" alt="مجسم عنة قطرية في الليل" className="aspect-[1200/630] w-full object-cover object-left lg:aspect-auto lg:min-h-0 lg:flex-1" />
           <div className="sadu-band absolute inset-x-0 bottom-0 h-1.5 lg:hidden" />
+          <LangToggle className="absolute top-3 left-3 shadow" />
           <div className="hidden space-y-4 p-8 text-sand-50 lg:block">
             <div>
               <h2 className="text-2xl font-bold">{title}</h2>

@@ -93,3 +93,16 @@ input[type='range'] {
     box-shadow: none !important;
   }
 }
+
+/* الإنجليزي: اتجاه من اليسار */
+.lang-en [dir='rtl'] {
+  direction: ltr;
+}
+.lang-en .text-right {
+  text-align: left;
+}
+@media (max-width: 1599px) {
+  .lang-en .brand-text {
+    display: none;
+  }
+}

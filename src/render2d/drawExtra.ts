@@ -1,3 +1,4 @@
+import { trIfEn } from '../lib/i18n';
 // رسم العناصر القطرية الإضافية في المسقط العلوي (إحداثيات محلية، المركز 0،0)
 import type { PlanElement } from '../types/plan';
 import { shade, withAlpha } from '../lib/color';
@@ -7,6 +8,7 @@ type Ctx = CanvasRenderingContext2D;
 const px = (o: DrawOpts, n: number) => n / o.ppm;
 
 function label(ctx: Ctx, s: string, x: number, y: number, o: DrawOpts, size = 11, color = '#2b1d12') {
+  s = trIfEn(s);
   ctx.save();
   ctx.font = `700 ${px(o, size)}px ${FONT}`;
   ctx.textAlign = 'center';

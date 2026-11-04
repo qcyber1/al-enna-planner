@@ -39,7 +39,8 @@ export function formatHour(h: number): string {
   const total = Math.round(h * 60);
   let hh = Math.floor(total / 60) % 24;
   const mm = total % 60;
-  const suffix = hh >= 12 ? 'م' : 'ص';
+  const en = typeof document !== 'undefined' && document.documentElement.lang === 'en';
+  const suffix = en ? (hh >= 12 ? 'pm' : 'am') : hh >= 12 ? 'م' : 'ص';
   hh = hh % 12 || 12;
   return `${hh}:${String(mm).padStart(2, '0')} ${suffix}`;
 }

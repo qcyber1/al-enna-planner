@@ -1,3 +1,4 @@
+import { trIfEn } from '../lib/i18n';
 // رسم المسقط العلوي — دوال مشتركة بين محرر Konva وتصدير الصور.
 // جميع الإحداثيات بالمتر؛ ppm = عدد البكسلات لكل متر على الشاشة (لحساب سماكة الخطوط وحجم النص).
 
@@ -79,12 +80,13 @@ function text(
   weight = 600,
   halo = 'rgba(255,255,255,0.85)',
 ) {
+  s = trIfEn(s);
   ctx.save();
   ctx.font = `${weight} ${px(o, size)}px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   try {
-    ctx.direction = 'rtl';
+    ctx.direction = document.documentElement.dir === 'ltr' ? 'ltr' : 'rtl';
   } catch {
     /* بعض المتصفحات لا تدعم الخاصية */
   }

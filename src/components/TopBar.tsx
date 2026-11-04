@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useEditor } from '../store/editorStore';
 import { IconButton, Segmented, cx } from './ui';
+import { LangToggle } from './LangToggle';
 import type { TimeOfDay, ViewMode } from '../types/plan';
 
 export function TopBar({ compact }: { compact: boolean }) {
@@ -64,10 +65,10 @@ export function TopBar({ compact }: { compact: boolean }) {
 
   return (
     <header className="no-print relative z-30 flex h-14 shrink-0 items-center gap-2 bg-dune px-2 text-sand-50 shadow-md sm:px-3">
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold-500 text-lg">⛺</div>
         {!compact && (
-          <div className="whitespace-nowrap leading-tight">
+          <div className="brand-text shrink-0 whitespace-nowrap leading-tight">
             <div className="text-[15px] font-bold">مخطط العنة</div>
             <div className="text-[10px] text-sand-300">Al Enna Planner</div>
           </div>
@@ -187,7 +188,8 @@ export function TopBar({ compact }: { compact: boolean }) {
             <IconButton tone="dark" label="مقارنة التصاميم" onClick={() => openDialog('compare')}>
               <Columns2 size={17} />
             </IconButton>
-            <button type="button" onClick={() => openDialog('feedback')} className="mx-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-gold-500/20 px-3 text-[12px] font-semibold text-gold-300 ring-1 ring-gold-500/40 hover:bg-gold-500/30" data-testid="open-feedback-desk">
+            <LangToggle dark className="mx-0.5" />
+            <button type="button" onClick={() => openDialog('feedback')} className="mx-1 inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-gold-500/20 px-3 text-[12px] font-semibold text-gold-300 ring-1 ring-gold-500/40 hover:bg-gold-500/30" data-testid="open-feedback-desk">
               <MessageSquarePlus size={15} /> ملاحظاتك
             </button>
             <IconButton tone="dark" label="المساعدة والاختصارات" onClick={() => openDialog('help')}>
