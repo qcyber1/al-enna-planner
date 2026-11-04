@@ -43,6 +43,11 @@ const refReward = () => setNum('refReward', envNum('REF_REWARD', 50));
 /** «السعر قبل الخصم» للعروض العامة (يطلع مشطوب) — 0 يعني ما في عرض */
 const listPrice = () => setNum('listPrice', 0);
 if (!db.referrals) db.referrals = [];
+if (!db.feedback) db.feedback = [];
+if (!db.content) db.content = {};
+// نصوص صفحة الدخول اللي تتعدل من اللوحة (فاضي = النص الافتراضي)
+const CONTENT_KEYS = { banner: 120, title: 40, tagline: 140, f1: 40, f2: 40, f3: 40, f4: 40, buyNote: 160 };
+const cleanText = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 function saveDb() {
   try {
@@ -303,7 +308,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === '/api/status') {
       const refId = parseRef(url.searchParams.get('ref'));
-      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING });
+      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content });
     }
 
     // رابط الإحالة الخاص بالعميل وإحصائياته
@@ -441,6 +446,20 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true, phone: ph.phone });
     }
 
+    if (p === '/api/feedback' && req.method === 'POST') {
+      if (limited('fb:' + ip)) return send(res, 429, { ok: false, error: 'أرسلت وايد — حاول بعد شوي' });
+      const { token, text, where } = await readBody(req);
+      const t = LICENSING ? readToken(token) : { c: 'open' };
+      if (!t) return send(res, 401, { ok: false, error: 'سجّل دخول من جديد' });
+      const body = cleanText(text, 2000);
+      if (body.length < 3) return send(res, 400, { ok: false, error: 'اكتب ملاحظتك' });
+      const rec = db.codes[t.c];
+      db.feedback.unshift({ id: crypto.randomBytes(6).toString('hex'), at: Date.now(), codeId: t.c, name: rec?.name || '', phone: rec?.phone || '', text: body, where: cleanText(where, 80), done: false });
+      db.feedback = db.feedback.slice(0, 1000);
+      saveDb();
+      return send(res, 200, { ok: true });
+    }
+
     if (p === '/api/check' && req.method === 'POST') {
       if (!LICENSING) return send(res, 200, { ok: true });
       const { token } = await readBody(req);
@@ -464,7 +483,27 @@ const server = http.createServer(async (req, res) => {
       if (p === '/admin') return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }));
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
-        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward() } });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward() } });
+      }
+      if (p === '/api/admin/content' && req.method === 'POST') {
+        const b = await readBody(req);
+        const next = {};
+        for (const [k, max] of Object.entries(CONTENT_KEYS)) {
+          const v = cleanText(b[k], max);
+          if (v) next[k] = v;
+        }
+        db.content = next;
+        saveDb();
+        return send(res, 200, { ok: true, content: next });
+      }
+      if (p === '/api/admin/feedback' && req.method === 'POST') {
+        const { id, done, remove } = await readBody(req);
+        const i = db.feedback.findIndex((f) => f.id === id);
+        if (i < 0) return send(res, 404, { error: 'غير موجود' });
+        if (remove) db.feedback.splice(i, 1);
+        else db.feedback[i].done = !!done;
+        saveDb();
+        return send(res, 200, { ok: true });
       }
       if (p === '/api/admin/settings' && req.method === 'POST') {
         const b = await readBody(req);
@@ -476,7 +515,7 @@ const server = http.createServer(async (req, res) => {
         if (next.price === null || next.listPrice === null || next.refDiscount === null || next.refReward === null)
           return send(res, 400, { error: 'تأكد من الأرقام (السعر 1 أو أكثر)' });
         if (next.refDiscount >= next.price) return send(res, 400, { error: 'خصم الإحالة لازم يكون أقل من السعر' });
-        db.settings = next;
+        db.settings = { ...db.settings, ...next };
         saveDb();
         return send(res, 200, { ok: true, settings: next });
       }

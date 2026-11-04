@@ -221,3 +221,28 @@ test('الدخول برقم الجوال وكلمة المرور من جهاز �
   await admin('/api/admin/update', { id: rec.id, action: 'resetpw' });
   assert.equal((await api('/api/login', { phone: '55667788', password: 'secret1', device: 'pw-1' })).status, 401);
 });
+
+test('نصوص الموقع من اللوحة، والملاحظات من داخل التطبيق', async () => {
+  assert.equal((await api('/api/admin/content', { title: 'x' })).status, 401);
+  const c = await admin('/api/admin/content', { banner: '  عرض الإطلاق  ', title: 'عنتي', tagline: '', f1: 'a'.repeat(200) });
+  assert.equal(c.status, 200);
+  assert.deepEqual(Object.keys(c.json.content).sort(), ['banner', 'f1', 'title']);
+  assert.equal(c.json.content.f1.length, 40);
+  assert.equal((await api('/api/status')).json.content.banner, 'عرض الإطلاق');
+  // الأسعار ما تمسح النصوص
+  await admin('/api/admin/settings', { price: 299, listPrice: 399, refDiscount: 30, refReward: 30 });
+  assert.equal((await api('/api/status')).json.content.title, 'عنتي');
+  // الملاحظات تحتاج دخول
+  assert.equal((await api('/api/feedback', { token: 'x.y', text: 'hello' })).status, 401);
+  const k = (await admin('/api/admin/create', { name: 'فريق', count: 3 })).json.created;
+  assert.equal(k.length, 3);
+  const tok = (await api('/api/activate', { code: k[0].code, device: 'fb-1' })).json.token;
+  assert.equal((await api('/api/feedback', { token: tok, text: ' ' })).status, 400);
+  assert.equal((await api('/api/feedback', { token: tok, text: 'الزر صغير <b>', where: '3d' })).status, 200);
+  const fb = (await admin('/api/admin/list')).json.feedback;
+  assert.equal(fb[0].name, 'فريق');
+  assert.equal(fb[0].text, 'الزر صغير <b>');
+  assert.equal((await admin('/api/admin/feedback', { id: fb[0].id, done: true })).status, 200);
+  assert.equal((await admin('/api/admin/list')).json.feedback[0].done, true);
+  await admin('/api/admin/content', {});
+});

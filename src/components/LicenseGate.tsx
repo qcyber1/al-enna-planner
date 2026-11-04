@@ -40,6 +40,8 @@ type State = 'checking' | 'locked' | 'open' | 'paid' | 'setpw';
 const PW_SKIP_KEY = 'enna.pw.skip';
 /** نذكّره يحط كلمة مرور كل 3 أيام لين يحطها */
 const pwSkippedRecently = () => Date.now() - Number(get(PW_SKIP_KEY) || 0) < 3 * 86400000;
+type SiteContent = Partial<Record<'banner' | 'title' | 'tagline' | 'f1' | 'f2' | 'f3' | 'f4' | 'buyNote', string>>;
+const DEFAULT_TEXT = { title: 'مخطط العنة ⛺', tagline: 'صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون' };
 const localPhone = (ph?: string) => (ph && ph.startsWith('974') && ph.length === 11 ? ph.slice(3) : ph || '');
 const ORDER_KEY = 'enna.order';
 const REF_KEY = 'enna.ref';
@@ -55,7 +57,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [login, setLogin] = useState({ phone: '', password: '' });
   const [loginErr, setLoginErr] = useState<{ phone?: string; password?: string }>({});
   const [acctPhone, setAcctPhone] = useState('');
-  const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean; sale?: boolean }>({ price: 349, online: false, basePrice: 349, refValid: false });
+  const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean; sale?: boolean; content: SiteContent }>({ price: 299, online: false, basePrice: 299, refValid: false, content: {} });
   const [buyer, setBuyer] = useState({ name: '', phone: '', email: '' });
   const [fieldErr, setFieldErr] = useState<{ name?: string | null; phone?: string | null; email?: string | null }>({});
   const checkField = (k: 'name' | 'phone' | 'email', v: string) =>
@@ -77,7 +79,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         const r = await fetch('/api/status' + (ref ? `?ref=${encodeURIComponent(ref)}` : ''));
         const s = (await r.json()) as { licensing?: boolean; price?: number; basePrice?: number; refValid?: boolean; online?: boolean };
         if (!s.licensing) return setState('open');
-        setInfo({ price: s.price ?? 349, online: !!s.online, basePrice: s.basePrice ?? s.price ?? 349, refValid: !!s.refValid, sale: !!(s as { sale?: boolean }).sale });
+        setInfo({ price: s.price ?? 299, online: !!s.online, basePrice: s.basePrice ?? s.price ?? 299, refValid: !!s.refValid, sale: !!(s as { sale?: boolean }).sale, content: (s as { content?: SiteContent }).content || {} });
       } catch {
         // بيئة التطوير بدون خادم: لا يوجد نظام أكواد
         if (import.meta.env.DEV) return setState('open');
@@ -241,6 +243,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       </div>
     );
 
+  const title = info.content.title || DEFAULT_TEXT.title;
+  const tagline = info.content.tagline || DEFAULT_TEXT.tagline;
+  const feats = [info.content.f1, info.content.f2, info.content.f3, info.content.f4];
   const tabs: [typeof mode, string][] = [
     ['buy', 'شراء'],
     ['login', 'دخول'],
@@ -254,20 +259,21 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           <div className="sadu-band absolute inset-x-0 bottom-0 h-1.5 lg:hidden" />
           <div className="hidden space-y-4 p-8 text-sand-50 lg:block">
             <div>
-              <h2 className="text-2xl font-bold">مخطط العنة ⛺</h2>
-              <p className="mt-1 text-sm text-sand-300">صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون</p>
+              <h2 className="text-2xl font-bold">{title}</h2>
+              <p className="mt-1 text-sm text-sand-300">{tagline}</p>
             </div>
-            <Features dark />
+            <Features dark items={feats} />
             <p className="text-[11px] leading-relaxed text-sand-400">{DEV_LINE}<br />{OWNER_LINE}</p>
           </div>
         </div>
         <div className="space-y-4 p-6 lg:flex lg:flex-col lg:justify-center lg:p-10">
+          {info.content.banner && <div className="rounded-lg bg-gold-500 px-3 py-2 text-center text-sm font-bold text-dune" data-testid="site-banner">{info.content.banner}</div>}
           <div className="text-center lg:hidden">
-            <h1 className="text-xl font-bold text-dune">مخطط العنة ⛺</h1>
-            <p className="mt-1 text-sm text-sand-700">صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون</p>
+            <h1 className="text-xl font-bold text-dune">{title}</h1>
+            <p className="mt-1 text-sm text-sand-700">{tagline}</p>
           </div>
           <h1 className="hidden text-center text-xl font-bold text-dune lg:block">{mode === 'buy' ? 'اشترِ مرة وحدة واستخدمه مدى الحياة' : 'أهلاً فيك من جديد 👋'}</h1>
-          <div className="lg:hidden"><Features /></div>
+          <div className="lg:hidden"><Features items={feats} /></div>
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-sand-200 p-1 text-sm font-semibold">
             {tabs.map(([m, label]) => {
               const on = m === 'buy' ? mode === 'buy' : mode !== 'buy';
@@ -349,7 +355,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gold-500 font-bold text-dune disabled:opacity-50" data-testid="buy">
               {busy && <Loader2 size={18} className="animate-spin" />} {info.online ? 'ادفع الآن (سكيب كاش)' : 'اطلب الآن'}
             </button>
-            <p className="text-center text-[11px] text-sand-600">{info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.'}</p>
+            <p className="text-center text-[11px] text-sand-600">{info.content.buyNote || (info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.')}</p>
             <p className="text-center text-[11px] text-sand-600" data-testid="seller-note">البائع: {OWNER_AR} ({OWNER_EN}) — وهذا الاسم اللي بيطلع في إيصال الدفع.</p>
           </form>
           )}
@@ -367,10 +373,17 @@ const FEATURES = [
   ['✨', 'يولّد لك 5 أفكار توزيع'],
   ['📐', 'المقاسات والكميات محسوبة'],
 ];
-function Features({ dark }: { dark?: boolean }) {
+/** «🧊 نص» → [أيقونة، نص] — إذا ما بدأ بإيموجي نخلي الأيقونة الافتراضية */
+function splitFeature(v: string | undefined, def: string[]): string[] {
+  if (!v) return def;
+  const m = v.match(/^(\S+)\s+(.+)$/u);
+  if (m && !/[\p{L}\p{N}]/u.test(m[1])) return [m[1], m[2]];
+  return [def[0], v];
+}
+function Features({ dark, items = [] }: { dark?: boolean; items?: (string | undefined)[] }) {
   return (
     <ul className={`grid grid-cols-2 gap-2 text-[12px] font-semibold ${dark ? 'text-sand-50' : 'text-dune'}`}>
-      {FEATURES.map(([i, t]) => (
+      {FEATURES.map((d, k) => splitFeature(items[k], d)).map(([i, t]) => (
         <li key={t} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 ${dark ? 'bg-white/10' : 'bg-white'}`}>
           <span className="text-base">{i}</span>
           {t}

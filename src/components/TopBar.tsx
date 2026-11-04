@@ -17,6 +17,7 @@ import {
   Loader2,
   AlertCircle,
   HelpCircle,
+  MessageSquarePlus,
   Sparkles,
   Gift,
   ClipboardCheck,
@@ -185,6 +186,9 @@ export function TopBar({ compact }: { compact: boolean }) {
             </IconButton>
             <IconButton tone="dark" label="مقارنة التصاميم" onClick={() => openDialog('compare')}>
               <Columns2 size={17} />
+            </IconButton>
+            <IconButton tone="dark" label="أرسل ملاحظة أو اقتراح" onClick={() => openDialog('feedback')} data-testid="open-feedback-desk">
+              <MessageSquarePlus size={17} />
             </IconButton>
             <IconButton tone="dark" label="المساعدة والاختصارات" onClick={() => openDialog('help')}>
               <HelpCircle size={17} />

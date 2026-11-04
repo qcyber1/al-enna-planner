@@ -18,6 +18,7 @@ import {
   Layers,
   Check,
   HelpCircle,
+  MessageSquarePlus,
   Sparkles,
   Gift,
   X,
@@ -151,6 +152,9 @@ export function MobileTopBar() {
               </button>
               <button type="button" className={item} onClick={() => go('projects')}>
                 <FolderOpen size={19} /> المشاريع
+              </button>
+              <button type="button" className={item} onClick={() => go('feedback')} data-testid="open-feedback">
+                <MessageSquarePlus size={19} className="text-gold-600" /> أرسل ملاحظة أو اقتراح
               </button>
               <button type="button" className={item} onClick={() => go('help')}>
                 <HelpCircle size={19} /> المساعدة

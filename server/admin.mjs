@@ -2,96 +2,177 @@
 export function adminPage({ licensing, maxDevices, persistent, skipcash }) {
   return `<!doctype html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>إدارة مخطط العنة</title>
+<title>لوحة التحكم — مخطط العنة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f5ecda;color:#3b2a1e;font:15px/1.6 'Segoe UI',Tahoma,sans-serif}
-header{background:#3b2a1e;color:#f5ecda;padding:14px 16px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
-main{padding:16px;display:grid;gap:16px;max-width:1150px;margin:auto}
-.card{background:#fff;border:1px solid #e6d7b8;border-radius:14px;padding:16px;min-width:0}
-h3{margin:0 0 10px}
-.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
-label{display:block;font-size:12px;color:#7a6248;margin-bottom:4px}
-input{width:100%;height:40px;border:1px solid #e6d7b8;border-radius:10px;padding:0 10px;font:inherit}
-button{height:36px;border:0;border-radius:10px;padding:0 12px;font:inherit;font-weight:600;cursor:pointer;background:#3b2a1e;color:#f5ecda;white-space:nowrap}
-.gold{background:#d4a24c;color:#3b2a1e}.ghost{background:#f1e6cf;color:#3b2a1e}.bad{background:#a12a1f;color:#fff}.ok{background:#2f6220;color:#fff}
-.warn{background:#fff4d6;border:1px solid #e9c46a;border-radius:12px;padding:10px 12px}
-.good{background:#eef7e8;border:1px solid #b6d9a0;border-radius:12px;padding:10px 12px}
-.new{background:#eef7e8;border:1px solid #b6d9a0;border-radius:12px;padding:12px;margin-top:12px;display:grid;gap:8px}
-.code{font-family:Consolas,monospace;font-size:14px;font-weight:700;direction:ltr;display:inline-block}
-.stats{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.stats b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
-.stats small{color:#7a6248}
-.tbl{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:720px}th,td{padding:8px;border-bottom:1px solid #e6d7b8;text-align:right;font-size:14px;vertical-align:top}
-th{font-size:12px;color:#7a6248}
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1f1a14;--mute:#6f6455;--line:#ebe5d8;--brand:#3b2a1e;--gold:#c9973f;--gold-soft:#f7efdf;--ok:#2f7a3b;--ok-soft:#e8f4ea;--bad:#b42318;--bad-soft:#fdecea;--blue:#1d4f9c;--blue-soft:#e8effb;--r:12px}
+*{box-sizing:border-box}[hidden]{display:none!important}html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif;-webkit-font-smoothing:antialiased}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100%}
+aside{background:var(--brand);color:#efe6d6;padding:18px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;font-weight:700;font-size:16px}
+.brand i{font-style:normal;width:34px;height:34px;border-radius:10px;background:var(--gold);display:grid;place-items:center;font-size:18px}
+.brand small{display:block;font-weight:400;font-size:11px;color:#bfae93}
+nav#tabs{display:flex;flex-direction:column;gap:2px}
+nav#tabs button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;color:#d9ccb6;font-weight:500}
+nav#tabs button:hover{background:rgba(255,255,255,.06);color:#fff}
+nav#tabs button.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600}
+nav#tabs button .n{margin-inline-start:auto;background:var(--gold);color:var(--brand);border-radius:99px;font-size:11px;font-weight:700;padding:0 7px;min-width:20px;text-align:center}
+nav#tabs button .n:empty{display:none}
+nav#tabs #csv{margin-top:14px;border:1px solid rgba(255,255,255,.18);justify-content:center}
+.side-foot{margin-top:auto;font-size:11px;color:#a8977c;padding:8px}
+.main{min-width:0;padding:24px 28px 40px;display:grid;gap:18px;align-content:start;max-width:1250px;width:100%}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.top h1{margin:0;font-size:22px}.top p{margin:2px 0 0;color:var(--mute);font-size:13px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--line)}
+.chip::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--ok)}.chip.w::before{background:var(--gold)}.chip.x::before{background:var(--bad)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0;box-shadow:0 1px 2px rgba(31,26,20,.04)}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+h3{margin:0;font-size:16px}.sub{color:var(--mute);font-size:13px;margin:4px 0 0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+label{display:block;font-size:12px;font-weight:600;color:var(--mute);margin-bottom:5px}
+input,select,textarea{width:100%;height:40px;border:1px solid var(--line);border-radius:10px;padding:0 12px;font:inherit;background:#fff;color:var(--ink);outline:none;transition:border-color .15s,box-shadow .15s}
+textarea{height:auto;min-height:70px;padding:10px 12px;resize:vertical}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,151,63,.18)}
+button{height:36px;border:1px solid transparent;border-radius:9px;padding:0 14px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;background:var(--brand);color:#fff;white-space:nowrap;transition:filter .15s}
+button:hover{filter:brightness(1.08)}
+.gold{background:var(--gold);color:#fff}.ghost{background:#fff;color:var(--ink);border-color:var(--line)}.ghost:hover{background:#faf7f1}.bad{background:var(--bad-soft);color:var(--bad)}.ok{background:var(--ok);color:#fff}
+.alert{border-radius:var(--r);padding:12px 14px;font-size:13px;border:1px solid}
+.warn{background:#fff8e6;border-color:#f1d48f}.good{background:var(--ok-soft);border-color:#bfe0c4}
+.new{background:var(--ok-soft);border:1px solid #bfe0c4;border-radius:var(--r);padding:14px;margin-top:14px;display:grid;gap:10px}
+.code{font-family:ui-monospace,Consolas,monospace;font-size:13px;font-weight:700;direction:ltr;display:inline-block;background:#f6f3ec;border-radius:6px;padding:1px 6px}
+.stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.stat{display:flex;gap:12px;align-items:flex-start}
+.stat .ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:18px;background:var(--gold-soft);flex:none}
+.stat small{color:var(--mute);font-size:12px;display:block}.stat b{display:block;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.3}
+.tbl{overflow-x:auto;margin:0 -18px;padding:0 18px}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th,td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;vertical-align:top}
+th{font-size:11px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.02em;background:#faf8f3;position:sticky;top:0}
+tbody tr:hover{background:#fcfbf8}td small{color:var(--mute)}
 .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:600}
-.p-paid{background:#e3f1da;color:#2f6220}.p-wait{background:#f1e6cf;color:#7a6248}.p-bad{background:#f8dcd8;color:#a12a1f}.p-ref{background:#e6eefb;color:#1d4f9c}
-.tabs{display:flex;gap:6px;flex-wrap:wrap}.tabs button{background:#f1e6cf;color:#3b2a1e}.tabs button.on{background:#3b2a1e;color:#f5ecda}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600}
+.p-paid{background:var(--ok-soft);color:var(--ok)}.p-wait{background:var(--gold-soft);color:#8a6420}.p-bad{background:var(--bad-soft);color:var(--bad)}.p-ref{background:var(--blue-soft);color:var(--blue)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar input{flex:1;min-width:180px}.toolbar select{max-width:180px}
+.fb{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:6px}
+.fb.done{opacity:.55}.fb p{margin:0;white-space:pre-wrap}
+.empty{color:var(--mute);text-align:center;padding:24px}
+.preview{border:1px dashed var(--line);border-radius:10px;padding:12px;background:#fcfaf5;font-size:13px}
+@media (max-width:900px){.app{grid-template-columns:1fr}aside{position:sticky;top:0;z-index:5;height:auto;flex-direction:row;align-items:center;padding:8px 10px;overflow-x:auto;gap:8px}.brand{padding:0 6px;font-size:14px;white-space:nowrap}.brand small,.side-foot{display:none}nav#tabs{flex-direction:row}nav#tabs button{white-space:nowrap;padding:7px 10px}nav#tabs #csv{margin:0}.main{padding:16px}}
 </style></head><body>
-<header><b>⛺ إدارة مخطط العنة — الحسابات</b><span>كل كود: مدى الحياة • حتى ${maxDevices} أجهزة</span></header>
-<main>
-${licensing ? '' : '<div class="warn">⚠ الحماية معطلة: أضف المتغير <b>LICENSE_SECRET</b> في Railway (16 حرفاً على الأقل). حالياً التطبيق مفتوح للجميع.</div>'}
-${skipcash ? '<div class="good">✓ الدفع الإلكتروني (سكيب كاش) مفعّل — البيئة: <b>' + (skipcash === 'production' ? 'حقيقي' : 'تجريبي (Sandbox)') + '</b>. الطلب يصير «مدفوع» تلقائياً فقط بعد ما يتأكد السيرفر من سكيب كاش.</div>' : '<div class="warn">الدفع الإلكتروني غير مفعّل بعد (مفاتيح سكيب كاش). حالياً: العميل يطلب برقم جواله ← ترسل له رابط الدفع ← بعد ما تتأكد من وصول المبلغ تضغط «تم الدفع».</div>'}
-${persistent ? '' : '<div class="warn">⚠ لم يتم ربط Volume على <b>/data</b> في Railway: سجل المبيعات يُمسح عند كل نشر جديد (الأكواد نفسها تبقى صالحة).</div>'}
-
-<section class="stats">
-  <div class="card"><small>الإيراد المؤكد</small><b id="s_rev">0</b><small id="s_rev2"></small></div>
-  <div class="card"><small>مبيعات مدفوعة</small><b id="s_paid">0</b><small id="s_today"></small></div>
-  <div class="card"><small>طلبات بانتظار الدفع</small><b id="s_wait">0</b></div>
-  <div class="card"><small>مكافآت إحالة مستحقة</small><b id="s_owed">0</b><small id="s_refs"></small></div>
-  <div class="card"><small>أكواد مفعّلة</small><b id="s_act">0</b></div>
-</section>
-
-<section class="card" style="margin-bottom:12px">
-  <h3 style="margin-top:0">💰 السعر والعروض</h3>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-    <div><label for="st_price">السعر الحالي (ر.ق)</label><input id="st_price" type="number" min="1" dir="ltr"></div>
-    <div><label for="st_list">السعر قبل الخصم (للعرض) — 0 = بدون عرض</label><input id="st_list" type="number" min="0" dir="ltr"></div>
-    <div><label for="st_rd">خصم الإحالة للمشتري (ر.ق)</label><input id="st_rd" type="number" min="0" dir="ltr"></div>
-    <div><label for="st_rr">مكافأة صاحب الرابط (ر.ق)</label><input id="st_rr" type="number" min="0" dir="ltr"></div>
+<div class="app">
+<aside>
+  <div class="brand"><i>⛺</i><div>مخطط العنة<small>لوحة التحكم</small></div></div>
+  <nav id="tabs">
+    <button class="on" data-t="overview">📊 نظرة عامة</button>
+    <button data-t="orders">🧾 الطلبات <span class="n" id="n_orders"></span></button>
+    <button data-t="codes">👥 العملاء</button>
+    <button data-t="refs">🎁 الإحالات <span class="n" id="n_refs"></span></button>
+    <button data-t="feedback">💬 الملاحظات <span class="n" id="n_fb"></span></button>
+    <button data-t="pricing">💰 الأسعار والعروض</button>
+    <button data-t="content">✏️ نصوص الموقع</button>
+    <button data-t="manual">🔑 أكواد يدوية</button>
+    <button id="csv" type="button">⬇ تصدير المبيعات</button>
+  </nav>
+  <div class="side-foot">كل كود: مدى الحياة • حتى ${maxDevices} أجهزة</div>
+</aside>
+<main class="main">
+<div class="top">
+  <div><h1 id="pt">نظرة عامة</h1><p id="ps">ملخص المبيعات والعملاء</p></div>
+  <div class="chips">
+    ${licensing ? '<span class="chip">الحماية مفعّلة</span>' : '<span class="chip x">الحماية معطلة</span>'}
+    ${skipcash ? '<span class="chip' + (skipcash === 'production' ? '' : ' w') + '">سكيب كاش: ' + (skipcash === 'production' ? 'حقيقي' : 'تجريبي') + '</span>' : '<span class="chip w">الدفع يدوي</span>'}
+    ${persistent ? '<span class="chip">البيانات محفوظة</span>' : '<span class="chip x">البيانات غير محفوظة</span>'}
   </div>
-  <div class="row" style="margin-top:8px;justify-content:space-between"><small id="st_hint" style="color:#7a6248"></small><button id="st_save" class="ok" type="button">حفظ الأسعار</button></div>
+</div>
+${licensing ? '' : '<div class="alert warn">⚠ الحماية معطلة: أضف المتغير <b>LICENSE_SECRET</b> في Railway (16 حرفاً على الأقل). حالياً التطبيق مفتوح للجميع.</div>'}
+${skipcash ? '' : '<div class="alert warn">الدفع الإلكتروني غير مفعّل بعد (مفاتيح سكيب كاش). حالياً: العميل يطلب برقم جواله ← ترسل له رابط الدفع ← بعد ما تتأكد من وصول المبلغ تضغط «تم الدفع».</div>'}
+${persistent ? '' : '<div class="alert warn">⚠ لم يتم ربط Volume على <b>/data</b> في Railway: سجل المبيعات يُمسح عند كل نشر جديد (الأكواد نفسها تبقى صالحة).</div>'}
+
+<section data-p="overview" style="display:grid;gap:18px">
+  <div class="stats">
+    <div class="card stat"><span class="ic">💵</span><div><small>الإيراد المؤكد</small><b id="s_rev">0</b><small id="s_rev2"></small></div></div>
+    <div class="card stat"><span class="ic">✅</span><div><small>مبيعات مدفوعة</small><b id="s_paid">0</b><small id="s_today"></small></div></div>
+    <div class="card stat"><span class="ic">⏳</span><div><small>بانتظار الدفع</small><b id="s_wait">0</b></div></div>
+    <div class="card stat"><span class="ic">🎁</span><div><small>مكافآت مستحقة</small><b id="s_owed">0</b><small id="s_refs"></small></div></div>
+    <div class="card stat"><span class="ic">📱</span><div><small>أكواد مفعّلة</small><b id="s_act">0</b></div></div>
+  </div>
+  <div class="card"><div class="card-h"><h3>آخر الطلبات</h3><button class="ghost" type="button" data-go="orders">عرض الكل</button></div><div class="tbl"><table><thead><tr><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody id="ov_orders"></tbody></table></div></div>
+  <div class="card"><div class="card-h"><h3>آخر الملاحظات</h3><button class="ghost" type="button" data-go="feedback">عرض الكل</button></div><div id="ov_fb"></div></div>
 </section>
 
-<div class="tabs" id="tabs">
-  <button class="on" data-t="orders">الطلبات والمدفوعات</button>
-  <button data-t="refs">الإحالات</button>
-  <button data-t="codes">العملاء والأكواد</button>
-  <button data-t="manual">كود يدوي</button>
-  <button id="csv" class="gold" type="button">⬇ تصدير المبيعات (Excel)</button>
-</div>
-
-<section class="card" data-p="orders">
-  <h3>الطلبات والمدفوعات</h3>
-  <div class="row" style="margin-bottom:8px"><div style="flex:1;min-width:220px"><label for="pl">رابط الدفع (للطلبات اليدوية)</label><input id="pl" dir="ltr" placeholder="https://..."></div></div>
-  <div class="row" style="margin-bottom:8px"><input id="oq" placeholder="بحث بالاسم أو الرقم" style="flex:1;min-width:180px"><select id="of" style="max-width:170px"><option value="">كل الحالات</option><option value="new">طلب جديد</option><option value="pending">بانتظار الدفع</option><option value="sent">أُرسل رابط الدفع</option><option value="paid">مدفوع</option><option value="cancelled">ملغي</option></select><small id="oc" style="color:#7a6248"></small></div>
+<section class="card" data-p="orders" hidden>
+  <div class="card-h"><div><h3>الطلبات والمدفوعات</h3><p class="sub">الطلبات الإلكترونية تتأكد تلقائياً من سكيب كاش</p></div><small id="oc" style="color:var(--mute)"></small></div>
+  <div class="toolbar"><input id="oq" placeholder="بحث بالاسم أو الرقم أو مرجع الدفع"><select id="of"><option value="">كل الحالات</option><option value="new">طلب جديد</option><option value="pending">بانتظار الدفع</option><option value="sent">أُرسل رابط الدفع</option><option value="paid">مدفوع</option><option value="cancelled">ملغي</option></select></div>
+  <div class="toolbar"><div style="flex:1;min-width:220px"><label for="pl">رابط الدفع (للطلبات اليدوية فقط)</label><input id="pl" dir="ltr" placeholder="https://..."></div></div>
   <div class="tbl"><table><thead><tr><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th>مرجع الدفع</th><th></th></tr></thead><tbody id="ob"></tbody></table></div>
 </section>
 
 <section class="card" data-p="refs" hidden>
-  <h3>الإحالات</h3>
-  <p style="margin-top:0;color:#7a6248;font-size:13px">كل عميل عنده رابط خاص داخل التطبيق (زر «ادعُ أصحابك»). صديقه ياخذ خصم، وصاحب الرابط يستحق مكافأة بعد ما يدفع صديقه. ادفع له المكافأة (تحويل) ثم اضغط «تم الدفع له».</p>
-  <div class="row" style="margin-bottom:8px"><button id="rcsv" class="gold" type="button">⬇ تصدير المستحقين للتحويل (Excel)</button></div>
+  <div class="card-h"><div><h3>الإحالات</h3><p class="sub">كل عميل عنده رابط خاص داخل التطبيق («ادعُ أصحابك»). صديقه ياخذ خصم، وصاحب الرابط يستحق مكافأة بعد ما يدفع صديقه.</p></div><button id="rcsv" class="ghost" type="button">⬇ تصدير المستحقين</button></div>
   <div class="tbl"><table><thead><tr><th>صاحب الرابط</th><th>عدد المشترين عن طريقه</th><th>المستحق</th><th>المدفوع له</th><th></th></tr></thead><tbody id="rb"></tbody></table></div>
 </section>
 
 <section class="card" data-p="codes" hidden>
-  <div class="row" style="justify-content:space-between"><h3 style="margin:0">العملاء والأكواد</h3><input id="q" placeholder="بحث بالاسم أو الرقم أو الكود" style="max-width:260px"></div>
+  <div class="card-h"><div><h3>العملاء والأكواد</h3><p class="sub">🔑 = يدخل برقم جواله وكلمة المرور</p></div></div>
+  <div class="toolbar"><input id="q" placeholder="بحث بالاسم أو الرقم أو الكود أو الملاحظة"></div>
   <div class="tbl"><table><thead><tr><th>العميل</th><th>الكود</th><th>التاريخ</th><th>المبلغ</th><th>الأجهزة</th><th>الحالة</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
 </section>
 
+<section class="card" data-p="feedback" hidden>
+  <div class="card-h"><div><h3>ملاحظات المستخدمين</h3><p class="sub">تجي من زر «أرسل ملاحظة» داخل التطبيق</p></div><select id="fbf" style="max-width:170px"><option value="open">الجديدة</option><option value="">الكل</option><option value="done">المنتهية</option></select></div>
+  <div id="fbl" style="display:grid;gap:10px"></div>
+</section>
+
+<section class="card" data-p="pricing" hidden>
+  <div class="card-h"><div><h3>الأسعار والعروض</h3><p class="sub">التغيير يطبّق فوراً على صفحة الشراء</p></div></div>
+  <div class="grid">
+    <div><label for="st_price">السعر الحالي (ر.ق)</label><input id="st_price" type="number" min="1" dir="ltr"></div>
+    <div><label for="st_list">السعر قبل الخصم — 0 = بدون عرض</label><input id="st_list" type="number" min="0" dir="ltr"></div>
+    <div><label for="st_rd">خصم الإحالة للمشتري (ر.ق)</label><input id="st_rd" type="number" min="0" dir="ltr"></div>
+    <div><label for="st_rr">مكافأة صاحب الرابط (ر.ق)</label><input id="st_rr" type="number" min="0" dir="ltr"></div>
+  </div>
+  <div class="row" style="margin-top:14px;justify-content:space-between"><div class="preview" id="st_hint"></div><button id="st_save" class="ok" type="button">حفظ الأسعار</button></div>
+</section>
+
+<section class="card" data-p="content" hidden>
+  <div class="card-h"><div><h3>نصوص صفحة الدخول والشراء</h3><p class="sub">اترك أي خانة فاضية عشان يرجع النص الأصلي</p></div></div>
+  <div class="grid" style="grid-template-columns:1fr">
+    <div><label for="c_banner">شريط إعلان فوق (اختياري) — مثل: عرض الإطلاق ينتهي الجمعة</label><input id="c_banner" maxlength="120"></div>
+  </div>
+  <div class="grid" style="margin-top:12px">
+    <div><label for="c_title">العنوان</label><input id="c_title" maxlength="40" placeholder="مخطط العنة ⛺"></div>
+    <div style="grid-column:span 2"><label for="c_tagline">الجملة تحت العنوان</label><input id="c_tagline" maxlength="140" placeholder="صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون"></div>
+  </div>
+  <div class="grid" style="margin-top:12px">
+    <div><label for="c_f1">ميزة 1</label><input id="c_f1" maxlength="40" placeholder="🧊 مجسم 3D تتمشّى فيه"></div>
+    <div><label for="c_f2">ميزة 2</label><input id="c_f2" maxlength="40" placeholder="🌙 إنارة الليل قبل الشراء"></div>
+    <div><label for="c_f3">ميزة 3</label><input id="c_f3" maxlength="40" placeholder="✨ يولّد لك 5 أفكار توزيع"></div>
+    <div><label for="c_f4">ميزة 4</label><input id="c_f4" maxlength="40" placeholder="📐 المقاسات والكميات محسوبة"></div>
+  </div>
+  <div class="grid" style="margin-top:12px;grid-template-columns:1fr">
+    <div><label for="c_buyNote">ملاحظة تحت زر الدفع</label><input id="c_buyNote" maxlength="160" placeholder="دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع."></div>
+  </div>
+  <div class="row" style="margin-top:14px;justify-content:space-between"><small style="color:var(--mute)">الميزات: حط إيموجي في البداية ثم مسافة ثم النص.</small><div class="row"><a href="/" target="_blank"><button class="ghost" type="button">معاينة الموقع ↗</button></a><button id="c_save" class="ok" type="button">حفظ النصوص</button></div></div>
+</section>
+
 <section class="card" data-p="manual" hidden>
-  <h3>كود يدوي (هدية أو دفع خارج الموقع)</h3>
+  <div class="card-h"><div><h3>أكواد يدوية</h3><p class="sub">هدية، دفع خارج الموقع، أو حسابات تجريبية للفريق (اكتب العدد)</p></div></div>
   <form id="f" class="grid">
-    <div><label for="name">اسم العميل</label><input id="name" required></div>
+    <div><label for="cname">الاسم</label><input id="cname" required placeholder="مثلاً: تجربة الفريق"></div>
     <div><label for="phone">رقم الواتساب</label><input id="phone" dir="ltr" placeholder="974xxxxxxxx"></div>
-    <div><label for="price">المبلغ (ر.ق) — 0 للهدية</label><input id="price" type="number" value="299" dir="ltr"></div>
+    <div><label for="price">المبلغ (ر.ق) — 0 للهدية/التجربة</label><input id="price" type="number" value="299" dir="ltr"></div>
+    <div><label for="cnt">عدد الأكواد</label><input id="cnt" type="number" value="1" min="1" max="50" dir="ltr"></div>
     <div><label for="note">ملاحظة</label><input id="note"></div>
-    <div style="align-self:end"><button class="gold">توليد الكود</button></div>
+    <div style="align-self:end"><button class="gold" style="width:100%;height:40px">توليد</button></div>
   </form><div id="out"></div>
 </section>
-</main>
+</main></div>
 <script>
-let list=[],orders=[],refs=[],PRICE=299,REWARD=30;const MAX=${maxDevices};
+let list=[],orders=[],refs=[],fbs=[],PRICE=299,REWARD=30;const MAX=${maxDevices};
 const SCS={0:'جديد',1:'قيد الدفع',2:'مدفوع',3:'ملغي',4:'فشل',5:'مرفوض',6:'مسترجع'};
 const ST={pending:'بانتظار الدفع',new:'طلب جديد',sent:'أُرسل رابط الدفع',paid:'مدفوع ✓',cancelled:'ملغي'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -113,7 +194,18 @@ function stats(){
   s_wait.textContent=orders.filter(o=>['pending','new','sent'].includes(o.status)).length;
   s_owed.textContent=money(owed);s_refs.textContent=refs.length+' عملية إحالة';
   s_act.textContent=list.filter(r=>r.devices.length).length+' / '+list.length;
+  n_orders.textContent=orders.filter(o=>['pending','new','sent'].includes(o.status)).length||'';
+  n_refs.textContent=refGroups().filter(x=>x.owed>0).length||'';
+  n_fb.textContent=fbs.filter(f=>!f.done).length||'';
+  ov_orders.innerHTML=orders.slice(0,6).map(o=>'<tr><td><b>'+esc(o.name)+'</b><br><small dir="ltr">'+esc(o.phone)+'</small></td><td>'+day(o.createdAt)+'</td><td>'+money(o.amount??PRICE)+'</td><td><span class="pill '+(o.status==='paid'?'p-paid':o.status==='cancelled'?'p-bad':'p-wait')+'">'+ST[o.status]+'</span></td></tr>').join('')||'<tr><td colspan="4" class="empty">لا توجد طلبات بعد</td></tr>';
+  ov_fb.innerHTML=fbs.filter(f=>!f.done).slice(0,3).map(fbCard).join('')||'<div class="empty">ما في ملاحظات جديدة</div>';
 }
+function fbCard(f){return '<div class="fb'+(f.done?' done':'')+'"><div class="row" style="justify-content:space-between"><div><b>'+esc(f.name||'مستخدم')+'</b> <small dir="ltr">'+esc(f.phone||'')+'</small> <small>• '+day(f.at)+(f.where?' • '+esc(f.where):'')+'</small></div><div class="row">'+(f.phone?'<a href="'+wa(f.phone,'هلا '+(f.name||'')+' 👋 شكراً على ملاحظتك في مخطط العنة: ')+'" target="_blank"><button class="ghost" type="button">رد واتساب</button></a>':'')+'<button class="'+(f.done?'ghost':'ok')+'" type="button" data-fb="'+f.id+'" data-done="'+(f.done?0:1)+'">'+(f.done?'إرجاع':'تم ✓')+'</button><button class="bad" type="button" data-fb="'+f.id+'" data-rm="1">حذف</button></div></div><p>'+esc(f.text)+'</p></div>'}
+function renderFb(){const m=fbf.value;const rows=fbs.filter(f=>!m||(m==='done'?f.done:!f.done));fbl.innerHTML=rows.map(fbCard).join('')||'<div class="empty">ما في ملاحظات</div>'}
+const CK=['banner','title','tagline','f1','f2','f3','f4','buyNote'];let cLoaded=false;
+c_save.onclick=async()=>{const b={};for(const k of CK)b[k]=document.getElementById('c_'+k).value;try{await api('/api/admin/content',b);c_save.textContent='تم الحفظ ✓';setTimeout(()=>c_save.textContent='حفظ النصوص',1800)}catch(err){alert(err.message)}};
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-fb]');if(b){if(b.dataset.rm&&!confirm('حذف الملاحظة؟'))return;try{await api('/api/admin/feedback',{id:b.dataset.fb,done:b.dataset.done==='1',remove:!!b.dataset.rm});await load()}catch(err){alert(err.message)}return}const g=e.target.closest('[data-go]');if(g)go(g.dataset.go)});
+fbf.onchange=renderFb;
 function renderOrders(){const q=oq.value.trim(),fs=of.value;const rows=orders.filter(o=>(!fs||o.status===fs)&&(!q||[o.name,o.phone,o.paymentId].join(' ').includes(q)));oc.textContent=rows.length+' من '+orders.length;ob.innerHTML=rows.map(o=>{const c=o.codeId&&byId(o.codeId);const ref=o.ref?'<span class="pill p-ref">بإحالة من '+esc(byId(o.ref)?.name||o.ref)+'</span>':'';
   const st='<span class="pill '+(o.status==='paid'?'p-paid':o.status==='cancelled'?'p-bad':'p-wait')+'">'+ST[o.status]+'</span>';
   const acts=o.status==='paid'?(c?'<a href="'+wa(c.phone,msg(c))+'" target="_blank"><button class="gold" type="button">إرسال الكود واتساب</button></a>':''):o.status==='cancelled'?'':
@@ -130,7 +222,7 @@ function stHint(){const p=+st_price.value||0,l=+st_list.value||0,d=+st_rd.value|
 for(const el of [st_price,st_list,st_rd,st_rr])el.oninput=stHint;
 st_save.onclick=async()=>{try{await api('/api/admin/settings',{price:st_price.value,listPrice:st_list.value||0,refDiscount:st_rd.value,refReward:st_rr.value});st_save.textContent='تم الحفظ ✓';setTimeout(()=>st_save.textContent='حفظ الأسعار',1800);await load()}catch(err){alert(err.message)}};
 let stLoaded=false;
-async function load(){const j=await api('/api/admin/list');if(j.settings&&!stLoaded){stLoaded=true;st_price.value=j.settings.price;st_list.value=j.settings.listPrice||0;st_rd.value=j.settings.refDiscount;st_rr.value=j.settings.refReward;stHint()}list=j.list;orders=j.orders||[];refs=j.referrals||[];PRICE=j.price||299;REWARD=j.refReward??50;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';stats();renderOrders();renderRefs();renderCodes()}
+async function load(){const j=await api('/api/admin/list');if(j.settings&&!stLoaded){stLoaded=true;st_price.value=j.settings.price;st_list.value=j.settings.listPrice||0;st_rd.value=j.settings.refDiscount;st_rr.value=j.settings.refReward;stHint()}list=j.list;orders=j.orders||[];refs=j.referrals||[];fbs=j.feedback||[];if(j.content&&!cLoaded){cLoaded=true;for(const k of CK)document.getElementById('c_'+k).value=j.content[k]||''}PRICE=j.price||299;REWARD=j.refReward??50;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';stats();renderOrders();renderRefs();renderCodes();renderFb()}
 pl.onchange=()=>localStorage.setItem('pl',pl.value);
 q.oninput=renderCodes;
 oq.oninput=renderOrders;of.onchange=renderOrders;
@@ -139,13 +231,16 @@ rcsv.onclick=()=>{const rows=[['صاحب الرابط','الجوال','الكو�
   if(rows.length===1)return alert('ما في مكافآت مستحقة حالياً ✓');
   const s='\\ufeff'+rows.map(r=>r.map(c=>'"'+String(c??'').replace(/"/g,'""')+'"').join(',')).join('\\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='al-enna-referrals-due-'+new Date().toISOString().slice(0,10)+'.csv';a.click()};
-tabs.onclick=e=>{const b=e.target.closest('button[data-t]');if(!b)return;for(const x of tabs.querySelectorAll('button[data-t]'))x.classList.toggle('on',x===b);for(const s of document.querySelectorAll('[data-p]'))s.hidden=s.dataset.p!==b.dataset.t};
+const TT={overview:['نظرة عامة','ملخص المبيعات والعملاء'],orders:['الطلبات','كل طلبات الشراء وحالة الدفع'],codes:['العملاء','الأكواد والأجهزة وكلمات المرور'],refs:['الإحالات','مين جاب عملاء ومكافآتهم'],feedback:['الملاحظات','آراء المستخدمين والفريق'],pricing:['الأسعار والعروض','السعر والخصومات'],content:['نصوص الموقع','عدّل كلام صفحة الدخول والشراء'],manual:['أكواد يدوية','هدايا وحسابات تجريبية']};
+function go(t){if(!TT[t])t='overview';for(const x of tabs.querySelectorAll('button[data-t]'))x.classList.toggle('on',x.dataset.t===t);for(const s of document.querySelectorAll('[data-p]'))s.hidden=s.dataset.p!==t;pt.textContent=TT[t][0];ps.textContent=TT[t][1];if(location.hash!=='#'+t)history.replaceState(null,'','#'+t);window.scrollTo(0,0)}
+tabs.onclick=e=>{const b=e.target.closest('button[data-t]');if(b)go(b.dataset.t)};
+go(location.hash.slice(1));
 ob.onclick=async e=>{const t=e.target.closest('[data-o]');if(!t)return;
   if(t.dataset.s==='paid'&&!confirm('متأكد إن المبلغ وصلك؟ بيتولّد كود للعميل.'))return;
   try{const r=await api('/api/admin/order',{id:t.dataset.o,status:t.dataset.s});await load();if(t.dataset.s==='paid'&&r.code&&r.code.phone)window.open(wa(r.code.phone,msg(r.code)),'_blank');if(t.dataset.s==='check')alert(r.order.status==='paid'?'تم التأكد: مدفوع ✓':'الدفع ما اكتمل للحين')}catch(err){alert(err.message)}};
 rb.onclick=async e=>{const b=e.target.closest('button[data-r]');if(!b)return;if(!confirm('تأكيد إنك حوّلت المكافأة؟'))return;try{await api('/api/admin/referral',{refId:b.dataset.r,paidOut:true});await load()}catch(err){alert(err.message)}};
 tb.onclick=async e=>{const b=e.target.closest('button[data-a]');if(!b)return;if(b.dataset.a==='revoke'&&!confirm('إيقاف الكود؟ العميل ما بيقدر يدخل.'))return;if(b.dataset.a==='resetpw'&&!confirm('مسح كلمة المرور؟ العميل يدخل بالكود ويحط كلمة مرور جديدة.'))return;try{await api('/api/admin/update',{id:b.dataset.id,action:b.dataset.a});await load()}catch(err){alert(err.message)}};
-f.onsubmit=async e=>{e.preventDefault();try{const{created}=await api('/api/admin/create',{name:name.value,phone:phone.value,price:price.value,note:note.value});const r=created[0];
+f.onsubmit=async e=>{e.preventDefault();try{const{created}=await api('/api/admin/create',{name:cname.value,phone:phone.value,price:price.value,note:note.value,count:cnt.value});const r=created[0];if(created.length>1){const txt=created.map((c,i)=>(i+1)+') '+c.code).join('\\n');out.innerHTML='<div class="new"><div><b>'+created.length+' أكواد لـ '+esc(r.name)+'</b> — كل واحد يكفي '+MAX+' أجهزة:</div><div style="display:grid;gap:4px">'+created.map(c=>'<span class="code">'+esc(c.code)+'</span>').join('')+'</div><div class="row"><button class="ghost" type="button" id="cp">نسخ كل الأكواد</button></div></div>';cp.onclick=()=>navigator.clipboard.writeText('مخطط العنة ⛺\\n'+location.origin+'\\n\\n'+txt).then(()=>cp.textContent='تم النسخ ✓');f.reset();price.value=PRICE;cnt.value=1;await load();return}
   out.innerHTML='<div class="new"><div>كود <b>'+esc(r.name)+'</b>: <span class="code">'+esc(r.code)+'</span></div><div class="row">'+(r.phone?'<a href="'+wa(r.phone,msg(r))+'" target="_blank"><button class="gold" type="button">إرسال واتساب</button></a>':'')+'<button class="ghost" type="button" id="cp">نسخ الرسالة</button></div></div>';
   cp.onclick=()=>navigator.clipboard.writeText(msg(r)).then(()=>cp.textContent='تم النسخ ✓');f.reset();price.value=PRICE;await load()}catch(err){alert(err.message)}};
 csv.onclick=()=>{const rows=[['التاريخ','العميل','الجوال','المبلغ','الحالة','الطريقة','بإحالة من','مرجع الدفع','الكود']];

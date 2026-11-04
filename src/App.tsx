@@ -8,6 +8,7 @@ import { DesignsDialog, HelpDialog, LandDialog, ProjectsDialog, ShareDialog, Sha
 import { Toasts } from './components/Toasts';
 import { GeneratorDialog } from './components/GeneratorDialog';
 import { InviteDialog } from './components/InviteDialog';
+import { FeedbackDialog } from './components/FeedbackDialog';
 import { Tour } from './components/Tour';
 import { BackupNudge } from './components/BackupNudge';
 import { ChecklistDialog } from './components/ChecklistDialog';
@@ -153,6 +154,7 @@ export default function App() {
       <HelpDialog />
       <GeneratorDialog />
       <InviteDialog />
+      <FeedbackDialog />
       <Toasts />
     </div>
   );

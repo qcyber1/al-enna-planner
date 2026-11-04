@@ -38,6 +38,7 @@ export type DialogName =
   | 'sharedLink'
   | 'generator'
   | 'invite'
+  | 'feedback'
   | 'checklist';
 
 export interface Toast {
