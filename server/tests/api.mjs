@@ -246,3 +246,35 @@ test('نصوص الموقع من اللوحة، والملاحظات من داخ
   assert.equal((await admin('/api/admin/list')).json.feedback[0].done, true);
   await admin('/api/admin/content', {});
 });
+
+test('الدومين الجديد: الرابط القديم يتحول له، والـ API ما يتحول', async () => {
+  const { spawn } = await import('node:child_process');
+  const port = PORT + 1;
+  const pr = spawn(process.execPath, ['server/index.mjs'], {
+    cwd: ROOT,
+    env: { ...process.env, PORT: String(port), DATA_DIR: dir + '-dom', LICENSE_SECRET: 'test-secret-0123456789abcdef', ADMIN_PASSWORD: 'x', SITE_DOMAIN: 'https://www.i3enna.qa/' },
+    stdio: 'ignore',
+  });
+  try {
+    for (let i = 0; i < 50; i++) {
+      try {
+        await fetch(`http://127.0.0.1:${port}/api/status`);
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+    const g = (h, p = '/?ref=AB') => fetch(`http://127.0.0.1:${port}${p}`, { headers: { 'x-forwarded-host': h }, redirect: 'manual' });
+    const old = await g('al-enna-planner-production.up.railway.app');
+    assert.equal(old.status, 301);
+    assert.equal(old.headers.get('location'), 'https://www.i3enna.qa/?ref=AB');
+    assert.equal((await g('i3enna.qa')).headers.get('location'), 'https://www.i3enna.qa/?ref=AB');
+    assert.equal((await g('al-enna-planner-production.up.railway.app', '/api/status')).status, 200, 'API بدون تحويل');
+    const home = await g('www.i3enna.qa', '/');
+    assert.equal(home.status, 200);
+    const html = await home.text();
+    if (html.includes('og:url')) assert.ok(html.includes('https://www.i3enna.qa/') && !html.includes('up.railway.app'));
+  } finally {
+    pr.kill();
+  }
+});

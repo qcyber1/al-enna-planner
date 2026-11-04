@@ -267,6 +267,11 @@ function serveStatic(req, res, urlPath) {
       return res.end(req.method === 'HEAD' ? undefined : body);
     }
   }
+  if (SITE_DOMAIN && path.basename(file) === 'index.html') {
+    const body = readSiteFile(file);
+    res.writeHead(200, { ...headers, 'content-length': body.length });
+    return res.end(req.method === 'HEAD' ? undefined : body);
+  }
   res.writeHead(200, headers);
   fs.createReadStream(file).pipe(res);
 }
@@ -274,13 +279,22 @@ function serveStatic(req, res, urlPath) {
 const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.svg', '.json', '.webmanifest', '.txt']);
 const zcache = new Map();
 /** نسخة مضغوطة من الملف (محفوظة في الذاكرة ومربوطة بوقت التعديل) */
+// الدومين الرسمي (مثلاً www.i3enna.qa): إذا انضبط في Railway نحوّل الرابط القديم عليه
+const SITE_DOMAIN = String(process.env.SITE_DOMAIN || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/[/:].*$/, '');
+const OLD_ORIGIN = 'https://al-enna-planner-production.up.railway.app';
+/** روابط المعاينة (واتساب/سوشال) تطلع بالدومين الجديد */
+function readSiteFile(file) {
+  const raw = fs.readFileSync(file);
+  if (!SITE_DOMAIN || path.basename(file) !== 'index.html') return raw;
+  return Buffer.from(raw.toString('utf8').split(OLD_ORIGIN).join('https://' + SITE_DOMAIN));
+}
 function compressed(file, enc) {
   try {
     const st = fs.statSync(file);
     const key = `${enc}:${file}`;
     const hit = zcache.get(key);
     if (hit && hit.mtime === st.mtimeMs) return hit.body;
-    const raw = fs.readFileSync(file);
+    const raw = readSiteFile(file);
     const body =
       enc === 'br'
         ? zlib.brotliCompressSync(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length } })
@@ -304,6 +318,12 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('referrer-policy', 'strict-origin-when-cross-origin');
   res.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=()');
   if (req.headers['x-forwarded-proto'] === 'https') res.setHeader('strict-transport-security', 'max-age=31536000');
+  // الرابط القديم (railway.app) والدومين بدون www → الدومين الرسمي. الـ API ما نحوّله عشان الويبهوك والتبويبات المفتوحة
+  if (SITE_DOMAIN && (req.method === 'GET' || req.method === 'HEAD') && !p.startsWith('/api/')) {
+    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').toLowerCase().split(':')[0];
+    if (host && host !== SITE_DOMAIN && (host.endsWith('.up.railway.app') || 'www.' + host === SITE_DOMAIN || host === 'www.' + SITE_DOMAIN))
+      return send(res, 301, '', { location: 'https://' + SITE_DOMAIN + req.url, 'cache-control': 'public, max-age=3600' });
+  }
 
   try {
     if (p === '/api/status') {
