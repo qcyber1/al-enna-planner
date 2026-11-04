@@ -249,7 +249,7 @@ test('نصوص الموقع من اللوحة، والملاحظات من داخ
 
 test('الدومين الجديد: الرابط القديم يتحول له، والـ API ما يتحول', async () => {
   const { spawn } = await import('node:child_process');
-  const port = PORT + 1;
+  const port = PORT + 400; // بعيد عن منافذ اختبارات سكيب كاش (4900–4989)
   const pr = spawn(process.execPath, ['server/index.mjs'], {
     cwd: ROOT,
     env: { ...process.env, PORT: String(port), DATA_DIR: dir + '-dom', LICENSE_SECRET: 'test-secret-0123456789abcdef', ADMIN_PASSWORD: 'x', SITE_DOMAIN: 'https://www.i3enna.qa/' },
