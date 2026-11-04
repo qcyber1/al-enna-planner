@@ -178,6 +178,10 @@ function markPaid(o) {
 
 // ——— حماية بسيطة من التخمين ———
 const attempts = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, a] of attempts) if (!a.some((t) => now - t < 10 * 60 * 1000)) attempts.delete(k);
+}, 10 * 60 * 1000).unref();
 function limited(ip) {
   const now = Date.now();
   const a = (attempts.get(ip) || []).filter((t) => now - t < 10 * 60 * 1000);
@@ -287,7 +291,14 @@ function compressed(file, enc) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const p = url.pathname;
-  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+  // آخر عنوان في x-forwarded-for هو اللي أضافه بروكسي Railway (الأول ممكن العميل يزوّره)
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',').pop().trim();
+  res.setHeader('x-content-type-options', 'nosniff');
+  res.setHeader('x-frame-options', 'DENY');
+  res.setHeader('content-security-policy', "frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+  res.setHeader('referrer-policy', 'strict-origin-when-cross-origin');
+  res.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+  if (req.headers['x-forwarded-proto'] === 'https') res.setHeader('strict-transport-security', 'max-age=31536000');
 
   try {
     if (p === '/api/status') {
@@ -402,10 +413,9 @@ const server = http.createServer(async (req, res) => {
       if (ph.error) return send(res, 400, { ok: false, errors: { phone: ph.error } });
       if (!password) return send(res, 400, { ok: false, errors: { password: 'اكتب كلمة المرور' } });
       if (!device || String(device).length > 80) return send(res, 400, { ok: false, error: 'الطلب ناقص — حدّث الصفحة وحاول مرة ثانية' });
-      const recs = Object.values(db.codes).filter((r) => r.pw && normPhone(r.phone) === ph.phone);
-      if (!recs.length) return send(res, 401, { ok: false, error: 'ما لقينا حساب بهالرقم بكلمة مرور — ادخل بالكود أول مرة وحط كلمة مرور، أو تواصل معنا' });
-      const rec = recs.find((r) => checkPw(password, r.pw));
-      if (!rec) return send(res, 401, { ok: false, errors: { password: 'كلمة المرور غلط' } });
+      if (limited('ph:' + ph.phone)) return send(res, 429, { ok: false, error: 'محاولات كثيرة على هالرقم — حاول بعد عشر دقائق' });
+      const rec = Object.values(db.codes).find((r) => r.pw && normPhone(r.phone) === ph.phone && checkPw(password, r.pw));
+      if (!rec) return send(res, 401, { ok: false, errors: { password: 'الرقم أو كلمة المرور غلط — إذا أول مرة ادخل بالكود' } });
       const r = bindDevice(rec.id, String(device));
       if (!r.ok) return send(res, 403, r);
       return send(res, 200, { ok: true, token: makeToken(rec.id, String(device)), name: rec.name || '' });
@@ -444,8 +454,13 @@ const server = http.createServer(async (req, res) => {
     // ——— الإدارة ———
     if (p === '/admin' || p.startsWith('/api/admin/')) {
       if (!ADMIN_PASSWORD) return send(res, 503, '<h1 dir="rtl">لوحة الإدارة معطلة: اضبط ADMIN_PASSWORD في Railway</h1>');
-      if (!isAdmin(req))
+      // تخمين كلمة مرور الإدارة: بعد 20 محاولة غلط يتقفل العنوان 10 دقائق (حتى لو الكلمة صح)
+      const admTries = (attempts.get('adm:' + ip) || []).filter((t) => Date.now() - t < 10 * 60 * 1000).length;
+      if (admTries >= 20) return send(res, 429, 'محاولات كثيرة — حاول بعد عشر دقائق');
+      if (!isAdmin(req)) {
+        if (req.headers.authorization) limited('adm:' + ip);
         return send(res, 401, { error: 'unauthorized' }, { 'www-authenticate': 'Basic realm="enna-admin", charset="UTF-8"' });
+      }
       if (p === '/admin') return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }));
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
