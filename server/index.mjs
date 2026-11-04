@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { adminPage } from './admin.mjs';
-import { validateBuyer } from './buyer.mjs';
+import { validateBuyer, parsePhone } from './buyer.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -116,6 +116,31 @@ function bindDevice(id, device) {
   }
   return { ok: true, rec };
 }
+
+// ——— الدخول برقم الجوال وكلمة المرور (بديل الكود على الأجهزة الثانية) ———
+function hashPw(pw) {
+  const salt = crypto.randomBytes(16);
+  return salt.toString('base64url') + ':' + crypto.scryptSync(String(pw), salt, 32).toString('base64url');
+}
+function checkPw(pw, stored) {
+  const [salt, h] = String(stored || '').split(':');
+  if (!salt || !h) return false;
+  const a = crypto.scryptSync(String(pw), Buffer.from(salt, 'base64url'), 32);
+  const b = Buffer.from(h, 'base64url');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function pwError(pw) {
+  const s = String(pw ?? '');
+  if (s.length < 6) return 'كلمة المرور 6 أحرف أو أرقام على الأقل';
+  if (s.length > 100) return 'كلمة المرور طويلة وايد';
+  return null;
+}
+const normPhone = (ph) => parsePhone(ph).phone || null;
+/** نسخة العميل للوحة الإدارة بدون كلمة المرور */
+const publicRec = (r) => {
+  const { pw, ...rest } = r;
+  return { ...rest, hasPw: !!pw };
+};
 
 // ——— الإحالات: رابط خاص لكل عميل يعطي صديقه خصماً ويكسب مكافأة ———
 function refFor(id) {
@@ -366,7 +391,44 @@ const server = http.createServer(async (req, res) => {
       if (!device || String(device).length > 80) return send(res, 400, { ok: false, error: 'الطلب ناقص — حدّث الصفحة وحاول مرة ثانية' });
       const r = bindDevice(id, String(device));
       if (!r.ok) return send(res, 403, r);
-      return send(res, 200, { ok: true, token: makeToken(id, String(device)), name: r.rec.name || '' });
+      return send(res, 200, { ok: true, token: makeToken(id, String(device)), name: r.rec.name || '', hasPw: !!r.rec.pw, phone: r.rec.phone || '' });
+    }
+
+    if (p === '/api/login' && req.method === 'POST') {
+      if (!LICENSING) return send(res, 200, { ok: true, token: 'open' });
+      if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
+      const { phone, password, device } = await readBody(req);
+      const ph = parsePhone(phone);
+      if (ph.error) return send(res, 400, { ok: false, errors: { phone: ph.error } });
+      if (!password) return send(res, 400, { ok: false, errors: { password: 'اكتب كلمة المرور' } });
+      if (!device || String(device).length > 80) return send(res, 400, { ok: false, error: 'الطلب ناقص — حدّث الصفحة وحاول مرة ثانية' });
+      const recs = Object.values(db.codes).filter((r) => r.pw && normPhone(r.phone) === ph.phone);
+      if (!recs.length) return send(res, 401, { ok: false, error: 'ما لقينا حساب بهالرقم بكلمة مرور — ادخل بالكود أول مرة وحط كلمة مرور، أو تواصل معنا' });
+      const rec = recs.find((r) => checkPw(password, r.pw));
+      if (!rec) return send(res, 401, { ok: false, errors: { password: 'كلمة المرور غلط' } });
+      const r = bindDevice(rec.id, String(device));
+      if (!r.ok) return send(res, 403, r);
+      return send(res, 200, { ok: true, token: makeToken(rec.id, String(device)), name: rec.name || '' });
+    }
+
+    if (p === '/api/account/password' && req.method === 'POST') {
+      if (!LICENSING) return send(res, 400, { ok: false });
+      if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
+      const { token, phone, password } = await readBody(req);
+      const t = readToken(token);
+      if (!t || !db.codes[t.c] || db.codes[t.c].revoked) return send(res, 401, { ok: false, error: 'سجّل دخول من جديد' });
+      const errors = {};
+      const ph = parsePhone(phone);
+      if (ph.error) errors.phone = ph.error;
+      const pe = pwError(password);
+      if (pe) errors.password = pe;
+      if (Object.keys(errors).length) return send(res, 400, { ok: false, errors });
+      const rec = db.codes[t.c];
+      rec.phone = ph.phone;
+      rec.pw = hashPw(password);
+      rec.pwAt = Date.now();
+      saveDb();
+      return send(res, 200, { ok: true, phone: ph.phone });
     }
 
     if (p === '/api/check' && req.method === 'POST') {
@@ -376,7 +438,7 @@ const server = http.createServer(async (req, res) => {
       if (!t) return send(res, 401, { ok: false, error: 'انتهت صلاحية الدخول — أدخل الكود مرة أخرى' });
       const r = bindDevice(t.c, t.d);
       if (!r.ok) return send(res, 403, r);
-      return send(res, 200, { ok: true, name: r.rec.name || '' });
+      return send(res, 200, { ok: true, name: r.rec.name || '', hasPw: !!r.rec.pw, phone: r.rec.phone || '' });
     }
 
     // ——— الإدارة ———
@@ -386,7 +448,7 @@ const server = http.createServer(async (req, res) => {
         return send(res, 401, { error: 'unauthorized' }, { 'www-authenticate': 'Basic realm="enna-admin", charset="UTF-8"' });
       if (p === '/admin') return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }));
       if (p === '/api/admin/list') {
-        const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt);
+        const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
         return send(res, 200, { list, orders: db.orders, referrals: db.referrals, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward() } });
       }
       if (p === '/api/admin/settings' && req.method === 'POST') {
@@ -454,8 +516,9 @@ const server = http.createServer(async (req, res) => {
         if (action === 'revoke') rec.revoked = true;
         if (action === 'restore') rec.revoked = false;
         if (action === 'reset') rec.devices = [];
+        if (action === 'resetpw') delete rec.pw;
         saveDb();
-        return send(res, 200, { ok: true, rec });
+        return send(res, 200, { ok: true, rec: publicRec(rec) });
       }
       return send(res, 404, { error: 'not found' });
     }
