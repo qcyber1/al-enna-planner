@@ -183,9 +183,21 @@ function DragController({ grab }: { grab: GrabRef }) {
       // الكاميرا ما تشوف هالضغطة
       e.stopPropagation();
     };
+    // نحدّث المكان مرة وحدة كل فريم (مو مع كل حركة إصبع) — أنعم وأخف
+    let raf = 0;
+    let pending: PointerEvent | null = null;
     const move = (e: PointerEvent) => {
       const g = grab.current;
       if (!g || e.pointerId !== g.pointerId) return;
+      pending = e;
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
+    const flush = () => {
+      raf = 0;
+      const e = pending;
+      pending = null;
+      const g = grab.current;
+      if (!e || !g) return;
       if (!g.active) {
         if (Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 6) return;
         g.active = true;
@@ -213,6 +225,11 @@ function DragController({ grab }: { grab: GrabRef }) {
     const up = (e: PointerEvent) => {
       const g = grab.current;
       if (!g || e.pointerId !== g.pointerId) return;
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      if (pending) flush();
       grab.current = null;
       if (!g.active) return;
       const c = ctl();
@@ -227,6 +244,7 @@ function DragController({ grab }: { grab: GrabRef }) {
     window.addEventListener('pointerup', up, true);
     window.addEventListener('pointercancel', up, true);
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       window.removeEventListener('pointerdown', down, true);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up, true);
@@ -311,8 +329,12 @@ function CameraRig({ plan, w, walking }: { plan: Plan; w: WorldInfo; walking: bo
       minDistance={1.5}
       maxDistance={600}
       maxPolarAngle={Math.PI * 0.495}
-      dollySpeed={0.6}
-      smoothTime={0.35}
+      dollySpeed={0.8}
+      smoothTime={0.18}
+      draggingSmoothTime={0.06}
+      azimuthRotateSpeed={1.15}
+      polarRotateSpeed={1.15}
+      truckSpeed={1.6}
     />
   );
 }

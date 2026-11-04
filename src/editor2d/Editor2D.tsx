@@ -3,7 +3,7 @@ import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text, Transformer } fro
 import type Konva from 'konva';
 import type { ElementKind, PlanElement, Vec2 } from '../types/plan';
 import { getPlan, useEditor, usePlan } from '../store/editorStore';
-import { useDebounced, useElementSize, getValidation } from '../hooks/useDerived';
+import { useDebounced, useElementSize, getValidation, getValidationLive } from '../hooks/useDerived';
 import { useViewport, MAX_SCALE, MIN_SCALE, drawingState } from './viewport';
 import { PolylineNode, RectNode, type NodeHandlers } from './nodes';
 import {
@@ -65,7 +65,8 @@ export default function Editor2D() {
   const overlays = useEditor((s) => s.overlays);
   const time = useEditor((s) => s.time);
   const vp = useViewport();
-  const validation = getValidation(plan);
+  const gesturing = useEditor((s) => !!s.gestureBase);
+  const validation = getValidationLive(plan, gesturing);
   const night = time !== 'day';
 
   const [draft, setDraft] = useState<Vec2[] | null>(null);
@@ -356,13 +357,26 @@ export default function Editor2D() {
     useEditor.getState().updateElements(patches, { history: false });
   };
 
+  // تحديث المخطط مرة كل فريم أثناء السحب (أنعم)
+  const dragRaf = useRef(0);
+  const dragPending = useRef<{ dx: number; dy: number } | null>(null);
   handlers.current.onDragMove = (id, e) => {
     const d = computeDelta(id, e.target);
     if (!d) return;
-    applyDrag(d.dx, d.dy, false);
+    dragPending.current = d;
+    if (!dragRaf.current)
+      dragRaf.current = requestAnimationFrame(() => {
+        dragRaf.current = 0;
+        const p = dragPending.current;
+        dragPending.current = null;
+        if (p) applyDrag(p.dx, p.dy, false);
+      });
   };
 
   handlers.current.onDragEnd = (id, e) => {
+    if (dragRaf.current) cancelAnimationFrame(dragRaf.current);
+    dragRaf.current = 0;
+    dragPending.current = null;
     const d = computeDelta(id, e.target);
     const st = useEditor.getState();
     if (d) applyDrag(d.dx, d.dy, true);

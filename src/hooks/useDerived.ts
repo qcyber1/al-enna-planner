@@ -15,9 +15,21 @@ export function getValidation(plan: Plan): ValidationResult {
   return v;
 }
 
+let lastStable: ValidationResult | null = null;
+/**
+ * أثناء السحب (gesture) نرجّع آخر نتيجة بدل ما نعيد الفحص كل حركة إصبع — الفحص يرجع أول ما يترك.
+ * هذا يخلي السحب أنعم بوايد على الجوال.
+ */
+export function getValidationLive(plan: Plan, gesturing: boolean): ValidationResult {
+  if (gesturing && lastStable) return lastStable;
+  lastStable = getValidation(plan);
+  return lastStable;
+}
+
 export function useValidation(): ValidationResult {
   const plan = usePlan();
-  return useMemo(() => getValidation(plan), [plan]);
+  const gesturing = useEditor((s) => !!s.gestureBase);
+  return useMemo(() => getValidationLive(plan, gesturing), [plan, gesturing]);
 }
 
 export function useSummary(): Summary {
