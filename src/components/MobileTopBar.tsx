@@ -130,6 +130,9 @@ export function MobileTopBar() {
               <button type="button" className={cx(item, 'bg-gold-500/15')} onClick={() => go('generator')} data-testid="open-generator">
                 <Sparkles size={19} className="text-gold-600" /> ولّد لي تصاميم (5 أفكار)
               </button>
+              <button type="button" className={cx(item, 'bg-sand-200/70')} onClick={() => go('feedback')} data-testid="open-feedback">
+                <MessageSquarePlus size={19} className="text-gold-600" /> ملاحظاتك واقتراحاتك 💬
+              </button>
               {hasLicense() && (
                 <button type="button" className={item} onClick={() => go('invite')} data-testid="open-invite">
                   <Gift size={19} className="text-gold-600" /> ادعُ أصحابك (خصم ومكافأة)
@@ -152,9 +155,6 @@ export function MobileTopBar() {
               </button>
               <button type="button" className={item} onClick={() => go('projects')}>
                 <FolderOpen size={19} /> المشاريع
-              </button>
-              <button type="button" className={item} onClick={() => go('feedback')} data-testid="open-feedback">
-                <MessageSquarePlus size={19} className="text-gold-600" /> أرسل ملاحظة أو اقتراح
               </button>
               <button type="button" className={item} onClick={() => go('help')}>
                 <HelpCircle size={19} /> المساعدة

@@ -26,8 +26,11 @@ import {
   MoreHorizontal,
   Plus,
   Minus,
+  Wand2,
 } from 'lucide-react';
 import { useEditor, usePlan } from '../store/editorStore';
+import { getValidation } from '../hooks/useDerived';
+import { runFix } from '../components/FixButton';
 import { useViewport } from './viewport';
 import { IconButton, cx } from '../components/ui';
 import { LUX_STOPS } from '../lib/lighting';
@@ -261,7 +264,7 @@ export function EditorOverlay({
   );
 }
 
-function SelectionBar() {
+export function SelectionBar() {
   const selection = useEditor((s) => s.selection);
   const plan = usePlan();
   const [copyMenu, setCopyMenu] = useState<string | null>(null);
@@ -285,6 +288,7 @@ function SelectionBar() {
     st.updateElement(one.id, { width: w, depth: d }, { mergeKey: `${one.id}:quick-size` });
   };
   const fmt = (v: number) => (Math.round(v * 10) / 10).toString();
+  const fixable = one ? getValidation(plan).byElement.get(one.id)?.[0] : undefined;
   return (
     <div className="pointer-events-auto absolute bottom-[4.5rem] right-1/2 flex max-w-[98vw] translate-x-1/2 items-center gap-0.5 rounded-2xl border border-sand-300 bg-white/97 p-1 shadow-xl" data-testid="selection-bar">
       <span className={cx('max-w-28 truncate px-2 text-[12px] font-bold text-sand-700', canSize && 'hidden sm:block')}>{els.length > 1 ? `${els.length} عناصر` : els[0].name}</span>
@@ -316,6 +320,11 @@ function SelectionBar() {
         <Copy size={17} /> نسخ
       </button>
       {one && copyMenu === one.id && <RepeatMenu key={one.id} id={one.id} onDone={() => setCopyMenu(null)} />}
+      {fixable && (
+        <button type="button" className={btn + ' text-red-700'} onClick={() => runFix(fixable)} data-testid="sel-fix">
+          <Wand2 size={17} /> أصلح
+        </button>
+      )}
       <button type="button" className={btn} onClick={() => st.setLocked(selection, !locked)}>
         {locked ? <Unlock size={17} /> : <Lock size={17} />} {locked ? 'فك' : 'قفل'}
       </button>

@@ -35,6 +35,8 @@ import {
   snapValue,
 } from '../lib/geometry';
 import { EditorOverlay } from './EditorOverlay';
+import { assistAngle, type AngleSnap } from '../lib/angleAssist';
+import { landPolygon } from '../lib/geometry';
 
 export const DND_MIME = 'application/x-enna-kind';
 
@@ -168,22 +170,31 @@ export default function Editor2D() {
     [],
   );
 
+  /** اتجاهات أضلاع السور (للرسم الموازي للسور) */
+  const landEdges = useMemo(() => {
+    const poly = landPolygon(plan.land);
+    return poly.map((a, i) => {
+      const b = poly[(i + 1) % poly.length];
+      return (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+    });
+  }, [plan.land]);
+  const assistRef = useRef<AngleSnap | null>(null);
+
   const drawPoint = useCallback(
     (raw: Vec2, shift: boolean): Vec2 => {
       const t = useEditor.getState().tool;
+      assistRef.current = null;
       const mag = magnet(raw, t === 'string-lights' ? ['light-pole', 'entrance-light', 'canopy', 'main-tent', 'small-tent', 'dining-tent', 'kitchen-tent', 'flood-light'] : undefined);
       if (mag) return { x: round(mag.x, 3), y: round(mag.y, 3) };
-      let p = snapPoint(raw);
-      if (shift && draft && draft.length) {
-        const last = draft[draft.length - 1];
-        const ang = Math.atan2(p.y - last.y, p.x - last.x);
-        const snapA = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
-        const L = dist(last, p);
-        p = { x: round(last.x + Math.cos(snapA) * L, 3), y: round(last.y + Math.sin(snapA) * L, 3) };
+      // مساعد الزوايا: يعدّل الخط المايل شوي لمستقيم أو قائم أو موازي للسور (Alt يطفيه)
+      if (draft && draft.length && !altRef.current) {
+        const a = assistAngle(draft, raw, landEdges, shift);
+        assistRef.current = a;
+        if (a.snapped) return a.p;
       }
-      return p;
+      return snapPoint(raw);
     },
-    [draft, magnet, snapPoint],
+    [draft, magnet, snapPoint, landEdges],
   );
 
   // ——— إنهاء الرسم ———
@@ -603,7 +614,7 @@ export default function Editor2D() {
     return { edges, near: near.slice(0, 3) };
   }, [overlays.distances, selection, plan.elements, lb.minX, lb.minY, lb.maxX, lb.maxY]);
 
-  const selectedPoly = single && singleGeo === 'polyline' && !single.locked && tool === 'select' ? single : null;
+  const selectedPoly = single && singleGeo === 'polyline' && !single.locked && !single.path?.circle && tool === 'select' ? single : null;
   const handleR = 7 / ppm;
 
   const cursorStyle =
@@ -765,7 +776,10 @@ export default function Editor2D() {
                   if (pts.length >= 2) {
                     const a = pts[pts.length - 2];
                     const b = pts[pts.length - 1];
-                    drawDimensionLine(ctx, a, b, formatMeters(dist(a, b)), baseOpts, '#1d6fd8');
+                    const as = assistRef.current;
+                    const angTxt = as ? (as.turn !== null ? ` • ${as.turn}°` : as.angle === 0 ? ' • أفقي' : as.angle === 90 ? ' • عمودي' : ` • ${as.angle}°`) : '';
+                    const ok = as?.snapped && as.snapped !== 'step' ? ' ✓' : '';
+                    drawDimensionLine(ctx, a, b, formatMeters(dist(a, b)) + angTxt + ok, baseOpts, as?.snapped ? '#2f7a3b' : '#1d6fd8');
                   }
                   ctx.fillStyle = '#1d6fd8';
                   for (const p of draft) {

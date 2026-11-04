@@ -7,6 +7,7 @@ import { DND_MIME } from '../editor2d/Editor2D';
 import { useViewport } from '../editor2d/viewport';
 import { cx } from './ui';
 import type { PlanElement } from '../types/plan';
+import { circlePath } from '../lib/angleAssist';
 
 type Box = { minX: number; minY: number; maxX: number; maxY: number };
 const half = (e: { width: number; depth: number; rotation: number }) => {
@@ -59,6 +60,32 @@ function addAtCenter(item: CatalogItem) {
   st.setTool('select');
   st.addElement(el);
   st.toast(`تمت إضافة «${el.name}» — اضغط عليه واسحبه لمكانه`, 'success');
+}
+
+/** دائرة حشيش كاملة (مثلاً تحت جلسة دائرية) — نصف القطر يتعدل من الخصائص */
+export function addCircleGrass(center?: { x: number; y: number }, r = 3) {
+  const st = useEditor.getState();
+  const plan = getPlan();
+  const b = landBounds(plan.land);
+  let c = center ?? { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
+  const host = document.querySelector('[data-testid="editor-2d"]');
+  if (!center && host && st.view !== '3d') {
+    const vp = useViewport.getState();
+    c = { x: (host.clientWidth / 2 - vp.x) / vp.scale, y: (host.clientHeight / 2 - vp.y) / vp.scale };
+  }
+  if (!center) {
+    const probe = createElement('majlis-rug', { x: Math.round(c.x * 2) / 2, y: Math.round(c.y * 2) / 2 }, { width: r * 2, depth: r * 2 });
+    c = freeSpot(probe, plan.elements, b);
+  }
+  const g = circlePath(c, r, true, 2);
+  const n = plan.elements.filter((e) => e.path?.circle).length + 1;
+  const el = createElement('path', g.points[0], { points: g.points, name: `حشيش دائري ${n}` });
+  el.path = { ...el.path!, material: 'turf', width: g.width, circle: { r, filled: true } };
+  st.setTool('select');
+  st.addElement(el);
+  // الحشيش أرضية: ينرسم تحت باقي العناصر
+  st.reorder(el.id, 'back');
+  st.toast(`تمت إضافة «${el.name}» — كبّرها أو صغّرها من الخصائص، أو خلها حلقة`, 'success');
 }
 
 export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: boolean }) {
@@ -120,6 +147,21 @@ export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: bo
                     </span>
                   </button>
                 ))}
+                {cat === 'paths' && (!q || 'حشيش دائري دائرة'.includes(q) || q.includes('دائر')) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addCircleGrass();
+                      onPicked?.();
+                    }}
+                    data-testid="lib-circle-grass"
+                    className="group flex flex-col items-start gap-0.5 rounded-xl border border-sand-200 bg-white p-2 text-right transition hover:border-gold-500 hover:shadow-sm active:scale-[0.98]"
+                  >
+                    <span className="text-xl leading-none">🟢</span>
+                    <span className="text-[12px] font-semibold leading-tight text-dune">حشيش دائري</span>
+                    <span className="text-[10px] leading-tight text-sand-600">لجلسة دائرية • قطر 6 م</span>
+                  </button>
+                )}
               </div>
             </div>
           );

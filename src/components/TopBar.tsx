@@ -187,9 +187,9 @@ export function TopBar({ compact }: { compact: boolean }) {
             <IconButton tone="dark" label="مقارنة التصاميم" onClick={() => openDialog('compare')}>
               <Columns2 size={17} />
             </IconButton>
-            <IconButton tone="dark" label="أرسل ملاحظة أو اقتراح" onClick={() => openDialog('feedback')} data-testid="open-feedback-desk">
-              <MessageSquarePlus size={17} />
-            </IconButton>
+            <button type="button" onClick={() => openDialog('feedback')} className="mx-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-gold-500/20 px-3 text-[12px] font-semibold text-gold-300 ring-1 ring-gold-500/40 hover:bg-gold-500/30" data-testid="open-feedback-desk">
+              <MessageSquarePlus size={15} /> ملاحظاتك
+            </button>
             <IconButton tone="dark" label="المساعدة والاختصارات" onClick={() => openDialog('help')}>
               <HelpCircle size={17} />
             </IconButton>

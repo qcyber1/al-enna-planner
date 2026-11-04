@@ -29,6 +29,7 @@ import {
 import { Path3D, StringLights3D } from './Paths3D';
 import { LightFixture3D, LightRig } from './Lights3D';
 import { Camera3DOverlay } from './Camera3DOverlay';
+import { SelectionBar } from '../editor2d/EditorOverlay';
 import { Extra3D } from './Extras3D';
 import { Surroundings3D } from './Surroundings3D';
 import { canvasToBlob } from '../render2d/exportImage';
@@ -496,6 +497,11 @@ export default function Scene3D() {
       </Canvas>
       {!ready && <div className="absolute inset-0 flex items-center justify-center text-sand-800">جاري تجهيز المشهد ثلاثي الأبعاد…</div>}
       <Camera3DOverlay move={move} />
+      {!walking && (
+        <div className="pointer-events-none absolute inset-0">
+          <SelectionBar />
+        </div>
+      )}
     </div>
   );
 }

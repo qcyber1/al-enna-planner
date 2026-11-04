@@ -116,6 +116,8 @@ export interface PathProps {
   width: number;
   edgeLights: boolean;
   edgeLightSpacing: number;
+  /** ممر/حشيش دائري: نصف القطر، وممتلئ (دائرة كاملة) أو حلقة */
+  circle?: { r: number; filled: boolean };
 }
 
 export type LightColor = 'warm' | 'white';

@@ -1,7 +1,10 @@
-import { AlertTriangle, Copy, Lock, Trash2, Unlock, ArrowUpToLine, ArrowDownToLine, RotateCcw, RotateCw, Plus, Ruler } from 'lucide-react';
+import { AlertTriangle, Copy, Lock, Trash2, Unlock, ArrowUpToLine, ArrowDownToLine, RotateCcw, RotateCw, Plus, Ruler, Wand2 } from 'lucide-react';
 import type { PlanElement } from '../types/plan';
 import { getPlan, useEditor, usePlan } from '../store/editorStore';
 import { useValidation } from '../hooks/useDerived';
+import { FixButton, runFixAll } from './FixButton';
+import { circlePath, polyCenter } from '../lib/angleAssist';
+import { addCircleGrass } from './Library';
 import {
   CATALOG_BY_KIND,
   COURT_SURFACE_LABELS,
@@ -74,19 +77,23 @@ function NothingSelected() {
           <div className="rounded-lg bg-turf-500/10 p-2.5 text-[13px] text-turf-700">✓ ما في تداخلات ولا شي طالع برا السور</div>
         ) : (
           <ul className="space-y-1.5">
+            {v.issues.length > 1 && (
+              <li>
+                <button type="button" onClick={runFixAll} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-dune py-2 text-[12px] font-bold text-sand-50 active:scale-95" data-testid="fix-all">
+                  <Wand2 size={14} /> أصلح الكل تلقائياً
+                </button>
+              </li>
+            )}
             {v.issues.slice(0, 40).map((i) => (
-              <li key={i.id}>
-                <button
-                  type="button"
-                  onClick={() => select(i.elementIds.slice(0, 1))}
-                  className={cx(
-                    'flex w-full items-start gap-2 rounded-lg p-2 text-right text-[12px] leading-snug',
-                    i.severity === 'error' ? 'bg-red-50 text-red-800 hover:bg-red-100' : 'bg-amber-50 text-amber-900 hover:bg-amber-100',
-                  )}
-                >
+              <li
+                key={i.id}
+                className={cx('flex items-start gap-1.5 rounded-lg p-2 text-[12px] leading-snug', i.severity === 'error' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900')}
+              >
+                <button type="button" onClick={() => select(i.elementIds.slice(0, 1))} className="flex min-w-0 flex-1 items-start gap-2 text-right">
                   <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                   {i.message}
                 </button>
+                <FixButton issue={i} />
               </li>
             ))}
           </ul>
@@ -215,7 +222,8 @@ function SingleElement({ el }: { el: PlanElement }) {
         <div className="space-y-1 border-b border-sand-200 px-4 py-2">
           {issues.map((i) => (
             <div key={i.id} className={cx('flex gap-1.5 rounded-lg p-2 text-[12px]', i.severity === 'error' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900')}>
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {i.message}
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" /> <span className="flex-1">{i.message}</span>
+              <FixButton issue={i} />
             </div>
           ))}
         </div>
@@ -235,6 +243,11 @@ function SingleElement({ el }: { el: PlanElement }) {
         <Button size="sm" onClick={() => st.reorder(el.id, 'front')} title="إلى الأمام"><ArrowUpToLine size={14} /></Button>
         <Button size="sm" onClick={() => st.reorder(el.id, 'back')} title="إلى الخلف"><ArrowDownToLine size={14} /></Button>
         <Button size="sm" variant="danger" disabled={el.locked} onClick={() => st.removeElements([el.id])}><Trash2 size={14} /> حذف</Button>
+        {!el.points && (
+          <Button size="sm" onClick={() => addCircleGrass({ x: el.x, y: el.y }, round(Math.max(el.width, el.depth) / 2 + 1, 1))} data-testid="circle-under">
+            🟢 حشيش دائري تحته
+          </Button>
+        )}
       </div>
 
       {cat.geometry !== 'polyline' && (
@@ -402,19 +415,40 @@ function PathSection({ el, upd }: { el: PlanElement; upd: Upd }) {
   const set = (q: Partial<typeof p>, key?: string) => upd({ path: { ...p, ...q } }, key);
   const est = useEditor((s) => s.project.estimate) ?? DEFAULT_ESTIMATE;
   const len = polylineLength(el.points ?? []);
-  const wt = p.material === 'wood-turf' ? estimateWoodTurf([el], est) : null;
+  const wt = p.material === 'wood-turf' && !p.circle ? estimateWoodTurf([el], est) : null;
+  const regen = (r: number, filled: boolean, w: number, key?: string) => {
+    const c = polyCenter(el.points ?? [{ x: el.x, y: el.y }]);
+    const g = circlePath(c, r, filled, w);
+    upd({ points: g.points, path: { ...p, width: g.width, circle: { r, filled } } }, key);
+  };
   return (
     <Section title="الممر">
       <Field label="نوع الممر">
         <Select value={p.material} onChange={(m) => set({ material: m })} options={Object.entries(PATH_MATERIAL_LABELS).map(([value, label]) => ({ value: value as typeof p.material, label }))} />
       </Field>
-      <Field label="عرض الممر"><NumberInput value={p.width} min={0.3} max={20} onChange={(w) => set({ width: w }, 'pw')} unit="م" /></Field>
-      <div className="grid grid-cols-3 gap-2 text-center">
+      {p.circle ? (
+        <div className="space-y-2 rounded-lg bg-white p-2.5" data-testid="circle-controls">
+          <div className="text-[12px] font-bold text-dune">⭕ شكل دائري</div>
+          <Field label="نصف القطر"><NumberInput value={p.circle.r} min={0.5} max={25} onChange={(r) => regen(r, p.circle!.filled, p.width, 'cr')} unit="م" /></Field>
+          <Toggle label="دائرة كاملة (مو حلقة)" checked={p.circle.filled} onChange={(f) => regen(p.circle!.r, f, f ? p.width : Math.min(2, p.circle!.r), undefined)} />
+          {!p.circle.filled && <Field label="عرض الحلقة"><NumberInput value={p.width} min={0.3} max={20} onChange={(w) => set({ width: w }, 'pw')} unit="م" /></Field>}
+          <div className="text-[11px] text-sand-600">القطر: {round(p.circle.r * 2, 2)} م • المساحة تقريباً {formatArea(p.circle.filled ? Math.PI * p.circle.r ** 2 : Math.PI * 2 * p.circle.r * p.width, 1)}</div>
+        </div>
+      ) : (
+        <>
+          <Field label="عرض الممر"><NumberInput value={p.width} min={0.3} max={20} onChange={(w) => set({ width: w }, 'pw')} unit="م" /></Field>
+          <Button size="sm" onClick={() => {
+            const b = (el.points ?? []).reduce((a, q) => ({ minX: Math.min(a.minX, q.x), maxX: Math.max(a.maxX, q.x), minY: Math.min(a.minY, q.y), maxY: Math.max(a.maxY, q.y) }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+            regen(Math.max(1, round(Math.max(b.maxX - b.minX, b.maxY - b.minY) / 2, 1)), true, p.width, undefined);
+          }} data-testid="to-circle">⭕ حوّله دائري</Button>
+        </>
+      )}
+      <div className={cx('grid grid-cols-3 gap-2 text-center', p.circle && 'hidden')}>
         <div className="rounded-lg bg-white p-2"><div className="text-[11px] text-sand-600">الطول</div><b className="tabular-nums">{formatMeters(len)}</b></div>
         <div className="rounded-lg bg-white p-2"><div className="text-[11px] text-sand-600">المساحة</div><b className="tabular-nums">{formatArea(len * p.width, 2)}</b></div>
         <div className="rounded-lg bg-white p-2"><div className="text-[11px] text-sand-600">الزوايا</div><b>{Math.max(0, (el.points?.length ?? 2) - 2)}</b></div>
       </div>
-      <p className="text-[11px] text-sand-600">حرّك نقاط الممر بالسحب، انقر «+» لإضافة زاوية، وانقر مرتين على نقطة لحذفها.</p>
+      {!p.circle && <p className="text-[11px] text-sand-600">حرّك نقاط الممر بالسحب، انقر «+» لإضافة زاوية، وانقر مرتين على نقطة لحذفها. وأنت ترسم: الخط يستقيم لحاله لو قريب من أفقي أو عمودي أو موازي للسور (Alt يطفيه).</p>}
       {wt && (
         <div className="rounded-lg border border-sand-300 bg-sand-50 p-2.5 text-[12px] leading-relaxed">
           <b className="text-dune">تقدير خامات (خشب {est.beamSection} بطول {est.beamLength} م + ألواح + عشب):</b>
