@@ -34,7 +34,14 @@ export interface ShareLink {
 export function buildShareLink(name: string, plan: Plan, baseUrl = window.location.href): ShareLink {
   const payload = { v: 1, n: name, p: compact(plan) };
   const encoded = compressToEncodedURIComponent(JSON.stringify(payload));
-  const base = baseUrl.split('#')[0];
+  // بدون أي باراميترات (مثل ?ref= حق صديق ثاني أو ?paid=1) عشان الرابط يكون نظيف للي يستلمه
+  let base = baseUrl.split('#')[0].split('?')[0];
+  try {
+    const u = new URL(baseUrl);
+    base = u.origin + u.pathname;
+  } catch {
+    /* نخلي الأساس مثل ما هو */
+  }
   const url = `${base}#${HASH_KEY}${encoded}`;
   return { url, length: url.length, tooLong: url.length > MAX_URL_LENGTH, risky: url.length > SAFE_URL_LENGTH };
 }

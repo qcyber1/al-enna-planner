@@ -296,6 +296,27 @@ test('الدومين الجديد: الرابط القديم يتحول له، �
   } finally {
     pr.kill();
   }
+  // دومين ثاني في SITE_DOMAIN: الوسوم تتبدل له
+  const port2 = PORT + 520;
+  const pr2 = spawn(process.execPath, ['server/index.mjs'], {
+    cwd: ROOT,
+    env: { ...process.env, PORT: String(port2), DATA_DIR: dir + '-dom2', LICENSE_SECRET: 'test-secret-0123456789abcdef', ADMIN_PASSWORD: 'x', SITE_DOMAIN: 'enna.example' },
+    stdio: 'ignore',
+  });
+  try {
+    for (let i = 0; i < 50; i++) {
+      try {
+        await fetch(`http://127.0.0.1:${port2}/api/status`);
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+    const html2 = await (await fetch(`http://127.0.0.1:${port2}/`, { headers: { 'x-forwarded-host': 'enna.example' } })).text();
+    assert.ok(html2.includes('https://enna.example/og.jpg') && !html2.includes('i3enna.qa/og.jpg'));
+  } finally {
+    pr2.kill();
+  }
 });
 
 test('رمز التحقق الثنائي (2FA) للوحة الإدارة', async () => {
@@ -336,4 +357,68 @@ test('رمز التحقق الثنائي (2FA) للوحة الإدارة', async
   } finally {
     pr.kill();
   }
+});
+
+test('نسخة احتياطية من اللوحة: للمدير بس، وبدون كلمات مرور العملاء', async () => {
+  assert.equal((await api('/api/admin/backup')).status, 401);
+  const r = await fetch(BASE + '/api/admin/backup', { headers: { cookie: ADMIN_COOKIE } });
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get('content-disposition') || '', /attachment/);
+  const text = await r.text();
+  const j = JSON.parse(text);
+  assert.ok(Object.keys(j.codes).length > 0);
+  assert.ok(!/"pw"\s*:/.test(text), 'ما فيه كلمات مرور');
+});
+
+test('ملف بيانات تالف عند التشغيل: ينحفظ جنبه والخادم يرجع لآخر نسخة احتياطية', async () => {
+  const fsm = await import('node:fs');
+  const d = dir + '-corrupt';
+  fsm.mkdirSync(path.join(d, 'backups'), { recursive: true });
+  fsm.writeFileSync(path.join(d, 'licenses.json'), '{"codes":{"AAAA');
+  fsm.writeFileSync(path.join(d, 'backups', 'licenses-2026-01-01.json'), JSON.stringify({ codes: { BKP00001: { id: 'BKP00001', name: 'من النسخة', devices: [], createdAt: 1 } }, orders: [] }));
+  const port = PORT + 500;
+  const pr = spawn(process.execPath, ['server/index.mjs'], {
+    cwd: ROOT,
+    env: { ...process.env, PORT: String(port), DATA_DIR: d, LICENSE_SECRET: 'test-secret-0123456789abcdef', ADMIN_PASSWORD: 'pw-corrupt-12345' },
+    stdio: 'ignore',
+  });
+  try {
+    for (let i = 0; i < 50; i++) {
+      try {
+        await fetch(`http://127.0.0.1:${port}/api/status`);
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+    assert.ok(fsm.readdirSync(d).some((f) => f.startsWith('licenses.corrupt-')), 'الملف التالف محفوظ');
+    const lg = await fetch(`http://127.0.0.1:${port}/api/admin/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ user: 'admin', password: 'pw-corrupt-12345' }) });
+    const cookie = (lg.headers.get('set-cookie') || '').split(';')[0];
+    const list = await (await fetch(`http://127.0.0.1:${port}/api/admin/list`, { headers: { cookie } })).json();
+    assert.equal(list.list[0].name, 'من النسخة');
+  } finally {
+    pr.kill();
+  }
+});
+
+test('تصفير الأجهزة يطلّع الأجهزة القديمة فعلاً (ما ترجع تحجز مكان)', async () => {
+  const k = (await admin('/api/admin/create', { name: 'تصفير' })).json.created[0];
+  const old = (await api('/api/activate', { code: k.code, device: 'old-phone' })).json.token;
+  assert.equal((await api('/api/check', { token: old })).status, 200);
+  await admin('/api/admin/update', { id: k.id, action: 'reset' });
+  assert.equal((await api('/api/check', { token: old })).status, 401, 'الدخول القديم بطل');
+  const list = (await admin('/api/admin/list')).json.list.find((r) => r.id === k.id);
+  assert.equal(list.devices.length, 0, 'ما رجع حجز مكان');
+  // الكود نفسه يشتغل عادي على جهاز جديد
+  const fresh = (await api('/api/activate', { code: k.code, device: 'new-phone' })).json.token;
+  assert.equal((await api('/api/check', { token: fresh })).status, 200);
+});
+
+test('الدخولات القديمة (قبل ميزة التصفير) تظل شغالة للعملاء الحاليين', async () => {
+  const crypto = await import('node:crypto');
+  const k = (await admin('/api/admin/create', { name: 'قديم' })).json.created[0];
+  // نفس شكل التوكن القديم: بدون حقل e
+  const body = Buffer.from(JSON.stringify({ c: k.id, d: 'legacy-dev', t: Date.now() })).toString('base64url');
+  const sig = crypto.createHmac('sha256', 'test-secret-0123456789abcdef').update('tok:' + body).digest().toString('base64url');
+  assert.equal((await api('/api/check', { token: body + '.' + sig })).status, 200);
 });

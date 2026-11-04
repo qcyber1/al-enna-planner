@@ -4,7 +4,7 @@ import { checkEmail, checkName, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2, LogIn } from 'lucide-react';
 import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
-import { demoLeft, isDemo, setDemoActive, startDemo } from '../lib/demo';
+import { demoLeft, demoUsed, isDemo, setDemoActive, startDemo } from '../lib/demo';
 
 const TOKEN_KEY = 'enna.license.token';
 const DEVICE_KEY = 'enna.license.device';
@@ -465,14 +465,14 @@ export function LicenseGate({ children }: { children: ReactNode }) {
                   setDemoActive(true);
                   setState('open');
                 }}
-                disabled={demoOver && demoLeft() === 0}
+                disabled={demoUsed()}
                 className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border-2 border-gold-500/60 bg-white font-semibold text-dune disabled:opacity-50"
                 data-testid="try-demo"
               >
-                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoOver ? 'خلصت تجربتك المجانية' : '👀 جرّب مجاناً 10 دقايق — بدون تسجيل'}
+                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoUsed() ? 'خلصت تجربتك المجانية' : '👀 جرّب مجاناً 10 دقايق — بدون تسجيل'}
               </button>
             )}
-            {demoOver && <div className="rounded-lg bg-gold-500/15 p-2 text-center text-[12px] text-dune" data-testid="demo-over">خلصت التجربة 🙌 اشترِ وكمّل — <b>تصميمك محفوظ</b> ويرجع لك على طول</div>}
+            {(demoOver || demoUsed()) && <div className="rounded-lg bg-gold-500/15 p-2 text-center text-[12px] text-dune" data-testid="demo-over">خلصت التجربة 🙌 اشترِ وكمّل — <b>تصميمك محفوظ</b> ويرجع لك على طول</div>}
             <p className="text-center text-[11px] text-sand-600">{info.content.buyNote || (info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.')}</p>
             <p className="text-center text-[11px] text-sand-600" data-testid="seller-note">{`البائع: ${OWNER_AR} — هالاسم يطلع في إيصال الدفع`}</p>
           </form>

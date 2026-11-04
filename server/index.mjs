@@ -8,6 +8,8 @@ import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { adminPage, adminLoginPage } from './admin.mjs';
 import { validateBuyer, parsePhone } from './buyer.mjs';
+import { safeJoin, readBody as readBodyRaw } from './http-utils.mjs';
+import { loadDbFile, latestBackup, writeDbFile, dailyBackup } from './datastore.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -24,12 +26,14 @@ if (!LICENSING) console.warn('[enna] LICENSE_SECRET غير مضبوط (16 حرف
 if (!ADMIN_PASSWORD) console.warn('[enna] ADMIN_PASSWORD غير مضبوط — لوحة الإدارة معطلة');
 
 // ——— التخزين (ملف JSON؛ يُفضّل ربط Volume على /data في Railway) ———
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 function loadDb() {
-  try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  } catch {
-    return { codes: {}, orders: [] };
-  }
+  const r = loadDbFile(DATA_FILE);
+  if (r.db) return r.db;
+  // الملف الأساسي خربان: نرجع لآخر نسخة احتياطية سليمة
+  const b = latestBackup(BACKUP_DIR);
+  if (b) console.error('[enna] رجعنا للنسخة الاحتياطية', b.file);
+  return b ? b.db : { codes: {}, orders: [] };
 }
 let db = loadDb();
 if (!db.orders) db.orders = [];
@@ -49,11 +53,13 @@ if (!db.content) db.content = {};
 const CONTENT_KEYS = { banner: 120, title: 40, tagline: 140, f1: 40, f2: 40, f3: 40, f4: 40, buyNote: 160, support: 20, sellerAddress: 160, sellerCR: 30 };
 const cleanText = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
+let lastBackupDay = '';
 function saveDb() {
   try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(DATA_FILE + '.tmp', JSON.stringify(db, null, 2));
-    fs.renameSync(DATA_FILE + '.tmp', DATA_FILE);
+    writeDbFile(DATA_FILE, db);
+    // نسخة احتياطية يومية (أول حفظ في كل يوم) — آخر 14 يوم في /data/backups
+    const day = new Date().toISOString().slice(0, 10);
+    if (day !== lastBackupDay && dailyBackup(DATA_FILE, BACKUP_DIR)) lastBackupDay = day;
   } catch (e) {
     console.error('[enna] تعذر حفظ البيانات', e.message);
   }
@@ -89,11 +95,20 @@ function parseCode(input) {
   if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
   return id;
 }
+// «جيل» الدخول: تصفير الأجهزة من اللوحة يرفع الرقم، فكل الدخولات القديمة تبطل (الدخولات قبل هالميزة = جيل 0)
+const epochOf = (id) => db.codes[id]?.epoch || 0;
 function makeToken(id, device) {
-  const body = Buffer.from(JSON.stringify({ c: id, d: device, t: Date.now() })).toString('base64url');
+  const body = Buffer.from(JSON.stringify({ c: id, d: device, t: Date.now(), e: epochOf(id) })).toString('base64url');
   return body + '.' + hmac('tok:' + body).toString('base64url');
 }
 function readToken(tok) {
+  const t = readTokenSig(tok);
+  if (!t) return null;
+  // دخول من جيل قديم (قبل تصفير الأجهزة) ما يعتبر
+  if ((t.e || 0) !== epochOf(t.c)) return null;
+  return t;
+}
+function readTokenSig(tok) {
   const [body, sig] = String(tok || '').split('.');
   if (!body || !sig) return null;
   const expect = hmac('tok:' + body).toString('base64url');
@@ -205,21 +220,10 @@ function send(res, status, data, headers = {}) {
   });
   res.end(body);
 }
-function readBody(req) {
-  return new Promise((resolve) => {
-    let s = '';
-    req.on('data', (c) => {
-      s += c;
-      if (s.length > 1e5) req.destroy();
-    });
-    req.on('end', () => {
-      try {
-        resolve(JSON.parse(s || '{}'));
-      } catch {
-        resolve({});
-      }
-    });
-  });
+/** جسم الطلب كـ JSON — الجسم الكبير (أكثر من 100KB) يرجع {} فيرفضه التحقق العادي بدل ما يعلّق الطلب */
+async function readBody(req) {
+  const b = await readBodyRaw(req);
+  return b.__tooLarge ? {} : b;
 }
 // ——— دخول لوحة الإدارة: اسم مستخدم + كلمة مرور (+ رمز 2FA اختياري) وجلسة بكوكي آمن ———
 // إيميل يوصله إيصال سكيب كاش لما العميل ما يكتب إيميله (حط إيميلك في Railway: RECEIPT_EMAIL)
@@ -305,8 +309,8 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
 };
 function serveStatic(req, res, urlPath) {
-  let file = path.normalize(path.join(DIST, decodeURIComponent(urlPath)));
-  if (!file.startsWith(DIST)) return send(res, 403, { error: 'forbidden' });
+  let file = safeJoin(DIST, urlPath);
+  if (!file) return send(res, 403, { error: 'forbidden' });
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, 'index.html');
   const ext = path.extname(file);
   const immutable = urlPath.startsWith('/assets/');
@@ -339,12 +343,15 @@ const zcache = new Map();
 /** نسخة مضغوطة من الملف (محفوظة في الذاكرة ومربوطة بوقت التعديل) */
 // الدومين الرسمي (مثلاً www.i3enna.qa): إذا انضبط في Railway نحوّل الرابط القديم عليه
 const SITE_DOMAIN = String(process.env.SITE_DOMAIN || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/[/:].*$/, '');
-const OLD_ORIGIN = 'https://al-enna-planner-production.up.railway.app';
-/** روابط المعاينة (واتساب/سوشال) تطلع بالدومين الجديد */
+// الدومين المكتوب في index.html (وسوم المعاينة). إذا انضبط SITE_DOMAIN لدومين ثاني نبدّله وقت التقديم
+const BAKED_ORIGINS = ['https://www.i3enna.qa', 'https://al-enna-planner-production.up.railway.app'];
+/** روابط المعاينة (واتساب/سوشال) تطلع بالدومين الرسمي */
 function readSiteFile(file) {
   const raw = fs.readFileSync(file);
   if (!SITE_DOMAIN || path.basename(file) !== 'index.html') return raw;
-  return Buffer.from(raw.toString('utf8').split(OLD_ORIGIN).join('https://' + SITE_DOMAIN));
+  let html = raw.toString('utf8');
+  for (const o of BAKED_ORIGINS) html = html.split(o).join('https://' + SITE_DOMAIN);
+  return Buffer.from(html);
 }
 function compressed(file, enc) {
   try {
@@ -581,6 +588,14 @@ const server = http.createServer(async (req, res) => {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
         return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward() } });
       }
+      // تنزيل نسخة كاملة من البيانات (للأرشفة خارج Railway) — بدون كلمات مرور العملاء
+      if (p === '/api/admin/backup') {
+        const safe = { ...db, codes: Object.fromEntries(Object.entries(db.codes).map(([k, r]) => [k, publicRec(r)])) };
+        return send(res, 200, JSON.stringify({ exportedAt: new Date().toISOString(), ...safe }, null, 2), {
+          'content-type': 'application/json; charset=utf-8',
+          'content-disposition': `attachment; filename="al-enna-backup-${new Date().toISOString().slice(0, 10)}.json"`,
+        });
+      }
       if (p === '/api/admin/content' && req.method === 'POST') {
         const b = await readBody(req);
         const next = {};
@@ -670,7 +685,10 @@ const server = http.createServer(async (req, res) => {
         if (!rec) return send(res, 404, { error: 'غير موجود' });
         if (action === 'revoke') rec.revoked = true;
         if (action === 'restore') rec.revoked = false;
-        if (action === 'reset') rec.devices = [];
+        if (action === 'reset') {
+          rec.devices = [];
+          rec.epoch = (rec.epoch || 0) + 1; // الأجهزة القديمة تطلع فعلاً، مو بس تنمسح من القائمة
+        }
         if (action === 'resetpw') delete rec.pw;
         saveDb();
         return send(res, 200, { ok: true, rec: publicRec(rec) });

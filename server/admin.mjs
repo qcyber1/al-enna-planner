@@ -76,6 +76,7 @@ tbody tr:hover{background:#fcfbf8}td small{color:var(--mute)}
     <button data-t="content">✏️ نصوص الموقع</button>
     <button data-t="manual">🔑 أكواد يدوية</button>
     <button id="csv" type="button">⬇ تصدير المبيعات</button>
+    <a href="/api/admin/backup" style="all:unset;cursor:pointer;display:flex;justify-content:center;padding:9px 12px;border-radius:10px;color:#d9ccb6;border:1px solid rgba(255,255,255,.18);margin-top:6px">💾 نسخة احتياطية كاملة</a>
   </nav>
   <button id="logout" type="button" class="ghost" style="margin-top:auto;background:transparent;color:#d9ccb6;border-color:rgba(255,255,255,.18)">⎋ تسجيل خروج</button>
   <div class="side-foot" style="margin-top:6px">كل كود: مدى الحياة • حتى ${maxDevices} أجهزة</div>
