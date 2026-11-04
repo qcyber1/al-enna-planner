@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { PRESET_HOUR, clampHour, timeFromHour } from '../lib/sunclock';
+import { isDemo } from '../lib/demo';
 import type {
   CameraPreset,
   Design,
@@ -524,7 +525,13 @@ export const useEditor = create<State>()((set, get) => ({
     setTimeout(() => get().dismissToast(t.id), action ? 9000 : kind === 'error' ? 6500 : 3500);
   },
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
-  requestCapture3d: (mode) => set({ capture3d: { nonce: get().capture3d.nonce + 1, mode } }),
+  requestCapture3d: (mode) => {
+    if (mode !== 'thumb' && isDemo()) {
+      get().toast('التصدير متاح بعد الشراء — تصميمك ينحفظ لك 👍', 'warning');
+      return;
+    }
+    set({ capture3d: { nonce: get().capture3d.nonce + 1, mode } });
+  },
 
   switchDesign: (id) => {
     const s = get();

@@ -46,7 +46,7 @@ if (!db.referrals) db.referrals = [];
 if (!db.feedback) db.feedback = [];
 if (!db.content) db.content = {};
 // نصوص صفحة الدخول اللي تتعدل من اللوحة (فاضي = النص الافتراضي)
-const CONTENT_KEYS = { banner: 120, title: 40, tagline: 140, f1: 40, f2: 40, f3: 40, f4: 40, buyNote: 160, support: 20 };
+const CONTENT_KEYS = { banner: 120, title: 40, tagline: 140, f1: 40, f2: 40, f3: 40, f4: 40, buyNote: 160, support: 20, sellerAddress: 160, sellerCR: 30 };
 const cleanText = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 function saveDb() {
@@ -454,7 +454,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (failed) return send(res, 200, { ok: false, failed: true, error: 'الدفع ما تم (انلغى أو انرفضت البطاقة) — ما انخصم شي، جرّب مرة ثانية' });
       if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'الدفع ما اكتمل للحين' });
-      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: o.id.slice(0, 8).toUpperCase(), paymentId: o.paymentId || '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)' } });
+      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: o.id.slice(0, 8).toUpperCase(), paymentId: o.paymentId || '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)', sellerAddress: db.content.sellerAddress || '', sellerCR: db.content.sellerCR || '', sellerPhone: db.content.support || '' } });
     }
 
     if (p === '/api/skipcash/webhook' && req.method === 'POST') {

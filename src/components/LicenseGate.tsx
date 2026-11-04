@@ -4,6 +4,7 @@ import { checkEmail, checkName, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2, LogIn } from 'lucide-react';
 import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
+import { demoLeft, isDemo, setDemoActive, startDemo } from '../lib/demo';
 
 const TOKEN_KEY = 'enna.license.token';
 const DEVICE_KEY = 'enna.license.device';
@@ -49,6 +50,9 @@ interface Receipt {
   paidAt: number;
   name: string;
   seller: string;
+  sellerAddress?: string;
+  sellerCR?: string;
+  sellerPhone?: string;
 }
 
 /** إيصال مختصر بعد الدفع (حتى لو العميل ما كتب إيميل) — ينحفظ صورة أو PDF من زر الطباعة */
@@ -62,9 +66,12 @@ function ReceiptCard({ r }: { r: Receipt }) {
     ['طريقة الدفع', 'سكيب كاش'],
     ['البائع', r.seller],
   ];
+  if (r.sellerAddress) rows.push(['عنوان البائع', r.sellerAddress]);
+  if (r.sellerCR) rows.push(['السجل التجاري', r.sellerCR]);
+  if (r.sellerPhone) rows.push(['هاتف البائع', '+' + r.sellerPhone]);
   if (r.paymentId) rows.splice(1, 0, ['مرجع الدفع', r.paymentId]);
   return (
-    <div className="receipt rounded-lg border border-sand-300 bg-white p-3 text-right text-[12px]" data-testid="receipt">
+    <div className="receipt rounded-lg border border-sand-300 bg-white p-3 text-right text-[12px]" data-testid="receipt" data-no-tr dir="rtl">
       <div className="mb-1.5 flex items-center justify-between">
         <b className="text-[13px] text-dune">🧾 إيصال الدفع</b>
         <button type="button" onClick={() => window.print()} className="no-print rounded-md bg-sand-100 px-2 py-1 text-[11px] font-semibold text-dune">حفظ / طباعة</button>
@@ -110,6 +117,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     if (fieldErr[k]) setFieldErr((f) => ({ ...f, [k]: checkField(k, v) }));
   };
   const [paidCode, setPaidCode] = useState('');
+  const [demoOver, setDemoOver] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [notice, setNotice] = useState('');
 
@@ -164,7 +172,14 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         return setState('locked');
       }
       const token = get(TOKEN_KEY);
-      if (!token) return setState('locked');
+      if (!token) {
+        // تجربة مجانية شغالة في هالتبويب؟ نكملها
+        if (demoLeft() > 0) {
+          setDemoActive(true);
+          return setState('open');
+        }
+        return setState('locked');
+      }
       try {
         const { status, data } = await post('/api/check', { token });
         if (data.ok) {
@@ -257,7 +272,28 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     }
   };
 
-  if (state === 'open') return <>{children}</>;
+  if (state === 'open')
+    return (
+      <>
+        {children}
+        {isDemo() && (
+          <DemoBar
+            onBuy={() => {
+              setMode('buy');
+              setState('locked');
+            }}
+            onEnd={() => {
+              setDemoActive(false);
+              setMode('buy');
+              setNotice('');
+              setError('');
+              setDemoOver(true);
+              setState('locked');
+            }}
+          />
+        )}
+      </>
+    );
   if (state === 'checking')
     return (
       <div className="flex h-full items-center justify-center bg-sand-100 text-sand-800">
@@ -421,6 +457,22 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gold-500 font-bold text-dune disabled:opacity-50" data-testid="buy">
               {busy && <Loader2 size={18} className="animate-spin" />} {info.online ? 'ادفع الآن (سكيب كاش)' : 'اطلب الآن'}
             </button>
+            {info.online && (
+              <button
+                type="button"
+                onClick={() => {
+                  startDemo();
+                  setDemoActive(true);
+                  setState('open');
+                }}
+                disabled={demoOver && demoLeft() === 0}
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border-2 border-gold-500/60 bg-white font-semibold text-dune disabled:opacity-50"
+                data-testid="try-demo"
+              >
+                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoOver ? 'خلصت تجربتك المجانية' : '👀 جرّب مجاناً 10 دقايق — بدون تسجيل'}
+              </button>
+            )}
+            {demoOver && <div className="rounded-lg bg-gold-500/15 p-2 text-center text-[12px] text-dune" data-testid="demo-over">خلصت التجربة 🙌 اشترِ وكمّل — <b>تصميمك محفوظ</b> ويرجع لك على طول</div>}
             <p className="text-center text-[11px] text-sand-600">{info.content.buyNote || (info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.')}</p>
             <p className="text-center text-[11px] text-sand-600" data-testid="seller-note">{`البائع: ${OWNER_AR} — هالاسم يطلع في إيصال الدفع`}</p>
           </form>
@@ -531,5 +583,52 @@ function SetPassword({ initialPhone, onDone, onSkip, skipLabel }: { initialPhone
       </button>
       <button type="button" onClick={onSkip} className="w-full text-[12px] text-sand-600 underline" data-testid="setpw-skip">{skipLabel}</button>
     </form>
+  );
+}
+
+/** شريط التجربة المجانية: العد التنازلي + زر الشراء + علامة خفيفة على الشاشة (لو أحد صوّر) */
+function DemoBar({ onBuy, onEnd }: { onBuy: () => void; onEnd: () => void }) {
+  const [left, setLeft] = useState(demoLeft());
+  useEffect(() => {
+    const t = setInterval(() => {
+      const l = demoLeft();
+      setLeft(l);
+      if (l <= 0) {
+        clearInterval(t);
+        onEnd();
+      }
+    }, 1000);
+    return () => clearInterval(t);
+  }, [onEnd]);
+  const m = Math.floor(left / 60000);
+  const sec = Math.floor((left % 60000) / 1000);
+  const low = left < 2 * 60000;
+  // ننزّل التطبيق تحت الشريط بدل ما يغطي عليه
+  useEffect(() => {
+    const r = document.getElementById('root');
+    if (!r) return;
+    r.style.marginTop = '2rem';
+    r.style.height = 'calc(100% - 2rem)';
+    return () => {
+      r.style.marginTop = '';
+      r.style.height = '';
+    };
+  }, []);
+  return (
+    <>
+      <div className="no-print pointer-events-none fixed inset-0 z-[35] overflow-hidden opacity-[0.07]" aria-hidden="true" data-testid="demo-watermark">
+        <div className="absolute -inset-1/2 flex rotate-[-20deg] flex-wrap content-center gap-x-24 gap-y-20 text-2xl font-bold text-dune">
+          {Array.from({ length: 60 }, (_, i) => (
+            <span key={i} className="whitespace-nowrap">نسخة تجربة • i3enna.qa</span>
+          ))}
+        </div>
+      </div>
+      <div className={`no-print fixed inset-x-0 top-0 z-[60] flex h-8 items-center justify-center gap-2 whitespace-nowrap px-2 text-[12px] font-semibold ${low ? 'bg-red-600 text-white' : 'bg-gold-500 text-dune'}`} data-testid="demo-bar">
+        <span>👀 تجربة مجانية</span>
+        <span className="tabular-nums" dir="ltr">{m}:{String(sec).padStart(2, '0')}</span>
+        <span className="hidden opacity-80 sm:inline">• التصدير بعد الشراء • تصميمك ينحفظ</span>
+        <button type="button" onClick={onBuy} className={`rounded-full px-2.5 py-0.5 font-bold ${low ? 'bg-white text-red-700' : 'bg-dune text-sand-50'}`}>اشترِ الآن</button>
+      </div>
+    </>
   );
 }

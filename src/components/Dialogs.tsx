@@ -17,6 +17,15 @@ import { validatePlan } from '../lib/validation';
 import { useViewport } from '../editor2d/viewport';
 import { TEMPLATES, buildTemplate, type Template } from '../lib/templates';
 import { openReport } from '../lib/report';
+import { isDemo } from '../lib/demo';
+
+/** في التجربة المجانية: التصدير بعد الشراء */
+function demoBlock(): boolean {
+  if (!isDemo()) return false;
+  useEditor.getState().toast('التصدير متاح بعد الشراء — تصميمك ينحفظ لك 👍', 'warning');
+  window.dispatchEvent(new CustomEvent('enna-demo-buy'));
+  return true;
+}
 import { DEV_LINE, OWNER_LINE } from '../lib/brand';
 import { markBackup } from './BackupNudge';
 
@@ -256,10 +265,11 @@ export function SummaryDialog() {
       footer={
         <>
           <Button onClick={() => openDialog('checklist')} data-testid="summary-checklist">✅ قائمة التجهيز</Button>
-          <Button onClick={exportCsv}><Download size={15} /> تصدير CSV</Button>
+          <Button onClick={() => !demoBlock() && exportCsv()}><Download size={15} /> تصدير CSV</Button>
           <Button
             variant="gold"
             onClick={() => {
+              if (demoBlock()) return;
               const r = openReport(project, design);
               useEditor.getState().toast(r === 'opened' ? 'انفتح التقرير — اضغط «طباعة / PDF» واحفظه' : 'نزل التقرير كملف — افتحه واطبعه PDF', 'success');
             }}
@@ -516,6 +526,7 @@ export function ShareDialog() {
   const link = useMemo(() => (open ? buildShareLink(`${project.name} — ${design.name}`, design.plan) : null), [open, project.name, design]);
 
   const export2d = async (mode: 'download' | 'share') => {
+    if (demoBlock()) return;
     const c = renderPlanCanvas(design.plan, { width: 2200, title: `${project.name} — ${design.name}`, subtitle: dateLabel(), lightMap, night: lightMap || time === 'night' });
     const blob = await canvasToBlob(c);
     const r = await shareOrDownload(blob, `al-enna-plan-${safeFileName(design.name)}-${stamp()}.png`, `${project.name} — ${design.name}`);

@@ -157,6 +157,10 @@ ${persistent ? '' : '<div class="alert warn">⚠ لم يتم ربط Volume عل�
   <div class="grid" style="margin-top:12px">
     <div><label for="c_support">رقم واتساب الدعم (يطلع للعميل «تواصل معنا»)</label><input id="c_support" dir="ltr" maxlength="20" placeholder="55123456"></div>
   </div>
+  <div class="grid" style="margin-top:12px">
+    <div style="grid-column:span 2"><label for="c_sellerAddress">عنوان البائع (يطلع في إيصال العميل — مطلوب قانوناً)</label><input id="c_sellerAddress" maxlength="160" placeholder="الدوحة، قطر — المنطقة، الشارع، المبنى"></div>
+    <div><label for="c_sellerCR">رقم السجل التجاري (اختياري)</label><input id="c_sellerCR" dir="ltr" maxlength="30"></div>
+  </div>
   <div class="grid" style="margin-top:12px;grid-template-columns:1fr">
     <div><label for="c_buyNote">ملاحظة تحت زر الدفع</label><input id="c_buyNote" maxlength="160" placeholder="دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع."></div>
   </div>
@@ -206,7 +210,7 @@ function stats(){
 }
 function fbCard(f){return '<div class="fb'+(f.done?' done':'')+'"><div class="row" style="justify-content:space-between"><div><b>'+esc(f.name||'مستخدم')+'</b> <small dir="ltr">'+esc(f.phone||'')+'</small> <small>• '+day(f.at)+(f.where?' • '+esc(f.where):'')+'</small></div><div class="row">'+(f.phone?'<a href="'+wa(f.phone,'هلا '+(f.name||'')+' 👋 شكراً على ملاحظتك في مخطط العنة: ')+'" target="_blank"><button class="ghost" type="button">رد واتساب</button></a>':'')+'<button class="'+(f.done?'ghost':'ok')+'" type="button" data-fb="'+f.id+'" data-done="'+(f.done?0:1)+'">'+(f.done?'إرجاع':'تم ✓')+'</button><button class="bad" type="button" data-fb="'+f.id+'" data-rm="1">حذف</button></div></div><p>'+esc(f.text)+'</p></div>'}
 function renderFb(){const m=fbf.value;const rows=fbs.filter(f=>!m||(m==='done'?f.done:!f.done));fbl.innerHTML=rows.map(fbCard).join('')||'<div class="empty">ما في ملاحظات</div>'}
-const CK=['banner','title','tagline','f1','f2','f3','f4','buyNote','support'];let cLoaded=false;
+const CK=['banner','title','tagline','f1','f2','f3','f4','buyNote','support','sellerAddress','sellerCR'];let cLoaded=false;
 c_save.onclick=async()=>{const b={};for(const k of CK)b[k]=document.getElementById('c_'+k).value;try{await api('/api/admin/content',b);c_save.textContent='تم الحفظ ✓';setTimeout(()=>c_save.textContent='حفظ النصوص',1800)}catch(err){alert(err.message)}};
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-fb]');if(b){if(b.dataset.rm&&!confirm('حذف الملاحظة؟'))return;try{await api('/api/admin/feedback',{id:b.dataset.fb,done:b.dataset.done==='1',remove:!!b.dataset.rm});await load()}catch(err){alert(err.message)}return}const g=e.target.closest('[data-go]');if(g)go(g.dataset.go)});
 fbf.onchange=renderFb;
