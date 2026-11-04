@@ -988,5 +988,22 @@
 "نقلنا «{0}» {1} م": "moved \"{0}\" {1} m",
 "صلّحنا {0}{1}. ما عجبك؟ رجّعه": "Fixed {0}{1}. Not happy? Undo",
 " — باقي {0} تحتاج تعديل بيدك": " — {0} left to adjust by hand",
-" ✓ كل شي تمام": " ✓ all good"
+" ✓ كل شي تمام": " ✓ all good",
+"© {0} نقلة لحلول المواقع · Naqla For Website Solutions": "© {0} Naqla For Website Solutions",
+"البائع: نقلة لحلول المواقع — هالاسم يطلع في إيصال الدفع": "Seller: Naqla For Website Solutions — this name appears on your payment receipt",
+"توفّر {0} ر.ق": "You save {0} QAR",
+"الإيميل (اختياري — لإيصال الدفع)": "Email (optional — for the payment receipt)",
+"🧾 إيصال الدفع": "🧾 Payment receipt",
+"حفظ / طباعة": "Save / print",
+"رقم الطلب": "Order no.",
+"مرجع الدفع": "Payment ref.",
+"التاريخ": "Date",
+"العميل": "Customer",
+"المنتج": "Product",
+"مخطط العنة — ترخيص مدى الحياة": "Al Enna Planner — lifetime license",
+"المبلغ المدفوع": "Amount paid",
+"طريقة الدفع": "Payment method",
+"البائع": "Seller",
+"نقلة لحلول المواقع (Naqla For Website Solutions)": "Naqla For Website Solutions",
+"رقم الجوال (8 أرقام)": "Mobile number (8 digits)"
 }

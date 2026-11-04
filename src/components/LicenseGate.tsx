@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { DEV_LINE, OWNER_AR, OWNER_EN, OWNER_LINE } from '../lib/brand';
+import { OWNER_AR, OWNER_LINE } from '../lib/brand';
 import { checkEmail, checkName, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2, LogIn } from 'lucide-react';
 import { LangToggle } from './LangToggle';
@@ -42,6 +42,45 @@ type State = 'checking' | 'locked' | 'open' | 'paid' | 'setpw';
 const PW_SKIP_KEY = 'enna.pw.skip';
 /** نذكّره يحط كلمة مرور كل 3 أيام لين يحطها */
 const pwSkippedRecently = () => Date.now() - Number(get(PW_SKIP_KEY) || 0) < 3 * 86400000;
+interface Receipt {
+  ref: string;
+  paymentId: string;
+  amount: number;
+  paidAt: number;
+  name: string;
+  seller: string;
+}
+
+/** إيصال مختصر بعد الدفع (حتى لو العميل ما كتب إيميل) — ينحفظ صورة أو PDF من زر الطباعة */
+function ReceiptCard({ r }: { r: Receipt }) {
+  const rows: [string, string][] = [
+    ['رقم الطلب', r.ref],
+    ['التاريخ', new Date(r.paidAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })],
+    ['العميل', r.name],
+    ['المنتج', 'مخطط العنة — ترخيص مدى الحياة'],
+    ['المبلغ المدفوع', `${r.amount} ر.ق`],
+    ['طريقة الدفع', 'سكيب كاش'],
+    ['البائع', r.seller],
+  ];
+  if (r.paymentId) rows.splice(1, 0, ['مرجع الدفع', r.paymentId]);
+  return (
+    <div className="receipt rounded-lg border border-sand-300 bg-white p-3 text-right text-[12px]" data-testid="receipt">
+      <div className="mb-1.5 flex items-center justify-between">
+        <b className="text-[13px] text-dune">🧾 إيصال الدفع</b>
+        <button type="button" onClick={() => window.print()} className="no-print rounded-md bg-sand-100 px-2 py-1 text-[11px] font-semibold text-dune">حفظ / طباعة</button>
+      </div>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+        {rows.map(([k, v]) => (
+          <div key={k} className="contents">
+            <dt className="text-sand-600">{k}</dt>
+            <dd className="font-semibold text-dune [overflow-wrap:anywhere]">{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 type SiteContent = Partial<Record<'banner' | 'title' | 'tagline' | 'f1' | 'f2' | 'f3' | 'f4' | 'buyNote' | 'support', string>>;
 const waLink = (phone: string, text: string) => `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
 const DEFAULT_TEXT = { title: 'مخطط العنة ⛺', tagline: 'صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون' };
@@ -71,6 +110,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     if (fieldErr[k]) setFieldErr((f) => ({ ...f, [k]: checkField(k, v) }));
   };
   const [paidCode, setPaidCode] = useState('');
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
@@ -112,6 +152,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               setAcctPhone(localPhone(a.data.phone));
               set(ORDER_KEY, null);
               setPaidCode(code);
+              setReceipt((v.data as { receipt?: Receipt }).receipt ?? null);
               return setState('paid');
             }
           } catch {
@@ -188,7 +229,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const buy = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const errs = { name: checkName(buyer.name), phone: parsePhone(buyer.phone).error ?? null, email: info.online ? checkEmail(buyer.email) : null };
+    const errs = { name: checkName(buyer.name), phone: parsePhone(buyer.phone).error ?? null, email: info.online && buyer.email.trim() ? checkEmail(buyer.email) : null };
     setFieldErr(errs);
     if (errs.name || errs.phone || errs.email) return;
     setBusy(true);
@@ -235,6 +276,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               <p className="text-sm text-sand-700">هذا كود التفعيل الخاص فيك — احتفظ فيه احتياط:</p>
               <div className="rounded-lg border-2 border-gold-500 bg-white p-3 font-mono text-lg font-bold tracking-wider text-dune" dir="ltr">{paidCode}</div>
               <button type="button" onClick={() => navigator.clipboard?.writeText(paidCode).catch(() => undefined)} className="h-10 w-full rounded-lg border border-sand-300 bg-white font-semibold">نسخ الكود</button>
+              {receipt && <ReceiptCard r={receipt} />}
             </div>
           ) : (
             <div className="text-center">
@@ -269,7 +311,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               <p className="mt-1 text-sm text-sand-300">{tagline}</p>
             </div>
             <Features dark items={feats} />
-            <p className="text-[11px] leading-relaxed text-sand-400">{DEV_LINE}<br />{OWNER_LINE}</p>
+            <p className="text-[11px] text-sand-400">{OWNER_LINE}</p>
           </div>
         </div>
         <div className="space-y-4 p-6 lg:flex lg:flex-col lg:justify-center lg:p-10">
@@ -332,20 +374,32 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               {info.basePrice > info.price && (
                 <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700" data-testid="price-badge">{info.refValid ? '🎁 وصلك خصم من صديقك' : '🔥 عرض لفترة محدودة'}</div>
               )}
-              <div className="text-2xl font-bold text-dune">
-                {info.basePrice > info.price && <span className="ml-2 text-base text-sand-500 line-through" data-testid="price-old">{info.basePrice}</span>}
-                {info.price} ر.ق
+              <div className="flex items-baseline justify-center gap-3" data-testid="price">
+                <span className="text-3xl font-bold text-dune">
+                  <span className="tabular-nums">{info.price}</span> <span className="text-lg">ر.ق</span>
+                </span>
+                {info.basePrice > info.price && (
+                  <span className="text-base text-sand-500 line-through decoration-red-400/70" data-testid="price-old">
+                    <span className="tabular-nums">{info.basePrice}</span> ر.ق
+                  </span>
+                )}
               </div>
-              <div className="text-xs text-sand-600">دفعة واحدة • استخدام مدى الحياة</div>
+              {info.basePrice > info.price && (
+                <div className="mt-0.5 text-[12px] font-semibold text-turf-700" data-testid="price-save">
+                  {`توفّر ${info.basePrice - info.price} ر.ق`}
+                </div>
+              )}
+              <div className="mt-0.5 text-xs text-sand-600">دفعة واحدة • استخدام مدى الحياة</div>
             </div>
             {(
               [
                 { k: 'name', ph: 'الاسم', label: 'الاسم', props: { autoComplete: 'name' } },
-                { k: 'phone', ph: 'رقم الجوال (مثل 55123456)', label: 'رقم الجوال', props: { inputMode: 'tel', dir: 'ltr', autoComplete: 'tel' } },
-                ...(info.online ? [{ k: 'email', ph: 'الإيميل (لإيصال الدفع)', label: 'الإيميل', props: { type: 'email', dir: 'ltr', autoComplete: 'email', inputMode: 'email' } }] : []),
+                { k: 'phone', ph: 'رقم الجوال (8 أرقام)', label: 'رقم الجوال', props: { inputMode: 'tel', dir: 'ltr', autoComplete: 'tel' } },
+                ...(info.online ? [{ k: 'email', ph: 'الإيميل (اختياري — لإيصال الدفع)', label: 'الإيميل', props: { type: 'email', dir: 'ltr', autoComplete: 'email', inputMode: 'email' } }] : []),
               ] as { k: 'name' | 'phone' | 'email'; ph: string; label: string; props: React.InputHTMLAttributes<HTMLInputElement> }[]
             ).map((f) => (
-              <div key={f.k}>
+              <div key={f.k} className="relative">
+                {f.k === 'phone' && <span className="pointer-events-none absolute top-0 left-3 flex h-10 items-center text-[13px] font-semibold text-sand-500" dir="ltr">🇶🇦 +974</span>}
                 <input
                   {...f.props}
                   value={buyer[f.k]}
@@ -357,7 +411,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
                   placeholder={f.ph}
                   aria-label={f.label}
                   aria-invalid={!!fieldErr[f.k]}
-                  className={`h-10 w-full rounded-lg border bg-white px-3 outline-none ${f.props.dir === 'ltr' ? 'text-right' : ''} ${fieldErr[f.k] ? 'border-red-400 focus:border-red-500' : 'border-sand-300 focus:border-gold-500'}`}
+                  className={`h-10 w-full rounded-lg border bg-white px-3 outline-none ${f.k === 'phone' ? 'pl-20' : ''} ${f.props.dir === 'ltr' ? 'text-right' : ''} ${fieldErr[f.k] ? 'border-red-400 focus:border-red-500' : 'border-sand-300 focus:border-gold-500'}`}
                   data-testid={`buyer-${f.k}`}
                 />
                 {fieldErr[f.k] && <div className="mt-1 px-1 text-[12px] text-red-700" data-testid={`err-${f.k}`}>{fieldErr[f.k]}</div>}
@@ -368,7 +422,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               {busy && <Loader2 size={18} className="animate-spin" />} {info.online ? 'ادفع الآن (سكيب كاش)' : 'اطلب الآن'}
             </button>
             <p className="text-center text-[11px] text-sand-600">{info.content.buyNote || (info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.')}</p>
-            <p className="text-center text-[11px] text-sand-600" data-testid="seller-note">{`البائع: ${OWNER_AR} (${OWNER_EN}) — وهذا الاسم اللي بيطلع في إيصال الدفع.`}</p>
+            <p className="text-center text-[11px] text-sand-600" data-testid="seller-note">{`البائع: ${OWNER_AR} — هالاسم يطلع في إيصال الدفع`}</p>
           </form>
           )}
           {info.content.support && (
@@ -376,7 +430,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               💬 تحتاج مساعدة؟ كلمنا واتساب
             </a>
           )}
-          <p className="text-center text-[11px] leading-relaxed text-sand-500 lg:hidden" data-testid="owner-footer">{DEV_LINE}<br />{OWNER_LINE}</p>
+          <p className="text-center text-[11px] text-sand-500 lg:hidden" data-testid="owner-footer">{OWNER_LINE}</p>
         </div>
       </div>
     </div>

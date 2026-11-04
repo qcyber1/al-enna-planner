@@ -222,6 +222,8 @@ function readBody(req) {
   });
 }
 // ——— دخول لوحة الإدارة: اسم مستخدم + كلمة مرور (+ رمز 2FA اختياري) وجلسة بكوكي آمن ———
+// إيميل يوصله إيصال سكيب كاش لما العميل ما يكتب إيميله (حط إيميلك في Railway: RECEIPT_EMAIL)
+const RECEIPT_FALLBACK = String(process.env.RECEIPT_EMAIL || 'receipts@i3enna.qa').trim();
 const ADMIN_USER = String(process.env.ADMIN_USER || 'admin').trim().toLowerCase();
 const ADMIN_TOTP = String(process.env.ADMIN_TOTP_SECRET || '').replace(/[\s=-]/g, '').toUpperCase();
 const ADMIN_COOKIE = 'enna_admin';
@@ -402,11 +404,13 @@ const server = http.createServer(async (req, res) => {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
       const { name, phone, email, ref } = await readBody(req);
       const refId = parseRef(ref);
-      const v = validateBuyer({ name, phone, email }, true);
+      // الإيميل اختياري: إذا كتبه نتحقق منه، وإذا لا نرسل إيميل التاجر (سكيب كاش يطلبه) عشان الإيصال يوصلنا نحن
+      const hasEmail = !!String(email || '').trim();
+      const v = validateBuyer({ name, phone, email }, hasEmail);
       if (v.errors) return send(res, 400, { ok: false, error: Object.values(v.errors)[0], errors: v.errors });
       const nm = v.name;
       const full = v.phone;
-      const em = v.email;
+      const em = hasEmail ? v.email : RECEIPT_FALLBACK;
       const parts = nm.split(/\s+/);
       const order = { id: crypto.randomBytes(8).toString('hex'), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'pending', online: true, ref: refId || undefined, amount: priceFor(refId) };
       try {
@@ -450,7 +454,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (failed) return send(res, 200, { ok: false, failed: true, error: 'الدفع ما تم (انلغى أو انرفضت البطاقة) — ما انخصم شي، جرّب مرة ثانية' });
       if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'الدفع ما اكتمل للحين' });
-      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code });
+      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: o.id.slice(0, 8).toUpperCase(), paymentId: o.paymentId || '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)' } });
     }
 
     if (p === '/api/skipcash/webhook' && req.method === 'POST') {

@@ -121,3 +121,12 @@ test('رسائل الخطأ لكل خانة لحالها', async () => {
   assert.equal(ok.status, 200);
   assert.equal(lastBody.phone, '97455123456');
 });
+
+test('الإيميل اختياري: بدونه يمشي الدفع ويروح الإيصال لإيميل التاجر', async () => {
+  const r = await post('/api/checkout', { name: 'خالد', phone: '33445566', email: '' });
+  assert.equal(r.status, 200);
+  assert.equal(lastBody.email, 'receipts@i3enna.qa');
+  const bad = await post('/api/checkout', { name: 'خالد', phone: '33445566', email: 'not-an-email' });
+  assert.equal(bad.status, 400, 'إذا كتبه غلط ننبهه');
+  assert.ok(bad.json.errors.email);
+});
