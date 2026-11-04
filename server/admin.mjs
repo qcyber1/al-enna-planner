@@ -77,7 +77,8 @@ tbody tr:hover{background:#fcfbf8}td small{color:var(--mute)}
     <button data-t="manual">🔑 أكواد يدوية</button>
     <button id="csv" type="button">⬇ تصدير المبيعات</button>
   </nav>
-  <div class="side-foot">كل كود: مدى الحياة • حتى ${maxDevices} أجهزة</div>
+  <button id="logout" type="button" class="ghost" style="margin-top:auto;background:transparent;color:#d9ccb6;border-color:rgba(255,255,255,.18)">⎋ تسجيل خروج</button>
+  <div class="side-foot" style="margin-top:6px">كل كود: مدى الحياة • حتى ${maxDevices} أجهزة</div>
 </aside>
 <main class="main">
 <div class="top">
@@ -181,7 +182,7 @@ const ST={pending:'بانتظار الدفع',new:'طلب جديد',sent:'أُر
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>(Math.round((n||0)*100)/100).toLocaleString('en-US')+' ر.ق';
 const day=t=>t?new Date(t).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'';
-async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:{});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'خطأ');return j}
+async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json','x-enna-admin':'1'},body:JSON.stringify(b)}:{});if(r.status===401){location.reload();throw new Error('انتهت الجلسة')}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'خطأ');return j}
 const msg=r=>'هلا '+(r.name||'')+' 👋\\nشكراً لاشتراكك في مخطط العنة ⛺\\n\\nالرابط: '+location.origin+'\\nكود التفعيل: '+r.code+'\\n\\nالكود لك مدى الحياة ويعمل على '+MAX+' أجهزة.\\nوداخل التطبيق زر «ادعُ أصحابك» — كل واحد يشتري من رابطك تاخذ '+REWARD+' ريال 🎁';
 const wa=(phone,text)=>'https://wa.me/'+String(phone||'').replace(/\\D/g,'')+'?text='+encodeURIComponent(text);
 const payMsg=o=>'هلا '+o.name+' 👋\\nشكراً لطلبك مخطط العنة ⛺\\nالمبلغ: '+(o.amount??PRICE)+' ر.ق — مدى الحياة\\n\\nرابط الدفع:\\n'+(pl.value||'[ضع رابط الدفع]')+'\\n\\nبعد الدفع يوصلك كود التفعيل هنا.';
@@ -251,6 +252,42 @@ csv.onclick=()=>{const rows=[['التاريخ','العميل','الجوال','ا
   for(const r of list)if(!orders.some(o=>o.codeId===r.id))rows.push([day(r.createdAt),r.name,r.phone,r.price||0,'مدفوع ✓','كود يدوي','','',r.code||'']);
   const s='\\ufeff'+rows.map(r=>r.map(c=>'"'+String(c??'').replace(/"/g,'""')+'"').join(',')).join('\\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='al-enna-sales-'+new Date().toISOString().slice(0,10)+'.csv';a.click()};
+logout.onclick=async()=>{await fetch('/api/admin/logout',{method:'POST',headers:{'x-enna-admin':'1'}});location.reload()};
 load().catch(e=>alert(e.message));setInterval(()=>load().catch(()=>{}),30000);
+</script></body></html>`;
+}
+
+/** صفحة دخول لوحة الإدارة */
+export function adminLoginPage({ totp }) {
+  return `<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>دخول لوحة التحكم — مخطط العنة</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#3b2a1e;font:15px/1.6 'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif;color:#1f1a14;padding:16px}
+form{width:100%;max-width:380px;background:#fff;border-radius:16px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,.35);display:grid;gap:14px}
+.b{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}.b i{font-style:normal;width:40px;height:40px;border-radius:12px;background:#c9973f;display:grid;place-items:center;font-size:20px}
+.b small{display:block;font-weight:400;font-size:12px;color:#6f6455}
+label{display:block;font-size:12px;font-weight:600;color:#6f6455;margin-bottom:5px}
+input{width:100%;height:44px;border:1px solid #ebe5d8;border-radius:10px;padding:0 12px;font:inherit;outline:none}
+input:focus{border-color:#c9973f;box-shadow:0 0 0 3px rgba(201,151,63,.18)}
+button{height:44px;border:0;border-radius:10px;background:#3b2a1e;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+button:disabled{opacity:.6}.err{background:#fdecea;color:#b42318;border-radius:10px;padding:8px 12px;font-size:13px;display:none}
+.note{font-size:11px;color:#8a7d6b;text-align:center;margin:0}
+</style></head><body>
+<form id="f" autocomplete="on">
+  <div class="b"><i>⛺</i><div>مخطط العنة<small>دخول لوحة التحكم</small></div></div>
+  <div><label for="u">اسم المستخدم</label><input id="u" name="username" autocomplete="username" dir="ltr" required></div>
+  <div><label for="p">كلمة المرور</label><input id="p" name="password" type="password" autocomplete="current-password" dir="ltr" required></div>
+  ${totp ? '<div><label for="c">رمز التحقق (Google Authenticator)</label><input id="c" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" dir="ltr" required placeholder="123456"></div>' : ''}
+  <div class="err" id="e"></div>
+  <button id="go">دخول</button>
+  <p class="note">🔒 بعد 20 محاولة غلط يتقفل الدخول 10 دقائق</p>
+</form>
+<script>
+f.onsubmit=async ev=>{ev.preventDefault();go.disabled=true;e.style.display='none';
+  try{const r=await fetch('/api/admin/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({user:u.value,password:p.value,code:window.c?c.value:''})});
+    const j=await r.json().catch(()=>({}));if(r.ok){location.reload();return}e.textContent=j.error||'ما قدرنا ندخلك';e.style.display='block'}
+  catch{e.textContent='ما قدرنا نتصل';e.style.display='block'}go.disabled=false};
 </script></body></html>`;
 }

@@ -6,7 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { adminPage } from './admin.mjs';
+import { adminPage, adminLoginPage } from './admin.mjs';
 import { validateBuyer, parsePhone } from './buyer.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
 
@@ -221,15 +221,71 @@ function readBody(req) {
     });
   });
 }
+// ——— دخول لوحة الإدارة: اسم مستخدم + كلمة مرور (+ رمز 2FA اختياري) وجلسة بكوكي آمن ———
+const ADMIN_USER = String(process.env.ADMIN_USER || 'admin').trim().toLowerCase();
+const ADMIN_TOTP = String(process.env.ADMIN_TOTP_SECRET || '').replace(/[\s=-]/g, '').toUpperCase();
+const ADMIN_COOKIE = 'enna_admin';
+const ADMIN_TTL = 12 * 3600 * 1000;
+// المفتاح مربوط بكلمة المرور: تغييرها في Railway يطلّع كل الجلسات القديمة
+const admKey = () => crypto.createHmac('sha256', SECRET || 'enna').update('admin-session:' + ADMIN_PASSWORD).digest();
+const eq = (a, b) => {
+  const x = crypto.createHash('sha256').update(String(a)).digest();
+  const y = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(x, y);
+};
+function b32decode(str) {
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const c of str) {
+    const v = A.indexOf(c);
+    if (v < 0) return null;
+    bits += v.toString(2).padStart(5, '0');
+  }
+  const out = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) out.push(parseInt(bits.slice(i, i + 8), 2));
+  return Buffer.from(out);
+}
+/** رمز Google Authenticator (TOTP — 6 أرقام كل 30 ثانية) */
+function totp(secretB32, t = Date.now(), step = 0) {
+  const key = b32decode(secretB32);
+  if (!key) return null;
+  const counter = Math.floor(t / 30000) + step;
+  const buf = Buffer.alloc(8);
+  buf.writeBigUInt64BE(BigInt(counter));
+  const h = crypto.createHmac('sha1', key).update(buf).digest();
+  const o = h[h.length - 1] & 15;
+  const n = ((h[o] & 127) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3];
+  return String(n % 1e6).padStart(6, '0');
+}
+const totpOk = (code) => {
+  const c = String(code || '').replace(/\D/g, '');
+  return c.length === 6 && [-1, 0, 1].some((st) => eq(totp(ADMIN_TOTP, Date.now(), st), c));
+};
+function adminSession() {
+  const body = Buffer.from(JSON.stringify({ u: ADMIN_USER, exp: Date.now() + ADMIN_TTL })).toString('base64url');
+  return body + '.' + crypto.createHmac('sha256', admKey()).update(body).digest('base64url');
+}
+function readCookie(req, name) {
+  for (const part of String(req.headers.cookie || '').split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === name) return v.join('=');
+  }
+  return '';
+}
 function isAdmin(req) {
   if (!ADMIN_PASSWORD) return false;
-  const h = req.headers.authorization || '';
-  if (!h.startsWith('Basic ')) return false;
-  const [, pass] = Buffer.from(h.slice(6), 'base64').toString().split(':');
-  const a = Buffer.from(String(pass || ''));
-  const b = Buffer.from(ADMIN_PASSWORD);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  const tok = readCookie(req, ADMIN_COOKIE);
+  const [body, sig] = tok.split('.');
+  if (!body || !sig) return false;
+  if (!eq(sig, crypto.createHmac('sha256', admKey()).update(body).digest('base64url'))) return false;
+  try {
+    const j = JSON.parse(Buffer.from(body, 'base64url').toString());
+    return j.u === ADMIN_USER && j.exp > Date.now();
+  } catch {
+    return false;
+  }
 }
+const cookieFlags = (req) => `Path=/; HttpOnly; SameSite=Strict${req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}`;
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript',
@@ -495,11 +551,27 @@ const server = http.createServer(async (req, res) => {
       if (!ADMIN_PASSWORD) return send(res, 503, '<h1 dir="rtl">لوحة الإدارة معطلة: اضبط ADMIN_PASSWORD في Railway</h1>');
       // تخمين كلمة مرور الإدارة: بعد 20 محاولة غلط يتقفل العنوان 10 دقائق (حتى لو الكلمة صح)
       const admTries = (attempts.get('adm:' + ip) || []).filter((t) => Date.now() - t < 10 * 60 * 1000).length;
-      if (admTries >= 20) return send(res, 429, 'محاولات كثيرة — حاول بعد عشر دقائق');
-      if (!isAdmin(req)) {
-        if (req.headers.authorization) limited('adm:' + ip);
-        return send(res, 401, { error: 'unauthorized' }, { 'www-authenticate': 'Basic realm="enna-admin", charset="UTF-8"' });
+      if (admTries >= 20) return send(res, 429, p === '/admin' ? '<h1 dir="rtl" style="font-family:sans-serif;text-align:center;margin-top:20vh">محاولات كثيرة — حاول بعد عشر دقائق</h1>' : { error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
+      if (p === '/api/admin/login' && req.method === 'POST') {
+        const { user, password, code } = await readBody(req);
+        const okUser = eq(String(user || '').trim().toLowerCase(), ADMIN_USER);
+        const okPass = eq(String(password || ''), ADMIN_PASSWORD);
+        const okCode = !ADMIN_TOTP || totpOk(code);
+        if (!(okUser && okPass && okCode)) {
+          limited('adm:' + ip);
+          // رسالة وحدة لكل الحالات عشان ما نكشف أي جزء صح
+          return send(res, 401, { error: ADMIN_TOTP ? 'البيانات أو رمز التحقق غلط' : 'اسم المستخدم أو كلمة المرور غلط' });
+        }
+        console.log('[enna] دخول لوحة الإدارة من', ip);
+        return send(res, 200, { ok: true }, { 'set-cookie': `${ADMIN_COOKIE}=${adminSession()}; ${cookieFlags(req)}; Max-Age=${ADMIN_TTL / 1000}` });
       }
+      if (p === '/api/admin/logout' && req.method === 'POST') return send(res, 200, { ok: true }, { 'set-cookie': `${ADMIN_COOKIE}=; ${cookieFlags(req)}; Max-Age=0` });
+      if (!isAdmin(req)) {
+        if (p === '/admin') return send(res, 200, adminLoginPage({ totp: !!ADMIN_TOTP }), { 'x-robots-tag': 'noindex' });
+        return send(res, 401, { error: 'سجّل دخول من جديد' });
+      }
+      // حماية CSRF: أوامر اللوحة لازم تجي من صفحة اللوحة نفسها
+      if (req.method === 'POST' && req.headers['x-enna-admin'] !== '1') return send(res, 403, { error: 'طلب مرفوض' });
       if (p === '/admin') return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }));
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);

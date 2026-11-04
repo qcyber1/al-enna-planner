@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = 4700 + Math.floor(Math.random() * 200);
 const BASE = `http://127.0.0.1:${PORT}`;
-const ADMIN = 'Basic ' + Buffer.from('admin:test-admin-pw').toString('base64');
+let ADMIN_COOKIE = '';
 let proc;
 let dir;
 let ipN = 0;
@@ -32,7 +32,12 @@ const api = async (p, body, headers = {}) => {
   }
   return { status: r.status, json };
 };
-const admin = (p, body) => api(p, body, { authorization: ADMIN });
+const admin = (p, body) => api(p, body, { cookie: ADMIN_COOKIE, 'x-enna-admin': '1' });
+async function adminLogin(user = 'admin', password = 'test-admin-pw') {
+  const r = await fetch(BASE + '/api/admin/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.9.9.' + (++ipN % 250) }, body: JSON.stringify({ user, password }) });
+  const c = (r.headers.get('set-cookie') || '').split(';')[0];
+  return { status: r.status, cookie: c };
+}
 
 before(async () => {
   dir = mkdtempSync(path.join(tmpdir(), 'enna-test-'));
@@ -67,7 +72,21 @@ test('السعر الأساسي 349 بدون إحالة', async () => {
 
 test('لوحة الإدارة محمية بكلمة مرور', async () => {
   assert.equal((await api('/api/admin/list')).status, 401);
-  assert.equal((await api('/api/admin/list', undefined, { authorization: 'Basic ' + Buffer.from('a:wrong').toString('base64') })).status, 401);
+  assert.equal((await api('/api/admin/list', undefined, { authorization: 'Basic ' + Buffer.from('a:test-admin-pw').toString('base64') })).status, 401, 'الدخول القديم (Basic) ما يشتغل');
+  assert.equal((await adminLogin('admin', 'wrong')).status, 401);
+  assert.equal((await adminLogin('someone', 'test-admin-pw')).status, 401, 'اسم المستخدم لازم يكون صح');
+  const ok = await adminLogin('Admin', 'test-admin-pw');
+  assert.equal(ok.status, 200);
+  ADMIN_COOKIE = ok.cookie;
+  assert.equal((await admin('/api/admin/list')).status, 200);
+  // CSRF: طلب POST بدون الهيدر الخاص ينرفض حتى لو الكوكي صح
+  assert.equal((await api('/api/admin/settings', { price: 1 }, { cookie: ADMIN_COOKIE })).status, 403);
+  // كوكي مزوّر
+  assert.equal((await api('/api/admin/list', undefined, { cookie: ADMIN_COOKIE.slice(0, -2) + 'xx' })).status, 401);
+  // صفحة /admin بدون دخول = صفحة الدخول
+  const lp = await fetch(BASE + '/admin');
+  assert.equal(lp.status, 200);
+  assert.match(await lp.text(), /دخول لوحة التحكم/);
   assert.equal((await admin('/api/admin/list')).status, 200);
 });
 
@@ -166,7 +185,7 @@ test('ملفات الموقع تنضغط (br/gzip) إذا موجودة', async (
 });
 
 test('سكربت لوحة الإدارة سليم (بدون أخطاء صياغة)', async () => {
-  const r = await fetch(BASE + '/admin', { headers: { authorization: ADMIN } });
+  const r = await fetch(BASE + '/admin', { headers: { cookie: ADMIN_COOKIE } });
   assert.equal(r.status, 200);
   const html = await r.text();
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
@@ -274,6 +293,46 @@ test('الدومين الجديد: الرابط القديم يتحول له، �
     assert.equal(home.status, 200);
     const html = await home.text();
     if (html.includes('og:url')) assert.ok(html.includes('https://www.i3enna.qa/') && !html.includes('up.railway.app'));
+  } finally {
+    pr.kill();
+  }
+});
+
+test('رمز التحقق الثنائي (2FA) للوحة الإدارة', async () => {
+  const crypto = await import('node:crypto');
+  const SECRET_B32 = 'JBSWY3DPEHPK3PXP';
+  const code = (step = 0) => {
+    const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = '';
+    for (const c of SECRET_B32) bits += A.indexOf(c).toString(2).padStart(5, '0');
+    const key = Buffer.from(bits.match(/.{8}/g).map((b) => parseInt(b, 2)));
+    const buf = Buffer.alloc(8);
+    buf.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000) + step));
+    const h = crypto.createHmac('sha1', key).update(buf).digest();
+    const o = h[h.length - 1] & 15;
+    return String((((h[o] & 127) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3]) % 1e6).padStart(6, '0');
+  };
+  const port = PORT + 450;
+  const pr = spawn(process.execPath, ['server/index.mjs'], {
+    cwd: ROOT,
+    env: { ...process.env, PORT: String(port), DATA_DIR: dir + '-2fa', LICENSE_SECRET: 'test-secret-0123456789abcdef', ADMIN_PASSWORD: 'pw-2fa-123456789', ADMIN_USER: 'boss', ADMIN_TOTP_SECRET: SECRET_B32 },
+    stdio: 'ignore',
+  });
+  try {
+    for (let i = 0; i < 50; i++) {
+      try {
+        await fetch(`http://127.0.0.1:${port}/api/status`);
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+    const login = (body) => fetch(`http://127.0.0.1:${port}/api/admin/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    assert.match(await (await fetch(`http://127.0.0.1:${port}/admin`)).text(), /رمز التحقق/);
+    assert.equal((await login({ user: 'boss', password: 'pw-2fa-123456789' })).status, 401, 'بدون رمز');
+    assert.equal((await login({ user: 'boss', password: 'pw-2fa-123456789', code: '000000' })).status, 401);
+    assert.equal((await login({ user: 'admin', password: 'pw-2fa-123456789', code: code() })).status, 401, 'اسم غلط');
+    assert.equal((await login({ user: 'boss', password: 'pw-2fa-123456789', code: code() })).status, 200);
   } finally {
     pr.kill();
   }
