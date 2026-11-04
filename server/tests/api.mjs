@@ -194,3 +194,30 @@ test('تغيير السعر والعرض من لوحة الإدارة', async ()
   assert.equal(s2.price, 349);
   assert.equal(s2.sale, false);
 });
+
+test('الدخول برقم الجوال وكلمة المرور من جهاز ثاني', async () => {
+  const c = await admin('/api/admin/create', { name: 'دخول', price: 0 });
+  const k = c.json.created[0].code;
+  const a = await api('/api/activate', { code: k, device: 'pw-1' });
+  assert.equal(a.json.hasPw, false);
+  assert.equal((await api('/api/login', { phone: '55667788', password: 'secret1', device: 'pw-2' })).status, 401, 'قبل ما يحط كلمة مرور');
+  const bad = await api('/api/account/password', { token: a.json.token, phone: '1234', password: '12' });
+  assert.equal(bad.status, 400);
+  assert.ok(bad.json.errors.phone && bad.json.errors.password);
+  assert.equal((await api('/api/account/password', { token: 'x.y', phone: '55667788', password: 'secret1' })).status, 401);
+  const set = await api('/api/account/password', { token: a.json.token, phone: '٥٥٦٦٧٧٨٨', password: 'secret1' });
+  assert.equal(set.status, 200);
+  assert.equal(set.json.phone, '97455667788');
+  const wrong = await api('/api/login', { phone: '+974 5566 7788', password: 'nope', device: 'pw-2' });
+  assert.equal(wrong.status, 401);
+  assert.ok(wrong.json.errors.password);
+  const ok = await api('/api/login', { phone: '+974 5566 7788', password: 'secret1', device: 'pw-2' });
+  assert.equal(ok.status, 200);
+  assert.equal((await api('/api/check', { token: ok.json.token })).json.hasPw, true);
+  assert.equal((await api('/api/login', { phone: '55667788', password: 'secret1', device: 'pw-3' })).status, 403, 'حد الأجهزة يطبق');
+  const rec = (await admin('/api/admin/list')).json.list.find((r) => r.code === k);
+  assert.equal(rec.hasPw, true);
+  assert.equal(rec.pw, undefined, 'كلمة المرور ما تطلع في اللوحة');
+  await admin('/api/admin/update', { id: rec.id, action: 'resetpw' });
+  assert.equal((await api('/api/login', { phone: '55667788', password: 'secret1', device: 'pw-1' })).status, 401);
+});

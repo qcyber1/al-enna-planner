@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { DEV_LINE, OWNER_AR, OWNER_EN, OWNER_LINE } from '../lib/brand';
 import { checkEmail, checkName, parsePhone } from '../lib/buyer';
-import { KeyRound, Loader2 } from 'lucide-react';
+import { KeyRound, Loader2, LogIn } from 'lucide-react';
 
 const TOKEN_KEY = 'enna.license.token';
 const DEVICE_KEY = 'enna.license.device';
@@ -29,13 +29,18 @@ function deviceId(): string {
   }
   return d;
 }
-async function post(url: string, body: unknown): Promise<{ status: number; data: { ok?: boolean; error?: string; token?: string } }> {
+type ApiData = { ok?: boolean; error?: string; token?: string; hasPw?: boolean; phone?: string; errors?: Record<string, string> };
+async function post(url: string, body: unknown): Promise<{ status: number; data: ApiData }> {
   const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const data = await r.json().catch(() => ({}));
   return { status: r.status, data };
 }
 
-type State = 'checking' | 'locked' | 'open' | 'paid';
+type State = 'checking' | 'locked' | 'open' | 'paid' | 'setpw';
+const PW_SKIP_KEY = 'enna.pw.skip';
+/** نذكّره يحط كلمة مرور كل 3 أيام لين يحطها */
+const pwSkippedRecently = () => Date.now() - Number(get(PW_SKIP_KEY) || 0) < 3 * 86400000;
+const localPhone = (ph?: string) => (ph && ph.startsWith('974') && ph.length === 11 ? ph.slice(3) : ph || '');
 const ORDER_KEY = 'enna.order';
 const REF_KEY = 'enna.ref';
 export { TOKEN_KEY };
@@ -46,7 +51,10 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<'code' | 'buy'>('buy');
+  const [mode, setMode] = useState<'code' | 'buy' | 'login'>(() => (get(DEVICE_KEY) ? 'login' : 'buy'));
+  const [login, setLogin] = useState({ phone: '', password: '' });
+  const [loginErr, setLoginErr] = useState<{ phone?: string; password?: string }>({});
+  const [acctPhone, setAcctPhone] = useState('');
   const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean; sale?: boolean }>({ price: 349, online: false, basePrice: 349, refValid: false });
   const [buyer, setBuyer] = useState({ name: '', phone: '', email: '' });
   const [fieldErr, setFieldErr] = useState<{ name?: string | null; phone?: string | null; email?: string | null }>({});
@@ -96,6 +104,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             if (v.data.ok && code) {
               const a = await post('/api/activate', { code, device: deviceId() });
               if (a.data.ok && a.data.token) set(TOKEN_KEY, a.data.token);
+              setAcctPhone(localPhone(a.data.phone));
               set(ORDER_KEY, null);
               setPaidCode(code);
               return setState('paid');
@@ -112,7 +121,13 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       if (!token) return setState('locked');
       try {
         const { status, data } = await post('/api/check', { token });
-        if (data.ok) return setState('open');
+        if (data.ok) {
+          if (data.hasPw === false && !pwSkippedRecently()) {
+            setAcctPhone(localPhone(data.phone));
+            return setState('setpw');
+          }
+          return setState('open');
+        }
         if (status === 401 || status === 403) {
           set(TOKEN_KEY, null);
           setError(data.error || '');
@@ -134,8 +149,30 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       const { data } = await post('/api/activate', { code, device: deviceId() });
       if (data.ok && data.token) {
         set(TOKEN_KEY, data.token);
-        setState('open');
+        setAcctPhone(localPhone(data.phone));
+        setState(data.hasPw ? 'open' : 'setpw');
       } else setError(data.error || 'ما تفعّل الكود — حاول مرة ثانية');
+    } catch {
+      setError('ما قدرنا نتصل — تأكد من الإنترنت وحاول مرة ثانية');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const errs = { phone: parsePhone(login.phone).error, password: login.password ? undefined : 'اكتب كلمة المرور' };
+    setLoginErr(errs);
+    if (errs.phone || errs.password) return;
+    setBusy(true);
+    try {
+      const { data } = await post('/api/login', { ...login, device: deviceId() });
+      if (data.ok && data.token) {
+        set(TOKEN_KEY, data.token);
+        setState('open');
+      } else if (data.errors) setLoginErr(data.errors);
+      else setError(data.error || 'ما قدرنا ندخلك — حاول مرة ثانية');
     } catch {
       setError('ما قدرنا نتصل — تأكد من الإنترنت وحاول مرة ثانية');
     } finally {
@@ -175,73 +212,103 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   };
 
   if (state === 'open') return <>{children}</>;
-  if (state === 'paid')
-    return (
-      <div className="flex h-full items-center justify-center bg-dune p-4">
-        <div className="w-full max-w-sm space-y-4 rounded-2xl bg-sand-50 p-6 text-center shadow-2xl" data-testid="paid">
-          <div className="text-4xl">🎉</div>
-          <h1 className="text-xl font-bold text-dune">تم الدفع بنجاح</h1>
-          <p className="text-sm text-sand-700">هذا كود التفعيل الخاص فيك — احفظه (صوّره أو انسخه) لتستخدمه على أجهزتك الثانية:</p>
-          <div className="rounded-lg border-2 border-gold-500 bg-white p-3 font-mono text-lg font-bold tracking-wider text-dune" dir="ltr">{paidCode}</div>
-          <button type="button" onClick={() => navigator.clipboard?.writeText(paidCode).catch(() => undefined)} className="h-10 w-full rounded-lg border border-sand-300 bg-white font-semibold">نسخ الكود</button>
-          <button type="button" onClick={() => setState('open')} className="h-11 w-full rounded-lg bg-gold-500 font-bold text-dune">ابدأ تصميم عنتك ⛺</button>
-        </div>
-      </div>
-    );
   if (state === 'checking')
     return (
       <div className="flex h-full items-center justify-center bg-sand-100 text-sand-800">
         <Loader2 className="animate-spin" />
       </div>
     );
+  if (state === 'paid' || state === 'setpw')
+    return (
+      <div className="flex h-full items-center justify-center overflow-y-auto bg-dune p-4">
+        <div className="w-full max-w-md space-y-4 rounded-2xl bg-sand-50 p-6 shadow-2xl" data-testid={state}>
+          {state === 'paid' ? (
+            <div className="space-y-3 text-center">
+              <div className="text-4xl">🎉</div>
+              <h1 className="text-xl font-bold text-dune">تم الدفع بنجاح</h1>
+              <p className="text-sm text-sand-700">هذا كود التفعيل الخاص فيك — احتفظ فيه احتياط:</p>
+              <div className="rounded-lg border-2 border-gold-500 bg-white p-3 font-mono text-lg font-bold tracking-wider text-dune" dir="ltr">{paidCode}</div>
+              <button type="button" onClick={() => navigator.clipboard?.writeText(paidCode).catch(() => undefined)} className="h-10 w-full rounded-lg border border-sand-300 bg-white font-semibold">نسخ الكود</button>
+            </div>
+          ) : (
+            <div className="text-center">
+              <div className="text-3xl">🔑</div>
+              <h1 className="mt-1 text-lg font-bold text-dune">ادخل من أي جهاز بدون كود</h1>
+            </div>
+          )}
+          <SetPassword initialPhone={acctPhone} onDone={() => setState('open')} onSkip={() => { set(PW_SKIP_KEY, String(Date.now())); setState('open'); }} skipLabel={state === 'paid' ? 'بعدين — ابدأ التصميم' : 'بعدين'} />
+        </div>
+      </div>
+    );
+
+  const tabs: [typeof mode, string][] = [
+    ['buy', 'شراء'],
+    ['login', 'دخول'],
+  ];
   return (
-    <div className="flex h-full items-center justify-center bg-dune p-4">
-      <div className="w-full max-w-sm space-y-4 overflow-hidden rounded-2xl bg-sand-50 shadow-2xl" data-testid="license-gate">
-        <div className="relative">
-          <img src="./og.jpg" alt="مجسم عنة قطرية في الليل" className="aspect-[1200/630] w-full object-cover object-left" />
-          <div className="sadu-band absolute inset-x-0 bottom-0 h-1.5" />
+    <div className="h-full overflow-y-auto bg-dune">
+    <div className="flex min-h-full items-center justify-center p-4 lg:p-8">
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-sand-50 shadow-2xl md:max-w-xl lg:grid lg:max-w-5xl lg:grid-cols-[1.15fr_1fr]" data-testid="license-gate">
+        <div className="relative lg:flex lg:flex-col lg:bg-dune">
+          <img src="./og.jpg" alt="مجسم عنة قطرية في الليل" className="aspect-[1200/630] w-full object-cover object-left lg:aspect-auto lg:min-h-0 lg:flex-1" />
+          <div className="sadu-band absolute inset-x-0 bottom-0 h-1.5 lg:hidden" />
+          <div className="hidden space-y-4 p-8 text-sand-50 lg:block">
+            <div>
+              <h2 className="text-2xl font-bold">مخطط العنة ⛺</h2>
+              <p className="mt-1 text-sm text-sand-300">صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون</p>
+            </div>
+            <Features dark />
+            <p className="text-[11px] leading-relaxed text-sand-400">{DEV_LINE}<br />{OWNER_LINE}</p>
+          </div>
         </div>
-        <div className="space-y-4 px-6 pb-6">
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-dune">مخطط العنة ⛺</h1>
-          <p className="mt-1 text-sm text-sand-700">صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون</p>
-        </div>
-        <ul className="grid grid-cols-2 gap-2 text-[12px] font-semibold text-dune">
-          {[
-            ['🧊', 'مجسم 3D تتمشّى فيه'],
-            ['🌙', 'إنارة الليل قبل الشراء'],
-            ['✨', 'يولّد لك 5 أفكار توزيع'],
-            ['📐', 'المقاسات والكميات محسوبة'],
-          ].map(([i, t]) => (
-            <li key={t} className="flex items-center gap-1.5 rounded-lg bg-white px-2 py-1.5">
-              <span className="text-base">{i}</span>
-              {t}
-            </li>
-          ))}
-        </ul>
-        <div className="grid grid-cols-2 gap-1 rounded-lg bg-sand-200 p-1 text-sm font-semibold">
-          <button type="button" onClick={() => { setMode('buy'); setError(''); }} className={mode === 'buy' ? 'rounded-md bg-white py-1.5 text-dune shadow' : 'py-1.5 text-sand-700'}>شراء</button>
-          <button type="button" onClick={() => { setMode('code'); setError(''); }} className={mode === 'code' ? 'rounded-md bg-white py-1.5 text-dune shadow' : 'py-1.5 text-sand-700'}>عندي كود</button>
-        </div>
-        {mode === 'code' ? (
-          <form onSubmit={submit} className="space-y-3">
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="ENNA-XXXX-XXXX-XXXX-XXXX"
-              dir="ltr"
-              aria-label="كود التفعيل"
-              className="h-11 w-full rounded-lg border border-sand-300 bg-white px-3 text-center font-mono tracking-wider outline-none focus:border-gold-500"
-              data-testid="license-input"
-            />
-            {error && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</div>}
-            <button type="submit" disabled={busy || code.trim().length < 10} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gold-500 font-bold text-dune disabled:opacity-50">
-              {busy ? <Loader2 size={18} className="animate-spin" /> : <KeyRound size={18} />} تفعيل
-            </button>
-          </form>
-        ) : notice ? (
-          <div className="rounded-lg bg-turf-500/10 p-3 text-sm text-turf-700">{notice}</div>
-        ) : (
+        <div className="space-y-4 p-6 lg:flex lg:flex-col lg:justify-center lg:p-10">
+          <div className="text-center lg:hidden">
+            <h1 className="text-xl font-bold text-dune">مخطط العنة ⛺</h1>
+            <p className="mt-1 text-sm text-sand-700">صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون</p>
+          </div>
+          <h1 className="hidden text-center text-xl font-bold text-dune lg:block">{mode === 'buy' ? 'اشترِ مرة وحدة واستخدمه مدى الحياة' : 'أهلاً فيك من جديد 👋'}</h1>
+          <div className="lg:hidden"><Features /></div>
+          <div className="grid grid-cols-2 gap-1 rounded-lg bg-sand-200 p-1 text-sm font-semibold">
+            {tabs.map(([m, label]) => {
+              const on = m === 'buy' ? mode === 'buy' : mode !== 'buy';
+              return (
+                <button key={m} type="button" data-testid={`tab-${m}`} onClick={() => { setMode(m); setError(''); }} className={on ? 'rounded-md bg-white py-1.5 text-dune shadow' : 'py-1.5 text-sand-700'}>{label}</button>
+              );
+            })}
+          </div>
+          {mode === 'login' ? (
+            <form onSubmit={doLogin} className="space-y-2.5" data-testid="login-form">
+              <Field label="رقم الجوال" testid="login-phone" err={loginErr.phone} value={login.phone} onChange={(v) => { setLogin((l) => ({ ...l, phone: v })); if (loginErr.phone) setLoginErr((x) => ({ ...x, phone: parsePhone(v).error })); }} placeholder="رقم الجوال (مثل 55123456)" inputProps={{ inputMode: 'tel', dir: 'ltr', autoComplete: 'username' }} />
+              <Field label="كلمة المرور" testid="login-password" err={loginErr.password} value={login.password} onChange={(v) => { setLogin((l) => ({ ...l, password: v })); if (loginErr.password) setLoginErr((x) => ({ ...x, password: undefined })); }} placeholder="كلمة المرور" inputProps={{ type: 'password', dir: 'ltr', autoComplete: 'current-password' }} />
+              {error && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</div>}
+              <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gold-500 font-bold text-dune disabled:opacity-50" data-testid="login-submit">
+                {busy ? <Loader2 size={18} className="animate-spin" /> : <LogIn size={18} />} دخول
+              </button>
+              <div className="flex justify-between text-[12px]">
+                <button type="button" className="font-semibold text-gold-700 underline" onClick={() => { setMode('code'); setError(''); }} data-testid="use-code">أول مرة؟ ادخل بالكود</button>
+                <span className="text-sand-600">نسيت كلمة المرور؟ تواصل معنا</span>
+              </div>
+            </form>
+          ) : mode === 'code' ? (
+            <form onSubmit={submit} className="space-y-3">
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="ENNA-XXXX-XXXX-XXXX-XXXX"
+                dir="ltr"
+                aria-label="كود التفعيل"
+                className="h-11 w-full rounded-lg border border-sand-300 bg-white px-3 text-center font-mono tracking-wider outline-none focus:border-gold-500"
+                data-testid="license-input"
+              />
+              {error && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</div>}
+              <button type="submit" disabled={busy || code.trim().length < 10} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gold-500 font-bold text-dune disabled:opacity-50">
+                {busy ? <Loader2 size={18} className="animate-spin" /> : <KeyRound size={18} />} تفعيل
+              </button>
+              <button type="button" className="w-full text-[12px] font-semibold text-gold-700 underline" onClick={() => { setMode('login'); setError(''); }}>عندي كلمة مرور — ادخل برقم الجوال</button>
+            </form>
+          ) : notice ? (
+            <div className="rounded-lg bg-turf-500/10 p-3 text-sm text-turf-700">{notice}</div>
+          ) : (
           <form onSubmit={buy} className="space-y-2.5">
             <div className="rounded-lg bg-white p-3 text-center">
               {info.basePrice > info.price && (
@@ -285,10 +352,100 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <p className="text-center text-[11px] text-sand-600">{info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.'}</p>
             <p className="text-center text-[11px] text-sand-600" data-testid="seller-note">البائع: {OWNER_AR} ({OWNER_EN}) — وهذا الاسم اللي بيطلع في إيصال الدفع.</p>
           </form>
-        )}
+          )}
+          <p className="text-center text-[11px] leading-relaxed text-sand-500 lg:hidden" data-testid="owner-footer">{DEV_LINE}<br />{OWNER_LINE}</p>
         </div>
-        <p className="mt-3 text-center text-[11px] leading-relaxed text-sand-300" data-testid="owner-footer">{DEV_LINE}<br />{OWNER_LINE}</p>
       </div>
     </div>
+    </div>
+  );
+}
+
+const FEATURES = [
+  ['🧊', 'مجسم 3D تتمشّى فيه'],
+  ['🌙', 'إنارة الليل قبل الشراء'],
+  ['✨', 'يولّد لك 5 أفكار توزيع'],
+  ['📐', 'المقاسات والكميات محسوبة'],
+];
+function Features({ dark }: { dark?: boolean }) {
+  return (
+    <ul className={`grid grid-cols-2 gap-2 text-[12px] font-semibold ${dark ? 'text-sand-50' : 'text-dune'}`}>
+      {FEATURES.map(([i, t]) => (
+        <li key={t} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 ${dark ? 'bg-white/10' : 'bg-white'}`}>
+          <span className="text-base">{i}</span>
+          {t}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Field({ label, testid, err, value, onChange, placeholder, inputProps }: { label: string; testid: string; err?: string | null; value: string; onChange: (v: string) => void; placeholder: string; inputProps?: React.InputHTMLAttributes<HTMLInputElement> }) {
+  return (
+    <div>
+      <input
+        {...inputProps}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={label}
+        aria-invalid={!!err}
+        className={`h-10 w-full rounded-lg border bg-white px-3 text-right outline-none ${err ? 'border-red-400 focus:border-red-500' : 'border-sand-300 focus:border-gold-500'}`}
+        data-testid={testid}
+      />
+      {err && <div className="mt-1 px-1 text-[12px] text-red-700" data-testid={`${testid}-err`}>{err}</div>}
+    </div>
+  );
+}
+
+/** تعيين كلمة مرور للدخول برقم الجوال من أي جهاز */
+function SetPassword({ initialPhone, onDone, onSkip, skipLabel }: { initialPhone: string; onDone: () => void; onSkip: () => void; skipLabel: string }) {
+  const [phone, setPhone] = useState(initialPhone);
+  const [pw, setPw] = useState('');
+  const [errs, setErrs] = useState<{ phone?: string; password?: string }>({});
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState('');
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const ph = parsePhone(phone);
+    const v = { phone: ph.error, password: pw.length < 6 ? 'كلمة المرور 6 أحرف أو أرقام على الأقل' : undefined };
+    setErrs(v);
+    if (v.phone || v.password) return;
+    setBusy(true);
+    try {
+      const { data } = await post('/api/account/password', { token: get(TOKEN_KEY), phone, password: pw });
+      if (data.ok) {
+        set(PW_SKIP_KEY, null);
+        setDone(localPhone(data.phone));
+      } else if (data.errors) setErrs(data.errors);
+      else setError(data.error || 'ما انحفظت — حاول مرة ثانية');
+    } catch {
+      setError('ما قدرنا نتصل — حاول مرة ثانية');
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (done)
+    return (
+      <div className="space-y-3 text-center" data-testid="pw-done">
+        <div className="rounded-lg bg-turf-500/10 p-3 text-sm text-turf-700">
+          تم ✓ من أي جهاز ثاني: اختر «دخول» واكتب رقمك <b dir="ltr">{done}</b> وكلمة المرور.
+        </div>
+        <button type="button" onClick={onDone} className="h-11 w-full rounded-lg bg-gold-500 font-bold text-dune">ابدأ تصميم عنتك ⛺</button>
+      </div>
+    );
+  return (
+    <form onSubmit={save} className="space-y-2.5" data-testid="setpw-form">
+      <p className="text-center text-sm text-sand-700">حط كلمة مرور، وبعدها تدخل من جوالك أو اللابتوب أو أي جهاز برقم جوالك — بدون الكود.</p>
+      <Field label="رقم الجوال" testid="setpw-phone" err={errs.phone} value={phone} onChange={(v) => { setPhone(v); if (errs.phone) setErrs((x) => ({ ...x, phone: parsePhone(v).error })); }} placeholder="رقم الجوال (مثل 55123456)" inputProps={{ inputMode: 'tel', dir: 'ltr', autoComplete: 'username' }} />
+      <Field label="كلمة المرور" testid="setpw-password" err={errs.password} value={pw} onChange={(v) => { setPw(v); if (errs.password && v.length >= 6) setErrs((x) => ({ ...x, password: undefined })); }} placeholder="كلمة مرور جديدة (6 على الأقل)" inputProps={{ type: 'password', dir: 'ltr', autoComplete: 'new-password' }} />
+      {error && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</div>}
+      <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gold-500 font-bold text-dune disabled:opacity-50" data-testid="setpw-save">
+        {busy && <Loader2 size={18} className="animate-spin" />} حفظ وابدأ
+      </button>
+      <button type="button" onClick={onSkip} className="w-full text-[12px] text-sand-600 underline" data-testid="setpw-skip">{skipLabel}</button>
+    </form>
   );
 }
