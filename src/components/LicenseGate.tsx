@@ -4,6 +4,7 @@ import { checkEmail, checkName, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2, LogIn } from 'lucide-react';
 import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
+import { trackCheckout, trackPurchase, trackTrial } from '../lib/pixel';
 import { demoLeft, demoUsed, isDemo, setDemoActive, startDemo } from '../lib/demo';
 
 const TOKEN_KEY = 'enna.license.token';
@@ -53,6 +54,7 @@ interface Receipt {
   sellerAddress?: string;
   sellerCR?: string;
   sellerPhone?: string;
+  test?: boolean;
 }
 
 /** إيصال مختصر بعد الدفع (حتى لو العميل ما كتب إيميل) — ينحفظ صورة أو PDF من زر الطباعة */
@@ -169,7 +171,10 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               setAcctPhone(localPhone(a.data.phone));
               set(ORDER_KEY, null);
               setPaidCode(code);
-              setReceipt((v.data as { receipt?: Receipt }).receipt ?? null);
+              const rc = (v.data as { receipt?: Receipt }).receipt ?? null;
+              setReceipt(rc);
+              // تجربة الشراء من اللوحة ما تنحسب بيعة عند ميتا
+              if (rc && !rc.test) trackPurchase(rc.ref, rc.amount);
               return setState('paid');
             }
           } catch {
@@ -263,6 +268,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         const d = data as { ok?: boolean; error?: string; payUrl?: string; orderId?: string };
         if (d.ok && d.payUrl) {
           if (d.orderId) set(ORDER_KEY, d.orderId);
+          trackCheckout(info.price);
           window.location.href = d.payUrl;
           return;
         }
@@ -470,6 +476,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => {
+                  if (demoLeft() === 0) trackTrial();
                   startDemo();
                   setDemoActive(true);
                   setState('open');

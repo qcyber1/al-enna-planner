@@ -512,7 +512,7 @@ const server = http.createServer(async (req, res) => {
       if (failed) return send(res, 200, { ok: false, failed: true, error: 'الدفع ما تم (انلغى أو انرفضت البطاقة) — ما انخصم شي، جرّب مرة ثانية' });
       if (o.review) return send(res, 200, { ok: false, pending: true, review: true, error: 'وصلنا دفعك بس يحتاج مراجعة سريعة — تواصل معنا ونرسل لك الكود خلال دقائق' });
       if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'الدفع ما اكتمل للحين' });
-      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: orderRef(o), paymentId: o.paymentId ? '…' + String(o.paymentId).replace(/-/g, '').slice(-8).toUpperCase() : '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)', sellerAddress: db.content.sellerAddress || '', sellerCR: db.content.sellerCR || '', sellerPhone: db.content.support || '' } });
+      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: orderRef(o), paymentId: o.paymentId ? '…' + String(o.paymentId).replace(/-/g, '').slice(-8).toUpperCase() : '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)', sellerAddress: db.content.sellerAddress || '', sellerCR: db.content.sellerCR || '', sellerPhone: db.content.support || '', test: !!o.test } });
     }
 
     if (p === '/api/skipcash/webhook' && req.method === 'POST') {

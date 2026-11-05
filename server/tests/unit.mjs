@@ -92,3 +92,9 @@ test('وسوم المعاينة (Open Graph) على i3enna.qa وما فيها ر
   assert.equal(meta('og:image:width'), '1200');
   assert.match(html, /<link rel="canonical" href="https:\/\/www\.i3enna\.qa\/"/);
 });
+
+test('Meta Pixel موجود في الصفحة بالرقم الصحيح', () => {
+  const html = fs.readFileSync(path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../index.html'), 'utf8');
+  assert.match(html, /fbq\('init', '29329924966644106'\)/);
+  assert.match(html, /fbq\('track', 'PageView'\)/);
+});
