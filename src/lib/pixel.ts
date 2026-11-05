@@ -6,8 +6,9 @@ const fbq = (): Fbq | null => {
 };
 
 /** ضغط «ادفع الآن» */
-export function trackCheckout(value: number) {
-  fbq()?.('track', 'InitiateCheckout', { value, currency: 'QAR', content_name: 'Al Enna Planner — lifetime' });
+export function trackCheckout(value: number, orderId?: string) {
+  // نفس رقم الحدث اللي يرسله السيرفر (Conversions API) عشان ميتا تحسبه مرة وحدة
+  fbq()?.('track', 'InitiateCheckout', { value, currency: 'QAR', content_name: 'Al Enna Planner — lifetime' }, orderId ? { eventID: 'chk-' + orderId } : undefined);
 }
 
 /** بدأ التجربة المجانية */

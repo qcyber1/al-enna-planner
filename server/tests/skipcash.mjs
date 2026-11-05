@@ -17,6 +17,7 @@ const SECRET = 'test-key-secret-xyz';
 const CLIENT = 'client-123';
 const payments = new Map();
 let mock, proc, dir, lastSigOk = null, lastBody = null, failCreate = false;
+const metaEvents = [];
 
 before(async () => {
   mock = http.createServer((req, res) => {
@@ -38,6 +39,11 @@ before(async () => {
         payments.set(id, { statusId: 1, amount: b.amount, transactionId: b.transactionId });
         return json(200, { returnCode: 200, resultObj: { id } });
       }
+      const ev = req.url.match(/^\/v19\.0\/([^/]+)\/events\?access_token=(.+)$/);
+      if (req.method === 'POST' && ev) {
+        metaEvents.push({ pixel: ev[1], token: decodeURIComponent(ev[2]), body: JSON.parse(raw) });
+        return json(200, { events_received: 1 });
+      }
       const m = req.url.match(/^\/api\/v1\/payments\/(.+)$/);
       if (req.method === 'GET' && m) {
         if (req.headers.authorization !== CLIENT) return json(401, { errorMessage: 'no' });
@@ -51,7 +57,7 @@ before(async () => {
   dir = mkdtempSync(path.join(tmpdir(), 'enna-sc-'));
   proc = spawn(process.execPath, ['server/index.mjs'], {
     cwd: ROOT,
-    env: { ...process.env, PORT: String(PORT), DATA_DIR: dir, LICENSE_SECRET: 'test-secret-0123456789abcdef', ADMIN_PASSWORD: 'x', SKIPCASH_CLIENT_ID: CLIENT, SKIPCASH_KEY_ID: 'key-1', SKIPCASH_KEY_SECRET: SECRET, SKIPCASH_BASE_URL: `http://127.0.0.1:${MOCK}` },
+    env: { ...process.env, PORT: String(PORT), DATA_DIR: dir, LICENSE_SECRET: 'test-secret-0123456789abcdef', ADMIN_PASSWORD: 'x', SKIPCASH_CLIENT_ID: CLIENT, SKIPCASH_KEY_ID: 'key-1', SKIPCASH_KEY_SECRET: SECRET, SKIPCASH_BASE_URL: `http://127.0.0.1:${MOCK}`, META_CAPI_TOKEN: 'meta-test-token', META_GRAPH_URL: `http://127.0.0.1:${MOCK}` },
     stdio: 'ignore',
   });
   for (let i = 0; i < 50; i++) {
@@ -189,4 +195,36 @@ test('التحقق من الدفع عليه حد محاولات', async () => {
   for (let i = 0; i < 21; i++) last = await hit('10.77.0.1');
   assert.equal(last.status, 429);
   assert.equal((await hit('10.77.0.2')).status, 404, 'جهاز ثاني ما يتأثر');
+});
+
+test('Conversions API: الشراء يوصل ميتا من السيرفر بنفس رقم الحدث حق البكسل وبيانات مشفّرة', async () => {
+  const crypto = await import('node:crypto');
+  const sha = (v) => crypto.createHash('sha256').update(v).digest('hex');
+  metaEvents.length = 0;
+  const r = await fetch(BASE + '/api/checkout', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie: '_fbp=fb.1.123.456; _fbc=fb.1.123.abc', 'user-agent': 'TestPhone/1.0' },
+    body: JSON.stringify({ name: 'منصور الكبيسي', phone: '33556677', email: 'M@Example.com' }),
+  }).then((x) => x.json());
+  const id = r.payUrl.split('/pay/')[1];
+  payments.get(id).statusId = 2;
+  const v = await post('/api/checkout/verify', { orderId: r.orderId });
+  assert.equal(v.json.ok, true);
+  await new Promise((res) => setTimeout(res, 300));
+  const chk = metaEvents.find((e) => e.body.data[0].event_name === 'InitiateCheckout');
+  const buy = metaEvents.find((e) => e.body.data[0].event_name === 'Purchase');
+  assert.ok(chk && buy, 'وصل الحدثين');
+  assert.equal(chk.body.data[0].event_id, 'chk-' + r.orderId);
+  const d = buy.body.data[0];
+  assert.equal(buy.pixel, '29329924966644106');
+  assert.equal(buy.token, 'meta-test-token');
+  assert.equal(d.event_id, v.json.receipt.ref, 'نفس رقم الحدث حق البكسل (EN-…)');
+  assert.equal(d.custom_data.currency, 'QAR');
+  assert.equal(d.custom_data.value, 349);
+  assert.deepEqual(d.user_data.ph, [sha('97433556677')]);
+  assert.deepEqual(d.user_data.em, [sha('m@example.com')]);
+  assert.equal(d.user_data.fbp, 'fb.1.123.456');
+  assert.equal(d.user_data.fbc, 'fb.1.123.abc');
+  assert.equal(d.user_data.client_user_agent, 'TestPhone/1.0');
+  assert.ok(!JSON.stringify(d).includes('33556677'), 'الرقم ما ينرسل بدون تشفير');
 });

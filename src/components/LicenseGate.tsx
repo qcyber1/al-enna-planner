@@ -268,7 +268,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         const d = data as { ok?: boolean; error?: string; payUrl?: string; orderId?: string };
         if (d.ok && d.payUrl) {
           if (d.orderId) set(ORDER_KEY, d.orderId);
-          trackCheckout(info.price);
+          trackCheckout(info.price, d.orderId);
           window.location.href = d.payUrl;
           return;
         }

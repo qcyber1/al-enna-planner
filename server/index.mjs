@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { adminPage, adminLoginPage } from './admin.mjs';
 import { validateBuyer, parsePhone } from './buyer.mjs';
 import { safeJoin, readBody as readBodyRaw } from './http-utils.mjs';
+import { sendEvent, userData, metaCookies, capiEnabled } from './meta.mjs';
 import { loadDbFile, latestBackup, writeDbFile, dailyBackup } from './datastore.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
 
@@ -230,6 +231,8 @@ function markPaid(o) {
   o.codeId = cid;
   o.status = 'paid';
   o.paidAt = Date.now();
+  // ميتا: نفس رقم الحدث حق البكسل (رقم الطلب) عشان ينحسب مرة وحدة. التجربة من اللوحة ما تنرسل
+  if (capiEnabled && !o.test && o.online) void sendEvent({ name: 'Purchase', eventId: orderRef(o), value: amount, user: userData({ ...o, ...(o.meta || {}) }) });
   if (o.ref && o.ref !== cid && !db.referrals.some((r) => r.orderId === o.id)) {
     db.referrals.push({ refId: o.ref, orderId: o.id, buyer: o.name, at: Date.now(), reward: refReward(), paidOut: false });
   }
@@ -460,6 +463,9 @@ const server = http.createServer(async (req, res) => {
       const em = hasEmail ? v.email : RECEIPT_FALLBACK;
       const parts = nm.split(/\s+/);
       const order = { id: crypto.randomBytes(8).toString('hex'), no: nextOrderNo(), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'creating', online: true, ref: refId || undefined, amount: priceFor(refId) };
+      // لميتا (Conversions API): عنوان الجهاز والمتصفح وكوكيز البكسل — تنحفظ مع الطلب عشان نرسل الشراء من السيرفر
+      const mc = metaCookies(req);
+      order.meta = { ip, ua: String(req.headers['user-agent'] || '').slice(0, 400), fbp: mc.fbp, fbc: mc.fbc };
       // نحفظ الطلب قبل ما نكلم سكيب كاش: لو صار شي بعد الدفع ما يضيع الطلب
       db.orders.unshift(order);
       db.orders = db.orders.slice(0, 5000);
@@ -477,6 +483,7 @@ const server = http.createServer(async (req, res) => {
         order.paymentId = pay.paymentId;
         order.status = 'pending';
         saveDb();
+        if (capiEnabled) void sendEvent({ name: 'InitiateCheckout', eventId: 'chk-' + order.id, value: order.amount, user: userData({ ...order, ...order.meta }) });
         return send(res, 200, { ok: true, payUrl: pay.payUrl, orderId: order.id });
       } catch (e) {
         console.error('[skipcash]', e.message);

@@ -41,6 +41,7 @@ npm run dev
   - `ADMIN_PASSWORD` كلمة مرور لوحة الإدارة (16 حرف أو أكثر)، `ADMIN_USER` اسم المستخدم (افتراضي `admin`)، `ADMIN_TOTP_SECRET` اختياري لرمز Google Authenticator
   - `SITE_DOMAIN` الدومين الرسمي (مثلاً `www.i3enna.qa`): يحوّل رابط Railway والدومين بدون www له
   - `RECEIPT_EMAIL` إيميل يوصله إيصال سكيب كاش لما العميل ما يكتب إيميله
+  - ميتا (Conversions API): `META_CAPI_TOKEN` (من Events Manager) يشغّل إرسال InitiateCheckout وPurchase من السيرفر بنفس رقم حدث البكسل؛ `META_TEST_EVENT_CODE` اختياري لتبويب Test Events؛ `META_PIXEL_ID` (افتراضي بكسل مخطط العنة)
   - `PRICE` السعر بالريال (افتراضي 349)، `MAX_DEVICES` (افتراضي 3)
   - الإحالة: `REF_DISCOUNT` خصم الصديق (افتراضي 50)، `REF_REWARD` مكافأة صاحب الرابط (افتراضي 50)
   - سكيب كاش: `SKIPCASH_CLIENT_ID`، `SKIPCASH_KEY_ID`، `SKIPCASH_KEY_SECRET`، `SKIPCASH_WEBHOOK_KEY`، `SKIPCASH_ENV` (`sandbox` أو `production`)
