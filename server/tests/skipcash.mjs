@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +16,7 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const SECRET = 'test-key-secret-xyz';
 const CLIENT = 'client-123';
 const payments = new Map();
-let mock, proc, dir, lastSigOk = null, lastBody = null;
+let mock, proc, dir, lastSigOk = null, lastBody = null, failCreate = false;
 
 before(async () => {
   mock = http.createServer((req, res) => {
@@ -25,6 +25,7 @@ before(async () => {
     req.on('end', () => {
       const json = (code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
       if (req.method === 'POST' && req.url === '/api/v1/payments') {
+        if (failCreate) return json(500, { errorMessage: 'gateway down' });
         const b = JSON.parse(raw);
         lastBody = b;
         // نفس طريقة سكيب كاش: الحقول بالترتيب وأول حرف كبير
@@ -129,4 +130,63 @@ test('الإيميل اختياري: بدونه يمشي الدفع ويروح �
   const bad = await post('/api/checkout', { name: 'خالد', phone: '33445566', email: 'not-an-email' });
   assert.equal(bad.status, 400, 'إذا كتبه غلط ننبهه');
   assert.ok(bad.json.errors.email);
+});
+
+const readDb = () => JSON.parse(readFileSync(path.join(dir, 'licenses.json'), 'utf8'));
+
+test('دفعة بمبلغ أقل من سعر الطلب ما تفتح الكود — الطلب يتعلّم «يحتاج مراجعة»', async () => {
+  const r = await post('/api/checkout', { name: 'فهد', phone: '55001122' });
+  const id = r.json.payUrl.split('/pay/')[1];
+  Object.assign(payments.get(id), { statusId: 2, amount: '1.00' });
+  const v = await post('/api/checkout/verify', { orderId: r.json.orderId });
+  assert.equal(v.json.ok, false);
+  assert.equal(v.json.review, true);
+  assert.equal(v.json.code, undefined);
+  const o = readDb().orders.find((x) => x.id === r.json.orderId);
+  assert.match(o.review, /أقل/);
+  assert.notEqual(o.status, 'paid');
+});
+
+test('دفعة لطلب ثاني (رقم العملية ما يطابق) ما تفتح الكود', async () => {
+  const r = await post('/api/checkout', { name: 'بدر', phone: '55001133' });
+  const id = r.json.payUrl.split('/pay/')[1];
+  Object.assign(payments.get(id), { statusId: 2, transactionId: 'someone-else' });
+  const v = await post('/api/checkout/verify', { paymentId: id });
+  assert.equal(v.json.review, true);
+  assert.equal(v.json.code, undefined);
+});
+
+test('الطلب ينحفظ قبل الاتصال بسكيب كاش، ولو فشل الاتصال يبان في السجل', async () => {
+  failCreate = true;
+  try {
+    const r = await post('/api/checkout', { name: 'راشد', phone: '55001144' });
+    assert.equal(r.status, 502);
+  } finally {
+    failCreate = false;
+  }
+  const o = readDb().orders.find((x) => x.name === 'راشد');
+  assert.ok(o, 'الطلب محفوظ');
+  assert.equal(o.status, 'cancelled');
+  assert.match(o.lastError, /gateway down/);
+});
+
+test('طلب يدوي ما ينفتح برقم دفع يرسله العميل', async () => {
+  // دفعة مدفوعة حقيقية لطلب ثاني
+  const paidOrder = await post('/api/checkout', { name: 'سعود', phone: '55001155' });
+  const paidId = paidOrder.json.payUrl.split('/pay/')[1];
+  payments.get(paidId).statusId = 2;
+  // طلب يدوي (واتساب) بدون رقم دفع
+  await post('/api/order', { name: 'يدوي', phone: '55001166' });
+  const manual = readDb().orders.find((x) => x.name === 'يدوي');
+  const v = await post('/api/checkout/verify', { orderId: manual.id, paymentId: paidId });
+  assert.equal(v.json.ok, false);
+  assert.notEqual(readDb().orders.find((x) => x.id === manual.id).status, 'paid');
+});
+
+test('التحقق من الدفع عليه حد محاولات', async () => {
+  const hit = (ip) => fetch(BASE + '/api/checkout/verify', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': ip }, body: JSON.stringify({ orderId: 'nope' }) });
+  let last;
+  for (let i = 0; i < 21; i++) last = await hit('10.77.0.1');
+  assert.equal(last.status, 429);
+  assert.equal((await hit('10.77.0.2')).status, 404, 'جهاز ثاني ما يتأثر');
 });

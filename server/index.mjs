@@ -178,6 +178,30 @@ function priceFor(refId) {
   return refId ? Math.max(0, price() - refDiscount()) : price();
 }
 
+/**
+ * قبل ما نعتبر الطلب مدفوع: الدفعة اللي رجعت من سكيب كاش لازم تكون لنفس الطلب وبمبلغ ما يقل عن المطلوب.
+ * (المبلغ الأعلى أو بصيغة ثانية ما يوقف البيع — نوقف بس لو أقل، ونحفظ اللي رجع للمراجعة)
+ */
+function paymentProblem(o, st) {
+  if (st.transactionId && String(st.transactionId) !== String(o.id)) return 'رقم العملية من سكيب كاش ما يطابق الطلب';
+  const want = Number(o.amount ?? price());
+  if (Number.isFinite(st.amount) && st.amount > 0 && st.amount + 0.01 < want) return `المبلغ المدفوع (${st.amount}) أقل من سعر الطلب (${want})`;
+  return null;
+}
+/** يطبّق حالة الدفع اللي رجعت من سكيب كاش على الطلب */
+function applyPayment(o, st) {
+  if (Number.isFinite(st.amount)) o.skipcashAmount = st.amount;
+  if (!st.paid) return;
+  const prob = paymentProblem(o, st);
+  if (prob) {
+    o.review = prob;
+    console.error('[skipcash] ⚠ طلب يحتاج مراجعة', o.id, prob);
+    return;
+  }
+  delete o.review;
+  markPaid(o);
+}
+
 /** يعلّم الطلب مدفوعاً ويولّد كود العميل (مرة واحدة فقط) */
 function markPaid(o) {
   if (o.codeId) {
@@ -419,7 +443,11 @@ const server = http.createServer(async (req, res) => {
       const full = v.phone;
       const em = hasEmail ? v.email : RECEIPT_FALLBACK;
       const parts = nm.split(/\s+/);
-      const order = { id: crypto.randomBytes(8).toString('hex'), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'pending', online: true, ref: refId || undefined, amount: priceFor(refId) };
+      const order = { id: crypto.randomBytes(8).toString('hex'), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'creating', online: true, ref: refId || undefined, amount: priceFor(refId) };
+      // نحفظ الطلب قبل ما نكلم سكيب كاش: لو صار شي بعد الدفع ما يضيع الطلب
+      db.orders.unshift(order);
+      db.orders = db.orders.slice(0, 5000);
+      saveDb();
       try {
         const pay = await createPayment({
           uid: crypto.randomUUID(),
@@ -431,27 +459,33 @@ const server = http.createServer(async (req, res) => {
           transactionId: order.id,
         });
         order.paymentId = pay.paymentId;
-        db.orders.unshift(order);
+        order.status = 'pending';
         saveDb();
         return send(res, 200, { ok: true, payUrl: pay.payUrl, orderId: order.id });
       } catch (e) {
         console.error('[skipcash]', e.message);
+        order.status = 'cancelled';
+        order.lastError = String(e.message).slice(0, 200);
+        saveDb();
         return send(res, 502, { ok: false, error: 'ما قدرنا نفتح صفحة الدفع الحين — حاول بعد شوي' });
       }
     }
 
     if (p === '/api/checkout/verify' && req.method === 'POST') {
+      // حد محاولات: كل تحقق يكلم سكيب كاش، فما نخلي أحد يغرقه
+      if (limited('vf:' + ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
       const { paymentId, orderId } = await readBody(req);
       const o = db.orders.find((x) => (orderId && x.id === orderId) || (paymentId && x.paymentId === paymentId));
       if (!o) return send(res, 404, { ok: false, error: 'ما لقينا الطلب' });
       let failed = false;
-      if (o.status !== 'paid') {
+      // نستعلم بس برقم الدفع اللي أنشأناه نحن للطلب (ما نقبل رقم دفع يرسله العميل)
+      if (o.status !== 'paid' && o.paymentId) {
         try {
-          const st = await getPayment(o.paymentId || paymentId);
+          const st = await getPayment(o.paymentId);
           o.skipcashStatus = st.statusId;
           o.lastCheck = Date.now();
           delete o.lastError;
-          if (st.paid) markPaid(o);
+          if (st.paid) applyPayment(o, st);
           else if (st.failed) failed = true;
         } catch (e) {
           o.lastError = String(e.message).slice(0, 200);
@@ -460,6 +494,7 @@ const server = http.createServer(async (req, res) => {
         saveDb();
       }
       if (failed) return send(res, 200, { ok: false, failed: true, error: 'الدفع ما تم (انلغى أو انرفضت البطاقة) — ما انخصم شي، جرّب مرة ثانية' });
+      if (o.review) return send(res, 200, { ok: false, pending: true, review: true, error: 'وصلنا دفعك بس يحتاج مراجعة سريعة — تواصل معنا ونرسل لك الكود خلال دقائق' });
       if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'الدفع ما اكتمل للحين' });
       return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: o.id.slice(0, 8).toUpperCase(), paymentId: o.paymentId || '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)', sellerAddress: db.content.sellerAddress || '', sellerCR: db.content.sellerCR || '', sellerPhone: db.content.support || '' } });
     }
@@ -468,7 +503,10 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       if (!verifyWebhook(body, req.headers.authorization)) return send(res, 401, { ok: false });
       const o = db.orders.find((x) => x.id === body.Custom1 || x.id === body.TransactionId || x.paymentId === body.PaymentId);
-      if (o && Number(body.StatusId) === 2) markPaid(o);
+      if (o && o.status !== 'paid' && Number(body.StatusId) === 2) {
+        applyPayment(o, { paid: true, amount: Number(body.Amount), transactionId: body.TransactionId || o.id });
+        saveDb();
+      }
       return send(res, 200, { ok: true });
     }
 
@@ -647,12 +685,18 @@ const server = http.createServer(async (req, res) => {
         if (!o) return send(res, 404, { error: 'غير موجود' });
         if (status === 'check' && o.paymentId && skipcashEnabled) {
           try {
-            if ((await getPayment(o.paymentId)).paid) markPaid(o);
+            const st = await getPayment(o.paymentId);
+            o.skipcashStatus = st.statusId;
+            applyPayment(o, st);
           } catch (e) {
             console.error('[skipcash check]', e.message);
           }
         } else if (['new', 'sent', 'paid', 'cancelled'].includes(status) && o.status !== 'paid') o.status = status;
-        if (status === 'paid' && LICENSING) markPaid(o);
+        if (status === 'paid' && LICENSING) {
+          // المدير راجع الطلب بنفسه وأكد الدفع
+          delete o.review;
+          markPaid(o);
+        }
         saveDb();
         return send(res, 200, { ok: true, order: o, code: o.codeId ? db.codes[o.codeId] : null });
       }
