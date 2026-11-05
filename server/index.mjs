@@ -642,6 +642,18 @@ const server = http.createServer(async (req, res) => {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
         return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward() } });
       }
+      // تجربة شاشة ما بعد الدفع بدون سكيب كاش ولا فلوس (ما تنحسب في المبيعات)
+      if (p === '/api/admin/test-order' && req.method === 'POST') {
+        if (!LICENSING) return send(res, 400, { error: 'اضبط LICENSE_SECRET أولاً' });
+        const o = { id: crypto.randomBytes(8).toString('hex'), no: nextOrderNo(), name: 'تجربة شراء', phone: '', createdAt: Date.now(), status: 'pending', online: true, test: true, amount: price() };
+        db.orders.unshift(o);
+        markPaid(o);
+        const rec = db.codes[o.codeId];
+        rec.note = '🧪 تجربة شراء (بدون دفع)';
+        rec.test = true;
+        saveDb();
+        return send(res, 200, { ok: true, url: `/?paid=1&custom1=${o.id}`, order: o });
+      }
       // تنزيل نسخة كاملة من البيانات (للأرشفة خارج Railway) — بدون كلمات مرور العملاء
       if (p === '/api/admin/backup') {
         const safe = { ...db, codes: Object.fromEntries(Object.entries(db.codes).map(([k, r]) => [k, publicRec(r)])) };

@@ -59,7 +59,7 @@ interface Receipt {
 function ReceiptCard({ r }: { r: Receipt }) {
   const rows: [string, string][] = [
     ['رقم الطلب', r.ref],
-    ['التاريخ', new Date(r.paidAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })],
+    ['التاريخ', new Date(r.paidAt).toLocaleString('ar-QA-u-nu-latn', { dateStyle: 'long', timeStyle: 'short' })],
     ['العميل', r.name],
     ['المنتج', 'مخطط العنة — ترخيص مدى الحياة'],
     ['المبلغ المدفوع', `${r.amount} ر.ق`],
@@ -80,7 +80,16 @@ function ReceiptCard({ r }: { r: Receipt }) {
         {rows.map(([k, v]) => (
           <div key={k} className="contents">
             <dt className="text-sand-600">{k}</dt>
-            <dd className="font-semibold text-dune [overflow-wrap:anywhere]">{v}</dd>
+            <dd className="font-semibold text-dune [overflow-wrap:anywhere]">
+              {k === 'البائع' && v.includes(' (') ? (
+                <>
+                  {v.split(' (')[0]}
+                  <span className="block text-[11px] font-normal text-sand-600" dir="ltr">{v.split(' (')[1].replace(/\)$/, '')}</span>
+                </>
+              ) : (
+                <bdi>{v}</bdi>
+              )}
+            </dd>
           </div>
         ))}
       </dl>

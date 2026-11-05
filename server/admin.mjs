@@ -108,6 +108,7 @@ ${persistent ? '' : '<div class="alert warn">⚠ لم يتم ربط Volume عل�
 
 <section class="card" data-p="orders" hidden>
   <div class="card-h"><div><h3>الطلبات والمدفوعات</h3><p class="sub">الطلبات الإلكترونية تتأكد تلقائياً من سكيب كاش</p></div><small id="oc" style="color:var(--mute)"></small></div>
+  <div class="toolbar"><button id="testbuy" class="ghost" type="button">🧪 جرّب شاشة الشراء (بدون دفع)</button><small style="color:var(--mute)">تفتح نفس شاشة العميل بعد الدفع — ما تنحسب في المبيعات</small></div>
   <div class="toolbar"><input id="oq" placeholder="بحث بالاسم أو الرقم أو مرجع الدفع"><select id="of"><option value="">كل الحالات</option><option value="new">طلب جديد</option><option value="pending">بانتظار الدفع</option><option value="sent">أُرسل رابط الدفع</option><option value="paid">مدفوع</option><option value="cancelled">ملغي</option></select></div>
   <div class="toolbar"><div style="flex:1;min-width:220px"><label for="pl">رابط الدفع (للطلبات اليدوية فقط)</label><input id="pl" dir="ltr" placeholder="https://..."></div></div>
   <div class="tbl"><table><thead><tr><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th>مرجع الدفع</th><th></th></tr></thead><tbody id="ob"></tbody></table></div>
@@ -193,8 +194,8 @@ const wa=(phone,text)=>'https://wa.me/'+String(phone||'').replace(/\\D/g,'')+'?t
 const payMsg=o=>'هلا '+o.name+' 👋\\nشكراً لطلبك مخطط العنة ⛺\\nالمبلغ: '+(o.amount??PRICE)+' ر.ق — مدى الحياة\\n\\nرابط الدفع:\\n'+(pl.value||'[ضع رابط الدفع]')+'\\n\\nبعد الدفع يوصلك كود التفعيل هنا.';
 const byId=id=>list.find(r=>r.id===id);
 function stats(){
-  const paid=orders.filter(o=>o.status==='paid');
-  const manual=list.filter(r=>!orders.some(o=>o.codeId===r.id));
+  const paid=orders.filter(o=>o.status==='paid'&&!o.test);
+  const manual=list.filter(r=>!r.test&&!orders.some(o=>o.codeId===r.id));
   const rev=paid.reduce((s,o)=>s+(o.amount??PRICE),0)+manual.reduce((s,r)=>s+(r.price||0),0);
   const owed=refs.filter(r=>!r.paidOut).reduce((s,r)=>s+r.reward,0);
   const today=new Date().toDateString();
@@ -215,7 +216,7 @@ const CK=['banner','title','tagline','f1','f2','f3','f4','buyNote','support','se
 c_save.onclick=async()=>{const b={};for(const k of CK)b[k]=document.getElementById('c_'+k).value;try{await api('/api/admin/content',b);c_save.textContent='تم الحفظ ✓';setTimeout(()=>c_save.textContent='حفظ النصوص',1800)}catch(err){alert(err.message)}};
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-fb]');if(b){if(b.dataset.rm&&!confirm('حذف الملاحظة؟'))return;try{await api('/api/admin/feedback',{id:b.dataset.fb,done:b.dataset.done==='1',remove:!!b.dataset.rm});await load()}catch(err){alert(err.message)}return}const g=e.target.closest('[data-go]');if(g)go(g.dataset.go)});
 fbf.onchange=renderFb;
-function renderOrders(){const q=oq.value.trim(),fs=of.value;const rows=orders.filter(o=>(!fs||o.status===fs)&&(!q||[o.name,o.phone,o.paymentId,o.no?'EN-'+o.no:''].join(' ').includes(q)));oc.textContent=rows.length+' من '+orders.length;ob.innerHTML=rows.map(o=>{const c=o.codeId&&byId(o.codeId);const ref=o.ref?'<span class="pill p-ref">بإحالة من '+esc(byId(o.ref)?.name||o.ref)+'</span>':'';
+function renderOrders(){const q=oq.value.trim(),fs=of.value;const rows=orders.filter(o=>(!fs||o.status===fs)&&(!q||[o.name,o.phone,o.paymentId,o.no?'EN-'+o.no:''].join(' ').includes(q)));oc.textContent=rows.length+' من '+orders.length;ob.innerHTML=rows.map(o=>{const c=o.codeId&&byId(o.codeId);const ref=(o.test?'<span class="pill p-wait">🧪 تجربة</span> ':'')+(o.ref?'<span class="pill p-ref">بإحالة من '+esc(byId(o.ref)?.name||o.ref)+'</span>':'');
   const st='<span class="pill '+(o.status==='paid'?'p-paid':o.status==='cancelled'?'p-bad':'p-wait')+'">'+ST[o.status]+'</span>';
   const acts=o.status==='paid'?(c?'<a href="'+wa(c.phone,msg(c))+'" target="_blank"><button class="gold" type="button">إرسال الكود واتساب</button></a>':''):o.status==='cancelled'?'':
    (o.online?'<button class="ghost" type="button" data-o="'+o.id+'" data-s="check">تحقق من الدفع</button>':'<a href="'+wa(o.phone,payMsg(o))+'" target="_blank" data-o="'+o.id+'" data-s="sent"><button class="ghost" type="button">إرسال رابط الدفع</button></a>')+
@@ -253,10 +254,11 @@ f.onsubmit=async e=>{e.preventDefault();try{const{created}=await api('/api/admin
   out.innerHTML='<div class="new"><div>كود <b>'+esc(r.name)+'</b>: <span class="code">'+esc(r.code)+'</span></div><div class="row">'+(r.phone?'<a href="'+wa(r.phone,msg(r))+'" target="_blank"><button class="gold" type="button">إرسال واتساب</button></a>':'')+'<button class="ghost" type="button" id="cp">نسخ الرسالة</button></div></div>';
   cp.onclick=()=>navigator.clipboard.writeText(msg(r)).then(()=>cp.textContent='تم النسخ ✓');f.reset();price.value=PRICE;await load()}catch(err){alert(err.message)}};
 csv.onclick=()=>{const rows=[['رقم الطلب','التاريخ','العميل','الجوال','المبلغ','الحالة','الطريقة','بإحالة من','مرجع الدفع','الكود']];
-  for(const o of orders)rows.push([o.no?'EN-'+o.no:'',day(o.paidAt||o.createdAt),o.name,o.phone,o.amount??PRICE,ST[o.status],o.online?'سكيب كاش':'يدوي',o.ref?(byId(o.ref)?.name||o.ref):'',o.paymentId||'',o.codeId?(byId(o.codeId)?.code||''):'']);
+  for(const o of orders.filter(o=>!o.test))rows.push([o.no?'EN-'+o.no:'',day(o.paidAt||o.createdAt),o.name,o.phone,o.amount??PRICE,ST[o.status],o.online?'سكيب كاش':'يدوي',o.ref?(byId(o.ref)?.name||o.ref):'',o.paymentId||'',o.codeId?(byId(o.codeId)?.code||''):'']);
   for(const r of list)if(!orders.some(o=>o.codeId===r.id))rows.push(['',day(r.createdAt),r.name,r.phone,r.price||0,'مدفوع ✓','كود يدوي','','',r.code||'']);
   const s='\\ufeff'+rows.map(r=>r.map(c=>'"'+String(c??'').replace(/"/g,'""')+'"').join(',')).join('\\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='al-enna-sales-'+new Date().toISOString().slice(0,10)+'.csv';a.click()};
+testbuy.onclick=async()=>{try{const r=await api('/api/admin/test-order',{});window.open(r.url,'_blank');await load()}catch(err){alert(err.message)}};
 logout.onclick=async()=>{await fetch('/api/admin/logout',{method:'POST',headers:{'x-enna-admin':'1'}});location.reload()};
 load().catch(e=>alert(e.message));setInterval(()=>load().catch(()=>{}),30000);
 </script></body></html>`;

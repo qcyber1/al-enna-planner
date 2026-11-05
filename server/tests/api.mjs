@@ -462,3 +462,17 @@ test('رقم الطلب متسلسل وواضح (EN-1001…)', async () => {
   assert.ok(a.no >= 1001);
   assert.equal(b.no, a.no + 1);
 });
+
+test('تجربة شاشة الشراء من اللوحة: بدون دفع، وتطلع نفس الإيصال، وما تنحسب مبيعات', async () => {
+  assert.equal((await api('/api/admin/test-order', {})).status, 401, 'للمدير بس');
+  const r = await admin('/api/admin/test-order', {});
+  assert.equal(r.status, 200);
+  const orderId = new URL('http://x' + r.json.url).searchParams.get('custom1');
+  const v = await api('/api/checkout/verify', { orderId });
+  assert.equal(v.json.ok, true);
+  assert.match(v.json.code, /^ENNA-/);
+  assert.match(v.json.receipt.ref, /^EN-\d+$/);
+  assert.equal(r.json.order.test, true);
+  const rec = (await admin('/api/admin/list')).json.list.find((x) => x.code === v.json.code);
+  assert.equal(rec.test, true);
+});
