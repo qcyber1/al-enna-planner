@@ -95,7 +95,10 @@ let token;
 test('تفعيل كود صحيح، ورفض كود مزوّر', async () => {
   const c = await admin('/api/admin/create', { name: 'اختبار', price: 349 });
   code = c.json.created[0].code;
-  assert.match(code, /^ENNA-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+  // الشكل الجديد: ENNA + 12 حرف بثلاث مجموعات، وبدون الحروف المتلخبطة (O 0 I 1)
+  assert.match(code, /^ENNA-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
+  const k2 = (await admin('/api/admin/create', { name: 'صغير' })).json.created[0].code;
+  assert.equal((await api('/api/activate', { code: k2.toLowerCase().replace(/-/g, ' '), device: 'dev-x' })).status, 200, 'يقبل الكود بحروف صغيرة ومسافات');
   const ok = await api('/api/activate', { code, device: 'dev-1' });
   assert.equal(ok.status, 200);
   assert.ok(ok.json.token);
@@ -122,7 +125,7 @@ test('رابط الإحالة يعطي خصم 50 (السعر 299)، والإحا
   const mine = await api('/api/myref', { token: (await api('/api/activate', { code, device: 'dev-3' })).json.token });
   assert.equal(mine.status, 200);
   ref = mine.json.ref;
-  assert.equal(ref.length, 12);
+  assert.equal(ref.length, 10, 'رابط إحالة الكود الجديد أقصر (6 + 4)');
   assert.equal(mine.json.discount, 50);
   const s = await api('/api/status?ref=' + ref);
   assert.equal(s.json.refValid, true);
@@ -421,4 +424,41 @@ test('الدخولات القديمة (قبل ميزة التصفير) تظل ش
   const body = Buffer.from(JSON.stringify({ c: k.id, d: 'legacy-dev', t: Date.now() })).toString('base64url');
   const sig = crypto.createHmac('sha256', 'test-secret-0123456789abcdef').update('tok:' + body).digest().toString('base64url');
   assert.equal((await api('/api/check', { token: body + '.' + sig })).status, 200);
+});
+
+test('الأكواد القديمة (16 حرف) وروابط إحالتها تظل شغالة', async () => {
+  const crypto = await import('node:crypto');
+  const B32 = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const b32 = (buf) => {
+    let bits = 0, val = 0, out = '';
+    for (const byte of buf) {
+      val = (val << 8) | byte;
+      bits += 8;
+      while (bits >= 5) {
+        out += B32[(val >>> (bits - 5)) & 31];
+        bits -= 5;
+      }
+    }
+    return out;
+  };
+  const h = (s) => crypto.createHmac('sha256', 'test-secret-0123456789abcdef').update(s).digest();
+  const id = 'LEGACY23';
+  const raw = id + b32(h('code:' + id).subarray(0, 5));
+  const legacy = `ENNA-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}-${raw.slice(12, 16)}`;
+  const a = await api('/api/activate', { code: legacy, device: 'legacy-1' });
+  assert.equal(a.status, 200);
+  const ref = id + b32(h('ref:' + id).subarray(0, 3)).slice(0, 4);
+  assert.equal((await api('/api/status?ref=' + ref)).json.refValid, true);
+  // كود مزوّر بالشكل الجديد
+  assert.equal((await api('/api/activate', { code: 'ENNA-AAAA-BBBB-CCCC', device: 'x' })).status, 400);
+});
+
+test('رقم الطلب متسلسل وواضح (EN-1001…)', async () => {
+  const { readFileSync } = await import('node:fs');
+  await api('/api/order', { name: 'رقم طلب', phone: '55009988' });
+  await api('/api/order', { name: 'رقم طلب ثاني', phone: '55009977' });
+  const db = JSON.parse(readFileSync(path.join(dir, 'licenses.json'), 'utf8'));
+  const [b, a] = db.orders.filter((o) => o.name.startsWith('رقم طلب'));
+  assert.ok(a.no >= 1001);
+  assert.equal(b.no, a.no + 1);
 });

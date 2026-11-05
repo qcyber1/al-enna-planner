@@ -47,6 +47,10 @@ const refReward = () => setNum('refReward', envNum('REF_REWARD', 50));
 /** «السعر قبل الخصم» للعروض العامة (يطلع مشطوب) — 0 يعني ما في عرض */
 const listPrice = () => setNum('listPrice', 0);
 if (!db.referrals) db.referrals = [];
+// أرقام طلبات متسلسلة وواضحة للعميل (EN-1001، EN-1002…)
+if (!Number.isFinite(db.orderSeq)) db.orderSeq = 1000;
+const nextOrderNo = () => ++db.orderSeq;
+const orderRef = (o) => (o.no ? `EN-${o.no}` : String(o.id).slice(0, 8).toUpperCase());
 if (!db.feedback) db.feedback = [];
 if (!db.content) db.content = {};
 // نصوص صفحة الدخول اللي تتعدل من اللوحة (فاضي = النص الافتراضي)
@@ -80,18 +84,29 @@ function b32(buf) {
   return out;
 }
 const hmac = (s) => crypto.createHmac('sha256', SECRET).update(s).digest();
+// الكود الجديد: ENNA-XXXX-XXXX-XXXX (12 حرف: 6 للمعرّف + 6 توقيع ≈ 30 بت — مع حد المحاولات ما ينخمّن)
+// الأكواد القديمة (16 حرف) تظل شغالة. الحروف بدون O/0/I/1 عشان ما تتلخبط.
+const sig6 = (id) => b32(hmac('code2:' + id).subarray(0, 4)).slice(0, 6);
 function makeCode() {
-  const id = b32(crypto.randomBytes(5));
-  const sig = b32(hmac('code:' + id).subarray(0, 5));
-  const raw = id + sig;
-  return { id, code: `ENNA-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}-${raw.slice(12, 16)}` };
+  let id;
+  do id = b32(crypto.randomBytes(4)).slice(0, 6);
+  while (db.codes[id]);
+  const raw = id + sig6(id);
+  return { id, code: `ENNA-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}` };
 }
 function parseCode(input) {
   const raw = String(input || '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^ENNA/, '');
-  if (raw.length !== 16) return null;
-  const id = raw.slice(0, 8);
-  const sig = raw.slice(8);
-  const expect = b32(hmac('code:' + id).subarray(0, 5));
+  let id, sig, expect;
+  if (raw.length === 12) {
+    id = raw.slice(0, 6);
+    sig = raw.slice(6);
+    expect = sig6(id);
+  } else if (raw.length === 16) {
+    // الشكل القديم
+    id = raw.slice(0, 8);
+    sig = raw.slice(8);
+    expect = b32(hmac('code:' + id).subarray(0, 5));
+  } else return null;
   if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
   return id;
 }
@@ -168,8 +183,9 @@ function refFor(id) {
 }
 function parseRef(ref) {
   const r = String(ref || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (!LICENSING || r.length !== 12) return null;
-  const id = r.slice(0, 8);
+  // رابط الإحالة = المعرّف (6 للأكواد الجديدة أو 8 للقديمة) + 4 حروف توقيع
+  if (!LICENSING || (r.length !== 10 && r.length !== 12)) return null;
+  const id = r.slice(0, r.length - 4);
   if (refFor(id) !== r) return null;
   if (db.codes[id]?.revoked) return null;
   return id;
@@ -443,7 +459,7 @@ const server = http.createServer(async (req, res) => {
       const full = v.phone;
       const em = hasEmail ? v.email : RECEIPT_FALLBACK;
       const parts = nm.split(/\s+/);
-      const order = { id: crypto.randomBytes(8).toString('hex'), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'creating', online: true, ref: refId || undefined, amount: priceFor(refId) };
+      const order = { id: crypto.randomBytes(8).toString('hex'), no: nextOrderNo(), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'creating', online: true, ref: refId || undefined, amount: priceFor(refId) };
       // نحفظ الطلب قبل ما نكلم سكيب كاش: لو صار شي بعد الدفع ما يضيع الطلب
       db.orders.unshift(order);
       db.orders = db.orders.slice(0, 5000);
@@ -496,7 +512,7 @@ const server = http.createServer(async (req, res) => {
       if (failed) return send(res, 200, { ok: false, failed: true, error: 'الدفع ما تم (انلغى أو انرفضت البطاقة) — ما انخصم شي، جرّب مرة ثانية' });
       if (o.review) return send(res, 200, { ok: false, pending: true, review: true, error: 'وصلنا دفعك بس يحتاج مراجعة سريعة — تواصل معنا ونرسل لك الكود خلال دقائق' });
       if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'الدفع ما اكتمل للحين' });
-      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: o.id.slice(0, 8).toUpperCase(), paymentId: o.paymentId || '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)', sellerAddress: db.content.sellerAddress || '', sellerCR: db.content.sellerCR || '', sellerPhone: db.content.support || '' } });
+      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: orderRef(o), paymentId: o.paymentId ? '…' + String(o.paymentId).replace(/-/g, '').slice(-8).toUpperCase() : '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)', sellerAddress: db.content.sellerAddress || '', sellerCR: db.content.sellerCR || '', sellerPhone: db.content.support || '' } });
     }
 
     if (p === '/api/skipcash/webhook' && req.method === 'POST') {
@@ -517,7 +533,7 @@ const server = http.createServer(async (req, res) => {
       const v = validateBuyer({ name, phone }, false);
       if (v.errors) return send(res, 400, { ok: false, error: Object.values(v.errors)[0], errors: v.errors });
       const full = v.phone;
-      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), name: v.name, phone: full.slice(0, 20), createdAt: Date.now(), status: 'new', ref: refId || undefined, amount: priceFor(refId) });
+      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), no: nextOrderNo(), name: v.name, phone: full.slice(0, 20), createdAt: Date.now(), status: 'new', ref: refId || undefined, amount: priceFor(refId) });
       db.orders = db.orders.slice(0, 2000);
       saveDb();
       return send(res, 200, { ok: true });

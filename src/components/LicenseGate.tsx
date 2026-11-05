@@ -69,7 +69,7 @@ function ReceiptCard({ r }: { r: Receipt }) {
   if (r.sellerAddress) rows.push(['عنوان البائع', r.sellerAddress]);
   if (r.sellerCR) rows.push(['السجل التجاري', r.sellerCR]);
   if (r.sellerPhone) rows.push(['هاتف البائع', '+' + r.sellerPhone]);
-  if (r.paymentId) rows.splice(1, 0, ['مرجع الدفع', r.paymentId]);
+  if (r.paymentId) rows.splice(1, 0, ['مرجع سكيب كاش', r.paymentId]);
   return (
     <div className="receipt rounded-lg border border-sand-300 bg-white p-3 text-right text-[12px]" data-testid="receipt" data-no-tr dir="rtl">
       <div className="mb-1.5 flex items-center justify-between">
@@ -390,7 +390,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               <input
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="ENNA-XXXX-XXXX-XXXX-XXXX"
+                placeholder="ENNA-XXXX-XXXX-XXXX"
                 dir="ltr"
                 aria-label="كود التفعيل"
                 className="h-11 w-full rounded-lg border border-sand-300 bg-white px-3 text-center font-mono tracking-wider outline-none focus:border-gold-500"
