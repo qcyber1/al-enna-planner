@@ -485,7 +485,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
                 className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border-2 border-gold-500/60 bg-white font-semibold text-dune disabled:opacity-50"
                 data-testid="try-demo"
               >
-                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoUsed() ? 'خلصت تجربتك المجانية' : '👀 جرّب مجاناً 10 دقايق — بدون تسجيل'}
+                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoUsed() ? 'خلصت تجربتك المجانية' : '👀 جرّب مجاناً دقيقة — بدون تسجيل'}
               </button>
             )}
             {(demoOver || demoUsed()) && <div className="rounded-lg bg-gold-500/15 p-2 text-center text-[12px] text-dune" data-testid="demo-over">خلصت التجربة 🙌 اشترِ وكمّل — <b>تصميمك محفوظ</b> ويرجع لك على طول</div>}
@@ -618,7 +618,7 @@ function DemoBar({ onBuy, onEnd }: { onBuy: () => void; onEnd: () => void }) {
   }, [onEnd]);
   const m = Math.floor(left / 60000);
   const sec = Math.floor((left % 60000) / 1000);
-  const low = left < 2 * 60000;
+  const low = left < 20000;
   // ننزّل التطبيق تحت الشريط بدل ما يغطي عليه
   useEffect(() => {
     const r = document.getElementById('root');
