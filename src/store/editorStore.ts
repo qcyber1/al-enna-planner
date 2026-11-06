@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { PRESET_HOUR, clampHour, timeFromHour } from '../lib/sunclock';
 import { isDemo } from '../lib/demo';
+import { trackExportBlocked } from '../lib/pixel';
 import type {
   CameraPreset,
   Design,
@@ -527,6 +528,7 @@ export const useEditor = create<State>()((set, get) => ({
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
   requestCapture3d: (mode) => {
     if (mode !== 'thumb' && isDemo()) {
+      trackExportBlocked('image-3d');
       get().toast('التصدير متاح بعد الشراء — تصميمك ينحفظ لك 👍', 'warning');
       return;
     }

@@ -1,5 +1,6 @@
 /** Meta Pixel (إعلانات فيسبوك/إنستقرام): أحداث البيع الأساسية */
-type Fbq = (cmd: 'track' | 'trackCustom', event: string, params?: Record<string, unknown>, opts?: { eventID?: string }) => void;
+type Fbq = (cmd: 'track' | 'trackCustom' | 'init', event: string, params?: Record<string, unknown>, opts?: { eventID?: string }) => void;
+export const PIXEL_ID = '29329924966644106';
 const fbq = (): Fbq | null => {
   const f = (window as unknown as { fbq?: Fbq }).fbq;
   return typeof f === 'function' ? f : null;
@@ -26,4 +27,34 @@ export function trackPurchase(orderRef: string, value: number) {
     /* تجاهل */
   }
   fbq()?.('track', 'Purchase', { value, currency: 'QAR', content_name: 'Al Enna Planner — lifetime', content_type: 'product' }, { eventID: orderRef });
+}
+
+/**
+ * المطابقة المتقدمة: لما العميل يكتب بياناته في نموذج الدفع نعطيها للبكسل
+ * (البكسل يشفّرها SHA-256 بنفسه قبل ما ترسل) — ترفع «جودة المطابقة» في ميتا.
+ */
+export function setBuyer({ phone, email, name }: { phone?: string; email?: string; name?: string }) {
+  const ud: Record<string, string> = { country: 'qa' };
+  const ph = String(phone || '').replace(/\D/g, '');
+  if (ph) ud.ph = ph.length === 8 ? '974' + ph : ph;
+  const em = String(email || '').trim().toLowerCase();
+  if (em.includes('@')) ud.em = em;
+  const fn = String(name || '').trim().split(/\s+/)[0];
+  if (fn) ud.fn = fn.toLowerCase();
+  fbq()?.('init', PIXEL_ID, ud);
+}
+
+/** خلصت التجربة المجانية (للجمهور: جرّبوا وما اشتروا) */
+export function trackTrialEnded() {
+  fbq()?.('trackCustom', 'TrialEnded');
+}
+
+/** حاول يصدّر صورة/تقرير وهو في التجربة — أقوى مؤشر إنه يبي يشتري */
+export function trackExportBlocked(what: string) {
+  fbq()?.('trackCustom', 'ExportBlocked', { what });
+}
+
+/** ضغط «اشترِ الآن» من شريط التجربة */
+export function trackDemoBuyClick() {
+  fbq()?.('trackCustom', 'DemoBuyClick');
 }

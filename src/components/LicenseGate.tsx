@@ -1,10 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { getPlan } from '../store/editorStore';
+import { renderPlanCanvas } from '../render2d/exportImage';
 import { OWNER_AR, OWNER_LINE } from '../lib/brand';
 import { checkEmail, checkName, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2, LogIn } from 'lucide-react';
 import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
-import { trackCheckout, trackPurchase, trackTrial } from '../lib/pixel';
+import { setBuyer as pixelBuyer, trackCheckout, trackDemoBuyClick, trackPurchase, trackTrial, trackTrialEnded } from '../lib/pixel';
 import { demoLeft, demoUsed, isDemo, setDemoActive, startDemo } from '../lib/demo';
 
 const TOKEN_KEY = 'enna.license.token';
@@ -261,6 +263,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     const errs = { name: checkName(buyer.name), phone: parsePhone(buyer.phone).error ?? null, email: info.online && buyer.email.trim() ? checkEmail(buyer.email) : null };
     setFieldErr(errs);
     if (errs.name || errs.phone || errs.email) return;
+    pixelBuyer(buyer);
     setBusy(true);
     try {
       if (info.online) {
@@ -294,10 +297,12 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         {isDemo() && (
           <DemoBar
             onBuy={() => {
+              trackDemoBuyClick();
               setMode('buy');
               setState('locked');
             }}
             onEnd={() => {
+              trackTrialEnded();
               setDemoActive(false);
               setMode('buy');
               setNotice('');
@@ -421,6 +426,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <div className="rounded-lg bg-turf-500/10 p-3 text-sm text-turf-700">{notice}</div>
           ) : (
           <form onSubmit={buy} className="space-y-2.5">
+            {(demoOver || demoUsed()) && <TrialOverCard />}
             <div className="rounded-lg bg-white p-3 text-center">
               {info.basePrice > info.price && (
                 <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700" data-testid="price-badge">{info.refValid ? '🎁 وصلك خصم من صديقك' : '🔥 عرض لفترة محدودة'}</div>
@@ -472,7 +478,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gold-500 font-bold text-dune disabled:opacity-50" data-testid="buy">
               {busy && <Loader2 size={18} className="animate-spin" />} {info.online ? 'ادفع الآن (سكيب كاش)' : 'اطلب الآن'}
             </button>
-            {info.online && (
+            {info.online && !demoUsed() && (
               <button
                 type="button"
                 onClick={() => {
@@ -485,10 +491,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
                 className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border-2 border-gold-500/60 bg-white font-semibold text-dune disabled:opacity-50"
                 data-testid="try-demo"
               >
-                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoUsed() ? 'خلصت تجربتك المجانية' : '👀 جرّب مجاناً دقيقة — بدون تسجيل'}
+                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoUsed() ? 'خلصت تجربتك المجانية' : '👀 جرّب مجاناً 3 دقايق — بدون تسجيل'}
               </button>
             )}
-            {(demoOver || demoUsed()) && <div className="rounded-lg bg-gold-500/15 p-2 text-center text-[12px] text-dune" data-testid="demo-over">خلصت التجربة 🙌 اشترِ وكمّل — <b>تصميمك محفوظ</b> ويرجع لك على طول</div>}
             <p className="text-center text-[11px] text-sand-600">{info.content.buyNote || (info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.')}</p>
             <p className="text-center text-[11px] text-sand-600" data-testid="seller-note">{`البائع: ${OWNER_AR} — هالاسم يطلع في إيصال الدفع`}</p>
           </form>
@@ -618,7 +623,7 @@ function DemoBar({ onBuy, onEnd }: { onBuy: () => void; onEnd: () => void }) {
   }, [onEnd]);
   const m = Math.floor(left / 60000);
   const sec = Math.floor((left % 60000) / 1000);
-  const low = left < 20000;
+  const low = left < 30000;
   // ننزّل التطبيق تحت الشريط بدل ما يغطي عليه
   useEffect(() => {
     const r = document.getElementById('root');
@@ -646,5 +651,33 @@ function DemoBar({ onBuy, onEnd }: { onBuy: () => void; onEnd: () => void }) {
         <button type="button" onClick={onBuy} className={`rounded-full px-2.5 py-0.5 font-bold ${low ? 'bg-white text-red-700' : 'bg-dune text-sand-50'}`}>اشترِ الآن</button>
       </div>
     </>
+  );
+}
+
+/** نهاية التجربة: نعرض للعميل تصميمه هو (الناس تشتري لما تشوف شغلها محفوظ) */
+function TrialOverCard() {
+  const thumb = useMemo(() => {
+    try {
+      const plan = getPlan();
+      if (!plan.elements.length) return '';
+      return renderPlanCanvas(plan, { width: 760, footer: false, names: false, dims: false }).toDataURL('image/jpeg', 0.82);
+    } catch {
+      return '';
+    }
+  }, []);
+  const ref = useRef<HTMLDivElement>(null);
+  // على الجوال الكرت تحت الصورة والمميزات — ننزل له على طول
+  useEffect(() => {
+    const t = setTimeout(() => ref.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 150);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div ref={ref} className="scroll-mt-4 overflow-hidden rounded-xl border-2 border-gold-500 bg-white" data-testid="demo-over">
+      <div className="bg-gold-500 px-3 py-1.5 text-center text-[13px] font-bold text-dune">خلصت تجربتك 🙌 هذا تصميمك</div>
+      {thumb && <img src={thumb} alt="تصميمك في التجربة" className="max-h-56 w-full object-contain bg-sand-100" data-testid="demo-thumb" />}
+      <div className="px-3 py-2 text-center text-[12px] leading-relaxed text-dune">
+        <b>محفوظ ويرجع لك أول ما تشتري</b> — كمّل عليه، شوفه 3D بالإنارة، وصدّره للمقاول.
+      </div>
+    </div>
   );
 }

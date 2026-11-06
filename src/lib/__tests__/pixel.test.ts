@@ -33,4 +33,25 @@ describe('Meta Pixel', () => {
     const { trackPurchase } = await import('../pixel');
     expect(() => trackPurchase('EN-1', 1)).not.toThrow();
   });
+
+  it('المطابقة المتقدمة: الجوال يصير بمفتاح قطر، والإيميل بحروف صغيرة', async () => {
+    const { setBuyer, PIXEL_ID } = await import('../pixel');
+    setBuyer({ phone: '5512 3456', email: ' Ali@Mail.com ', name: 'علي العوض' });
+    expect(calls[0][0]).toBe('init');
+    expect(calls[0][1]).toBe(PIXEL_ID);
+    expect(calls[0][2]).toEqual({ country: 'qa', ph: '97455123456', em: 'ali@mail.com', fn: 'علي' });
+  });
+
+  it('أحداث مسار التجربة', async () => {
+    const { trackTrialEnded, trackExportBlocked, trackDemoBuyClick } = await import('../pixel');
+    trackTrialEnded();
+    trackExportBlocked('report');
+    trackDemoBuyClick();
+    expect(calls.map((c) => [c[0], c[1]])).toEqual([
+      ['trackCustom', 'TrialEnded'],
+      ['trackCustom', 'ExportBlocked'],
+      ['trackCustom', 'DemoBuyClick'],
+    ]);
+    expect(calls[1][2]).toEqual({ what: 'report' });
+  });
 });
