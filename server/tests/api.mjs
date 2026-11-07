@@ -476,3 +476,18 @@ test('تجربة شاشة الشراء من اللوحة: بدون دفع، وت
   const rec = (await admin('/api/admin/list')).json.list.find((x) => x.code === v.json.code);
   assert.equal(rec.test, true);
 });
+
+test('صفحة سياسة الخصوصية: بدون دخول، فيها البكسل والبائع وطريقة التواصل', async () => {
+  await admin('/api/admin/content', { support: '55667788', sellerAddress: 'الدوحة' });
+  const r = await fetch(BASE + '/privacy');
+  assert.equal(r.status, 200);
+  const html = await r.text();
+  assert.match(html, /سياسة الخصوصية/);
+  assert.match(html, /بكسل ميتا/);
+  assert.match(html, /SHA-256/);
+  assert.match(html, /نقلة لحلول المواقع/);
+  assert.match(html, /wa\.me\/97455667788/);
+  assert.match(html, /الدوحة/);
+  assert.match(html, /Privacy Policy/);
+  await admin('/api/admin/content', {});
+});

@@ -378,7 +378,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               <p className="mt-1 text-sm text-sand-300">{tagline}</p>
             </div>
             <Features dark items={feats} />
-            <p className="text-[11px] text-sand-400">{OWNER_LINE}</p>
+            <p className="text-[11px] text-sand-400">{OWNER_LINE} · <a href="/privacy" target="_blank" rel="noopener" className="underline hover:text-sand-200" data-testid="privacy-link-desk">سياسة الخصوصية</a></p>
           </div>
         </div>
         <div className="space-y-4 p-6 lg:flex lg:flex-col lg:justify-center lg:p-10">
@@ -515,7 +515,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               💬 تحتاج مساعدة؟ كلمنا واتساب
             </a>
           )}
-          <p className="text-center text-[11px] text-sand-500 lg:hidden" data-testid="owner-footer">{OWNER_LINE}</p>
+          <p className="text-center text-[11px] text-sand-500 lg:hidden" data-testid="owner-footer">{OWNER_LINE} · <a href="/privacy" target="_blank" rel="noopener" className="underline" data-testid="privacy-link">سياسة الخصوصية</a></p>
         </div>
       </div>
     </div>

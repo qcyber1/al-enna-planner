@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { adminPage, adminLoginPage } from './admin.mjs';
+import { privacyPage } from './privacy.mjs';
 import { validateBuyer, parsePhone } from './buyer.mjs';
 import { safeJoin, readBody as readBodyRaw } from './http-utils.mjs';
 import { sendEvent, userData, metaCookies, capiEnabled } from './meta.mjs';
@@ -616,6 +617,11 @@ const server = http.createServer(async (req, res) => {
       const r = bindDevice(t.c, t.d);
       if (!r.ok) return send(res, 403, r);
       return send(res, 200, { ok: true, name: r.rec.name || '', hasPw: !!r.rec.pw, phone: r.rec.phone || '' });
+    }
+
+    // ——— سياسة الخصوصية (بدون دخول) ———
+    if (p === '/privacy' && (req.method === 'GET' || req.method === 'HEAD')) {
+      return send(res, 200, privacyPage({ support: db.content.support, address: db.content.sellerAddress, cr: db.content.sellerCR }), { 'cache-control': 'public, max-age=600' });
     }
 
     // ——— الإدارة ———

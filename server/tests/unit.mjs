@@ -98,3 +98,9 @@ test('Meta Pixel موجود في الصفحة بالرقم الصحيح', () => 
   assert.match(html, /fbq\('init', '29329924966644106'\)/);
   assert.match(html, /fbq\('track', 'PageView'\)/);
 });
+
+test('خدمة العمل بدون نت ما تحفظ صفحة الخصوصية بدال الصفحة الرئيسية', () => {
+  const sw = fs.readFileSync(path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../public/sw.js'), 'utf8');
+  assert.match(sw, /url\.pathname === '\/privacy'\) return/);
+  assert.match(sw, /res\.ok && url\.pathname === '\/'/);
+});

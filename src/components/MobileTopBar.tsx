@@ -162,7 +162,7 @@ export function MobileTopBar() {
                 <HelpCircle size={19} /> المساعدة
               </button>
             </div>
-            <p className="mt-auto px-2 pt-3 text-center text-[11px] leading-relaxed text-sand-600">{DEV_LINE}<br />{OWNER_LINE}</p>
+            <p className="mt-auto px-2 pt-3 text-center text-[11px] leading-relaxed text-sand-600">{DEV_LINE}<br />{OWNER_LINE}<br /><a href="/privacy" target="_blank" rel="noopener" className="underline">سياسة الخصوصية</a></p>
           </div>
         </div>
       )}

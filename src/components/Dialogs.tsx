@@ -705,7 +705,7 @@ export function HelpDialog() {
         </table>
         <p className="mt-3 text-[12px] text-sand-600">في 3D: اسحب للدوران، العجلة للتكبير، زر الفأرة الأيمن للتحريك. وضع التجول: W A S D مع الماوس.</p>
         <p className="mt-1 text-[12px] text-sand-600">{activeDesign(useEditor.getState().project).plan.elements.length} عنصر في التصميم الحالي • يتم الحفظ تلقائياً في هذا المتصفح.</p>
-        <p className="mt-3 border-t border-sand-200 pt-2 text-[12px] text-sand-700" data-testid="owner-help"><b>{DEV_LINE}</b><br />{OWNER_LINE}</p>
+        <p className="mt-3 border-t border-sand-200 pt-2 text-[12px] text-sand-700" data-testid="owner-help"><b>{DEV_LINE}</b><br />{OWNER_LINE} · <a href="/privacy" target="_blank" rel="noopener" className="underline">سياسة الخصوصية</a></p>
       </div>
     </Modal>
   );
