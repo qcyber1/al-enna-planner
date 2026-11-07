@@ -23,7 +23,8 @@ describe('التجربة المجانية', () => {
     startDemo(1_000);
     // تبويب جديد = sessionStorage فاضي
     Object.assign(globalThis, { sessionStorage: new MemStorage() });
-    expect(demoLeft(1_000 + 60_000)).toBe(DEMO_MS - 60_000);
+    const half = Math.floor(DEMO_MS / 2);
+    expect(demoLeft(1_000 + half)).toBe(DEMO_MS - half);
     startDemo(5_000_000); // محاولة بداية ثانية ما تغيّر شي
     expect(demoLeft(1_000 + DEMO_MS + 1)).toBe(0);
   });

@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { getPlan } from '../store/editorStore';
+import { getPlan, useEditor } from '../store/editorStore';
+
+/** التجربة قصيرة (30 ثانية): نتخطى رسالة الترحيب والجولة عشان يشوف المجسم على طول */
+function skipIntro() {
+  try {
+    localStorage.setItem('enna.v1.tourDone', '1');
+  } catch {
+    /* تجاهل */
+  }
+  if (useEditor.getState().dialog === 'welcome') useEditor.getState().openDialog(null);
+}
 import { renderPlanCanvas } from '../render2d/exportImage';
 import { OWNER_AR, OWNER_LINE } from '../lib/brand';
 import { checkEmail, checkName, parsePhone } from '../lib/buyer';
@@ -191,6 +201,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       if (!token) {
         // تجربة مجانية شغالة في هالتبويب؟ نكملها
         if (demoLeft() > 0) {
+          skipIntro();
           setDemoActive(true);
           return setState('open');
         }
@@ -484,6 +495,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
                 onClick={() => {
                   if (demoLeft() === 0) trackTrial();
                   startDemo();
+                  skipIntro();
                   setDemoActive(true);
                   setState('open');
                 }}
@@ -491,7 +503,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
                 className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border-2 border-gold-500/60 bg-white font-semibold text-dune disabled:opacity-50"
                 data-testid="try-demo"
               >
-                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoUsed() ? 'خلصت تجربتك المجانية' : '👀 جرّب مجاناً 3 دقايق — بدون تسجيل'}
+                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoUsed() ? 'خلصت تجربتك المجانية' : '👀 جرّب مجاناً 30 ثانية — بدون تسجيل'}
               </button>
             )}
             <p className="text-center text-[11px] text-sand-600">{info.content.buyNote || (info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.')}</p>
@@ -623,7 +635,7 @@ function DemoBar({ onBuy, onEnd }: { onBuy: () => void; onEnd: () => void }) {
   }, [onEnd]);
   const m = Math.floor(left / 60000);
   const sec = Math.floor((left % 60000) / 1000);
-  const low = left < 30000;
+  const low = left < 10000;
   // ننزّل التطبيق تحت الشريط بدل ما يغطي عليه
   useEffect(() => {
     const r = document.getElementById('root');
