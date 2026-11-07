@@ -16,6 +16,7 @@ import { checkEmail, checkName, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2, LogIn } from 'lucide-react';
 import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
+import { track } from '../lib/stats';
 import { setBuyer as pixelBuyer, trackCheckout, trackDemoBuyClick, trackPurchase, trackTrial, trackTrialEnded } from '../lib/pixel';
 import { demoLeft, demoUsed, isDemo, setDemoActive, startDemo } from '../lib/demo';
 
@@ -205,6 +206,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           setDemoActive(true);
           return setState('open');
         }
+        track('visit');
         return setState('locked');
       }
       try {
@@ -275,6 +277,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     setFieldErr(errs);
     if (errs.name || errs.phone || errs.email) return;
     pixelBuyer(buyer);
+    track('checkout_click');
     setBusy(true);
     try {
       if (info.online) {

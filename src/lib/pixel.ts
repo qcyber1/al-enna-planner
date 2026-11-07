@@ -1,4 +1,5 @@
-/** Meta Pixel (إعلانات فيسبوك/إنستقرام): أحداث البيع الأساسية */
+/** Meta Pixel (إعلانات فيسبوك/إنستقرام): أحداث البيع الأساسية — وكل حدث ينحسب بعد في «مسار البيع» باللوحة */
+import { track } from './stats';
 type Fbq = (cmd: 'track' | 'trackCustom' | 'init', event: string, params?: Record<string, unknown>, opts?: { eventID?: string }) => void;
 export const PIXEL_ID = '29329924966644106';
 const fbq = (): Fbq | null => {
@@ -14,6 +15,7 @@ export function trackCheckout(value: number, orderId?: string) {
 
 /** بدأ التجربة المجانية */
 export function trackTrial() {
+  track('trial_start');
   fbq()?.('track', 'StartTrial', { value: 0, currency: 'QAR', predicted_ltv: 0 });
 }
 
@@ -46,15 +48,18 @@ export function setBuyer({ phone, email, name }: { phone?: string; email?: strin
 
 /** خلصت التجربة المجانية (للجمهور: جرّبوا وما اشتروا) */
 export function trackTrialEnded() {
+  track('trial_end');
   fbq()?.('trackCustom', 'TrialEnded');
 }
 
 /** حاول يصدّر صورة/تقرير وهو في التجربة — أقوى مؤشر إنه يبي يشتري */
 export function trackExportBlocked(what: string) {
+  track('export_blocked');
   fbq()?.('trackCustom', 'ExportBlocked', { what });
 }
 
 /** ضغط «اشترِ الآن» من شريط التجربة */
 export function trackDemoBuyClick() {
+  track('demo_buy_click');
   fbq()?.('trackCustom', 'DemoBuyClick');
 }

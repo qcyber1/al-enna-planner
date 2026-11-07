@@ -28,6 +28,7 @@ nav#tabs #csv{margin-top:14px;border:1px solid rgba(255,255,255,.18);justify-con
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--line)}
 .chip::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--ok)}.chip.w::before{background:var(--gold)}.chip.x::before{background:var(--bad)}
+.fs{display:grid;grid-template-columns:minmax(120px,190px) 1fr auto;gap:12px;align-items:center;font-size:13px}.fs .bar{height:26px;background:var(--gold-soft);border-radius:8px;overflow:hidden}.fs .bar i{display:block;height:100%;background:var(--gold);border-radius:8px;min-width:2px;transition:width .3s}.fs .v{font-variant-numeric:tabular-nums;white-space:nowrap;display:flex;gap:8px;align-items:baseline;min-width:150px}.fs .v small{color:var(--mute)}.fs.last .bar i{background:var(--ok)}@media(max-width:640px){.fs{grid-template-columns:1fr auto}.fs .bar{grid-column:1/-1;grid-row:2}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0;box-shadow:0 1px 2px rgba(31,26,20,.04)}
 .card-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 h3{margin:0;font-size:16px}.sub{color:var(--mute);font-size:13px;margin:4px 0 0}
@@ -68,6 +69,7 @@ tbody tr:hover{background:#fcfbf8}td small{color:var(--mute)}
   <div class="brand"><i>⛺</i><div>مخطط العنة<small>لوحة التحكم</small></div></div>
   <nav id="tabs">
     <button class="on" data-t="overview">📊 نظرة عامة</button>
+    <button data-t="funnel">📈 مسار البيع</button>
     <button data-t="orders">🧾 الطلبات <span class="n" id="n_orders"></span></button>
     <button data-t="codes">👥 العملاء</button>
     <button data-t="refs">🎁 الإحالات <span class="n" id="n_refs"></span></button>
@@ -104,6 +106,15 @@ ${persistent ? '' : '<div class="alert warn">⚠ لم يتم ربط Volume عل�
   </div>
   <div class="card"><div class="card-h"><h3>آخر الطلبات</h3><button class="ghost" type="button" data-go="orders">عرض الكل</button></div><div class="tbl"><table><thead><tr><th>العميل</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody id="ov_orders"></tbody></table></div></div>
   <div class="card"><div class="card-h"><h3>آخر الملاحظات</h3><button class="ghost" type="button" data-go="feedback">عرض الكل</button></div><div id="ov_fb"></div></div>
+</section>
+
+<section class="card" data-p="funnel" hidden>
+  <div class="card-h"><div><h3>مسار البيع</h3><p class="sub">كم شخص وصل لكل خطوة — كل شخص ينحسب مرة وحدة في اليوم. أرقامنا من موقعنا مباشرة (بدون حظر إعلانات)، وما فيها التجارب ولا أصحاب الأكواد.</p></div>
+  <select id="fd" style="max-width:150px"><option value="1">اليوم</option><option value="7" selected>آخر ٧ أيام</option><option value="30">آخر ٣٠ يوم</option><option value="90">آخر ٩٠ يوم</option></select></div>
+  <div id="fl" style="display:grid;gap:10px"></div>
+  <div id="fi" class="alert warn" style="margin-top:14px" hidden></div>
+  <h3 style="margin:22px 0 10px">يوم بيوم</h3>
+  <div class="tbl"><table><thead><tr><th>اليوم</th><th>زيارات</th><th>بدأ التجربة</th><th>خلّص التجربة</th><th>حاول يصدّر</th><th>ضغط «اشترِ»</th><th>عبّى وضغط ادفع</th><th>فتح صفحة الدفع</th><th>اشترى</th><th>الإيراد</th></tr></thead><tbody id="fb"></tbody></table></div>
 </section>
 
 <section class="card" data-p="orders" hidden>
@@ -241,8 +252,16 @@ rcsv.onclick=()=>{const rows=[['صاحب الرابط','الجوال','الكو�
   if(rows.length===1)return alert('ما في مكافآت مستحقة حالياً ✓');
   const s='\\ufeff'+rows.map(r=>r.map(c=>'"'+String(c??'').replace(/"/g,'""')+'"').join(',')).join('\\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='al-enna-referrals-due-'+new Date().toISOString().slice(0,10)+'.csv';a.click()};
-const TT={overview:['نظرة عامة','ملخص المبيعات والعملاء'],orders:['الطلبات','كل طلبات الشراء وحالة الدفع'],codes:['العملاء','الأكواد والأجهزة وكلمات المرور'],refs:['الإحالات','مين جاب عملاء ومكافآتهم'],feedback:['الملاحظات','آراء المستخدمين والفريق'],pricing:['الأسعار والعروض','السعر والخصومات'],content:['نصوص الموقع','عدّل كلام صفحة الدخول والشراء'],manual:['أكواد يدوية','هدايا وحسابات تجريبية']};
-function go(t){if(!TT[t])t='overview';for(const x of tabs.querySelectorAll('button[data-t]'))x.classList.toggle('on',x.dataset.t===t);for(const s of document.querySelectorAll('[data-p]'))s.hidden=s.dataset.p!==t;pt.textContent=TT[t][0];ps.textContent=TT[t][1];if(location.hash!=='#'+t)history.replaceState(null,'','#'+t);window.scrollTo(0,0)}
+const TT={overview:['نظرة عامة','ملخص المبيعات والعملاء'],funnel:['مسار البيع','وين يوقف الناس قبل ما يشترون'],orders:['الطلبات','كل طلبات الشراء وحالة الدفع'],codes:['العملاء','الأكواد والأجهزة وكلمات المرور'],refs:['الإحالات','مين جاب عملاء ومكافآتهم'],feedback:['الملاحظات','آراء المستخدمين والفريق'],pricing:['الأسعار والعروض','السعر والخصومات'],content:['نصوص الموقع','عدّل كلام صفحة الدخول والشراء'],manual:['أكواد يدوية','هدايا وحسابات تجريبية']};
+function go(t){if(!TT[t])t='overview';for(const x of tabs.querySelectorAll('button[data-t]'))x.classList.toggle('on',x.dataset.t===t);for(const s of document.querySelectorAll('[data-p]'))s.hidden=s.dataset.p!==t;pt.textContent=TT[t][0];ps.textContent=TT[t][1];if(t==='funnel')loadFunnel().catch(()=>{});if(location.hash!=='#'+t)history.replaceState(null,'','#'+t);window.scrollTo(0,0)}
+const FST=[['visit','👀 زار صفحة الشراء'],['trial_start','▶️ بدأ التجربة المجانية'],['trial_end','⏱ خلّص التجربة'],['demo_buy_click','🛒 ضغط «اشترِ» من التجربة'],['checkout_click','📝 عبّى بياناته وضغط ادفع'],['checkout','💳 وصل صفحة الدفع'],['purchase','✅ اشترى']];
+const pct=(a,b)=>b?Math.round(a/b*1000)/10+'%':'—';
+async function loadFunnel(){const d=await api('/api/admin/funnel?days='+fd.value);const t=d.total,top=Math.max(1,t.visit);
+fl.innerHTML=FST.map(([k,l],i)=>{const v=t[k],prev=i?t[FST[i-1][0]]:0;return '<div class="fs'+(k==='purchase'?' last':'')+'"><span>'+l+'</span><div class="bar"><i style="width:'+Math.min(100,v/top*100)+'%"></i></div><span class="v"><b>'+v+'</b><small>'+(i?pct(v,prev)+' من اللي قبله':'100%')+'</small></span></div>'}).join('')+'<div class="fs"><span>🚫 حاول يصدّر وهو بالتجربة</span><div class="bar"><i style="width:'+Math.min(100,t.export_blocked/top*100)+'%"></i></div><span class="v"><b>'+t.export_blocked+'</b><small>'+pct(t.export_blocked,t.trial_start)+' من المجرّبين</small></span></div><p class="sub" style="margin:6px 0 0">الإيراد في الفترة: <b>'+t.revenue+' ر.ق</b> — تحويل الزوار لمشترين: <b>'+pct(t.purchase,t.visit)+'</b></p>';
+let worst=null;for(let i=1;i<FST.length;i++){const a=t[FST[i-1][0]],b=t[FST[i][0]];if(a>=10){const r=b/a;if(!worst||r<worst.r)worst={r,a,from:FST[i-1][1],to:FST[i][1],lost:Math.max(0,a-b)}}}
+fi.hidden=!worst;if(worst)fi.innerHTML='💡 أكبر تسرّب: بين «'+esc(worst.from)+'» و«'+esc(worst.to)+'» — راح <b>'+worst.lost+'</b> شخص ('+pct(worst.lost,worst.a)+'). هذي الخطوة اللي لو حسّنتها تفرق أكثر شي.';
+fb.innerHTML=d.days.slice().reverse().map(r=>'<tr><td>'+r.day+'</td><td>'+r.visit+'</td><td>'+r.trial_start+'</td><td>'+r.trial_end+'</td><td>'+r.export_blocked+'</td><td>'+r.demo_buy_click+'</td><td>'+r.checkout_click+'</td><td>'+r.checkout+'</td><td><b>'+r.purchase+'</b></td><td>'+r.revenue+'</td></tr>').join('')}
+fd.onchange=()=>loadFunnel().catch(e=>alert(e.message));
 tabs.onclick=e=>{const b=e.target.closest('button[data-t]');if(b)go(b.dataset.t)};
 go(location.hash.slice(1));
 ob.onclick=async e=>{const t=e.target.closest('[data-o]');if(!t)return;

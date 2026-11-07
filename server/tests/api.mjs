@@ -491,3 +491,15 @@ test('صفحة سياسة الخصوصية: بدون دخول، فيها الب�
   assert.match(html, /Privacy Policy/);
   await admin('/api/admin/content', {});
 });
+
+test('مسار البيع: /api/track يسجّل، واللوحة بس للأدمن', async () => {
+  const r = await api('/api/track', { e: 'visit', sid: 'test-sid-123456' });
+  assert.equal(r.status, 204);
+  await api('/api/track', { e: 'visit', sid: 'test-sid-123456' });
+  assert.equal((await api('/api/track', { e: 'nope', sid: 'test-sid-123456' })).status, 204);
+  assert.equal((await api('/api/admin/funnel')).status, 401);
+  const f = await admin('/api/admin/funnel?days=1');
+  assert.equal(f.status, 200);
+  assert.equal(f.json.total.visit, 1);
+  assert.equal(f.json.days.length, 1);
+});

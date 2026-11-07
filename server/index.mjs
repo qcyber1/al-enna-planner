@@ -8,6 +8,7 @@ import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { adminPage, adminLoginPage } from './admin.mjs';
 import { privacyPage } from './privacy.mjs';
+import { recordEvent, funnelSummary } from './funnel.mjs';
 import { validateBuyer, parsePhone } from './buyer.mjs';
 import { safeJoin, readBody as readBodyRaw } from './http-utils.mjs';
 import { sendEvent, userData, metaCookies, capiEnabled } from './meta.mjs';
@@ -60,6 +61,16 @@ const CONTENT_KEYS = { banner: 120, title: 40, tagline: 140, f1: 40, f2: 40, f3:
 const cleanText = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 let lastBackupDay = '';
+// أحداث مسار البيع كثيرة: نجمع الحفظ كل 5 ثواني بدل كل طلب
+let saveTimer = null;
+function saveDbSoon() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    saveDb();
+  }, 5000);
+  saveTimer.unref?.();
+}
 function saveDb() {
   try {
     writeDbFile(DATA_FILE, db);
@@ -246,12 +257,12 @@ setInterval(() => {
   const now = Date.now();
   for (const [k, a] of attempts) if (!a.some((t) => now - t < 10 * 60 * 1000)) attempts.delete(k);
 }, 10 * 60 * 1000).unref();
-function limited(ip) {
+function limited(ip, max = 20) {
   const now = Date.now();
   const a = (attempts.get(ip) || []).filter((t) => now - t < 10 * 60 * 1000);
   a.push(now);
   attempts.set(ip, a);
-  return a.length > 20;
+  return a.length > max;
 }
 
 // ——— أدوات HTTP ———
@@ -619,6 +630,14 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true, name: r.rec.name || '', hasPw: !!r.rec.pw, phone: r.rec.phone || '' });
     }
 
+    // ——— مسار البيع: حدث مجهول من المتصفح (زيارة، تجربة…) ———
+    if (p === '/api/track' && req.method === 'POST') {
+      if (limited('tr:' + ip, 120)) return send(res, 429, { ok: false });
+      const { e, sid } = await readBody(req);
+      if (recordEvent(db, String(e || ''), sid)) saveDbSoon();
+      return send(res, 204, '');
+    }
+
     // ——— سياسة الخصوصية (بدون دخول) ———
     if (p === '/privacy' && (req.method === 'GET' || req.method === 'HEAD')) {
       return send(res, 200, privacyPage({ support: db.content.support, address: db.content.sellerAddress, cr: db.content.sellerCR }), { 'cache-control': 'public, max-age=600' });
@@ -651,6 +670,10 @@ const server = http.createServer(async (req, res) => {
       // حماية CSRF: أوامر اللوحة لازم تجي من صفحة اللوحة نفسها
       if (req.method === 'POST' && req.headers['x-enna-admin'] !== '1') return send(res, 403, { error: 'طلب مرفوض' });
       if (p === '/admin') return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }));
+      if (p === '/api/admin/funnel') {
+        const days = Math.min(90, Math.max(1, Number(url.searchParams.get('days')) || 7));
+        return send(res, 200, funnelSummary(db, days));
+      }
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
         return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward() } });

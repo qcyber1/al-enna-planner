@@ -38,6 +38,7 @@ ul{padding-inline-start:22px;margin:6px 0}li{margin:4px 0}a{color:#8a6420}
 
 <h2>الإعلانات وقياسها (بكسل ميتا)</h2>
 <p>نستخدم «بكسل ميتا» وواجهة التحويلات (Conversions API) من شركة Meta لقياس أداء إعلاناتنا على فيسبوك وإنستقرام وتحسينها. نجمع بهالطريقة معلومات عن زيارتك للموقع: الصفحات اللي فتحتها، وبدء التجربة، وبدء الدفع، وإتمام الشراء، وعنوان الجهاز ونوع المتصفح. ولما تشتري، نرسل رقم جوالك وإيميلك واسمك الأول <b>مشفّرة (SHA-256)</b> لميتا عشان تربط الشراء بالإعلان، و<b>ما نبيع بياناتك لأي جهة</b>. تقدر توقف هالتتبع من إعدادات الإعلانات في حسابك على فيسبوك أو إنستقرام، أو من إعدادات الخصوصية في جوالك أو متصفحك.</p>
+<p><b>إحصائيات داخلية مجهولة:</b> نعدّ كم شخص زار صفحة الشراء أو جرّب أو بدأ الدفع، باستخدام رقم عشوائي في متصفحك (مو اسمك ولا جوالك ولا عنوان جهازك) — عشان نعرف وين نحسّن الموقع. هالأرقام ما تطلع برا موقعنا، وتنمسح بعد 90 يوم.</p>
 
 <h2>الكوكيز والتخزين في المتصفح</h2>
 <p>نحفظ في متصفحك: تصاميمك، وحالة تسجيل الدخول، واللغة. وبكسل ميتا يحط كوكيز خاصة فيه (<span dir="ltr">_fbp / _fbc</span>) للقياس.</p>
@@ -76,6 +77,7 @@ ul{padding-inline-start:22px;margin:6px 0}li{margin:4px 0}a{color:#8a6420}
 </ul>
 <h2>Advertising measurement (Meta Pixel)</h2>
 <p>We use the Meta Pixel and Conversions API to measure and improve our ads on Facebook and Instagram. This collects information about your visit (pages viewed, trial started, checkout started, purchase completed, device IP address and browser type). When you purchase, your phone number, email and first name are sent to Meta in <b>hashed form (SHA-256)</b> to match the purchase to an ad; we never sell your data. You can opt out via your Facebook/Instagram ad settings or your device/browser privacy settings.</p>
+<p><b>Anonymous internal stats:</b> we count how many people visit the purchase page, start the trial or begin checkout using a random ID in your browser (not your name, phone or IP address) to improve the site. These numbers stay on our server and are deleted after 90 days.</p>
 <h2>Cookies &amp; local storage</h2>
 <p>We store your designs, sign-in state and language in your browser. The Meta Pixel sets its own cookies (_fbp / _fbc).</p>
 <h2>Sharing</h2>
