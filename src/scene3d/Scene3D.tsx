@@ -495,7 +495,7 @@ export default function Scene3D() {
       >
         <WorldContext.Provider value={w}>
           <SceneLighting time={time} hour={hour} land={plan.land} size={size} />
-          {false && quality !== 'low' && <SkyReflections night={night} />}
+          {quality !== 'low' && !night && <SkyReflections night={false} />}
           <Ground3D land={plan.land} w={w} />
           <Fence3D land={plan.land} w={w} />
           <Surroundings3D land={plan.land} w={w} />
