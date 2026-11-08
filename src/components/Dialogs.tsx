@@ -661,6 +661,7 @@ export function ShareDialog() {
     if (r === 'downloaded' && mode === 'share') toast('تم تنزيل الصورة — أرسلها في قروب الواتساب', 'success');
     else if (r !== 'cancelled') toast('تم تصدير صورة المخطط', 'success');
   };
+  const sheetOn = useMemo(() => izbaEnabled(), []);
   const exportSheet = async () => {
     if (demoBlock('plan-sheet')) return;
     // صورة 3D: آخر رندر واقعي، وإلا آخر لقطة محفوظة للتصميم
@@ -714,7 +715,7 @@ export function ShareDialog() {
           <Toggle label="مع خريطة الإضاءة الليلية" checked={lightMap} onChange={setLightMap} />
           <Button variant="primary" className="w-full" onClick={() => export3d('share')} data-testid="export-3d"><Box size={16} /> صورة المشهد 3D (الزاوية الحالية)</Button>
           <Button className="w-full" onClick={() => openDialog('compare')}><ImageIcon size={16} /> صورة مقارنة التصاميم</Button>
-          <Button className="w-full" onClick={() => void exportSheet()} data-testid="export-sheet">📐 المخطط الاحترافي A3 (للطباعة والمقاول)</Button>
+          {sheetOn && <Button className="w-full" onClick={() => void exportSheet()} data-testid="export-sheet">📐 المخطط الاحترافي A3 (للطباعة والمقاول)</Button>}
         </div>
         <div className="space-y-2 rounded-xl border border-sand-200 bg-white p-4">
           <h3 className="font-bold text-dune">رابط مشاركة</h3>

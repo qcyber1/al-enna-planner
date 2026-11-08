@@ -2,6 +2,9 @@ import type { MutableRefObject } from 'react';
 import { Camera, Sparkles, Eye, Footprints, DoorOpen, Tent, Plane, Box, ArrowUp, ArrowDown, RotateCcw, RotateCw, X } from 'lucide-react';
 import { useEditor } from '../store/editorStore';
 import { startPhoto, usePhoto } from './PhotoRender';
+import { izbaEnabled } from '../lib/izba';
+
+const BETA = izbaEnabled();
 import type { CameraPreset } from '../types/plan';
 import { IconButton, Segmented } from '../components/ui';
 import { HOUR_MAX, HOUR_MIN, SUNSET, formatHour } from '../lib/sunclock';
@@ -47,7 +50,7 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
           <Camera size={17} />
         </IconButton>
       </div>
-      {!walking && !photoBusy && (
+      {BETA && !walking && !photoBusy && (
         <button
           type="button"
           onClick={startPhoto}

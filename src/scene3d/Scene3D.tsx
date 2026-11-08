@@ -11,6 +11,7 @@ import { collectEmitters } from '../lib/lighting';
 import { WorldContext, type WorldInfo } from './world';
 import { Ground3D, Fence3D, SceneLighting } from './Environment3D';
 import { renderScene, SceneEffects, SkyReflections } from './Effects3D';
+import { izbaEnabled } from '../lib/izba';
 import { PhotoOverlay, PhotoTracer, usePhoto } from './PhotoRender';
 import { Tent3D } from './Tent3D';
 import {
@@ -39,6 +40,8 @@ import { withWatermark } from '../render2d/watermark';
 import { safeFileName, shareOrDownload, stamp } from '../lib/files';
 import { saveThumbs } from '../lib/storage';
 
+/** الرندر الجديد (المؤثرات والرندر الواقعي) تحت التجربة: يطلع مع رابط ?izba=1 بس */
+const BETA = izbaEnabled() || new URLSearchParams(window.location.search).has('promo');
 const BUDGET = { low: 8, medium: 20, high: 40 };
 const MOBILE_BUDGET = { low: 6, medium: 12, high: 24 };
 const PROMO = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('promo');
@@ -497,7 +500,7 @@ export default function Scene3D() {
       >
         <WorldContext.Provider value={w}>
           <SceneLighting time={time} hour={hour} land={plan.land} size={size} />
-          {quality !== 'low' && !night && <SkyReflections night={false} />}
+          {BETA && quality !== 'low' && !night && <SkyReflections night={false} />}
           <Ground3D land={plan.land} w={w} />
           <Fence3D land={plan.land} w={w} />
           <Surroundings3D land={plan.land} w={w} />
@@ -519,14 +522,14 @@ export default function Scene3D() {
           {walking && <WalkControls plan={plan} w={w} move={move} />}
           {!walking && <DragController grab={grab} />}
           <CaptureHandler />
-          {!PROMO && !photoOn && <SceneEffects quality={quality} night={night} mobile={MOBILE} />}
-          <PhotoTracer time={time} />
+          {BETA && !PROMO && !photoOn && <SceneEffects quality={quality} night={night} mobile={MOBILE} />}
+          {BETA && <PhotoTracer time={time} />}
           <AutoThumb />
         </WorldContext.Provider>
       </Canvas>
       {!ready && <div className="absolute inset-0 flex items-center justify-center text-sand-800">جاري تجهيز المشهد ثلاثي الأبعاد…</div>}
       <Camera3DOverlay move={move} />
-      <PhotoOverlay />
+      {BETA && <PhotoOverlay />}
       {!walking && (
         <div className="pointer-events-none absolute inset-0">
           <SelectionBar />
