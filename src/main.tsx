@@ -9,11 +9,12 @@ import App from './App';
 import { LicenseGate } from './components/LicenseGate';
 import { useEditor } from './store/editorStore';
 import { useViewport } from './editor2d/viewport';
+import { usePhoto } from './scene3d/photoStore';
 import { getLang, initI18n } from './lib/i18n';
 
 // وضع تصوير الفيديو التسويقي (?promo)
 if (new URLSearchParams(window.location.search).has('promo')) {
-  (window as unknown as Record<string, unknown>).__enna = { useEditor, useViewport };
+  (window as unknown as Record<string, unknown>).__enna = { useEditor, useViewport, usePhoto };
 }
 
 // العمل بدون إنترنت + «أضف للشاشة الرئيسية» (في النسخة المنشورة فقط)
