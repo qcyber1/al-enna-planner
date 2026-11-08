@@ -77,7 +77,12 @@ export function PhotoTracer({ time }: { time: TimeOfDay }) {
       usePhoto.getState().fail();
     }
     return () => {
-      tracer?.dispose();
+      // تنظيف المكتبة أحياناً يطيح (نسخة 0.0.23) — ما نخليه يطيّح الصفحة
+      try {
+        tracer?.dispose();
+      } catch {
+        /* تجاهل */
+      }
       pt.current = null;
       for (const o of hidden) o.visible = true;
       scene.environment = prev.env;
