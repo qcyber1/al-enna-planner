@@ -19,9 +19,10 @@ export { usePhoto };
 
 /** ألوان السماء حسب الوقت (الضوء المحيط في المحاكاة) */
 function skyFor(time: TimeOfDay): { top: string; bottom: string; exp: number; strength: number } {
-  if (time === 'night') return { top: '#0b1428', bottom: '#120e0a', exp: 1.5, strength: 0.25 };
-  if (time === 'sunset') return { top: '#e9a978', bottom: '#d8b48a', exp: 1.2, strength: 0.9 };
-  return { top: '#8db8ea', bottom: '#eadbb8', exp: 1.4, strength: 1 };
+  // السماء ضوء محيط خفيف — الشمس هي اللي تعطي الظلال الواضحة (لو السماء قوية تصير «غايمة»)
+  if (time === 'night') return { top: '#0b1428', bottom: '#120e0a', exp: 1.5, strength: 0.12 };
+  if (time === 'sunset') return { top: '#e9a978', bottom: '#d8b48a', exp: 1.2, strength: 0.3 };
+  return { top: '#8db8ea', bottom: '#eadbb8', exp: 1.4, strength: 0.35 };
 }
 
 /** داخل الـ Canvas: يشغّل المحاكاة لما الحالة «preparing/rendering» */
