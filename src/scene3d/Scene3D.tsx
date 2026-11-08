@@ -10,6 +10,7 @@ import { isLightKind, isTentKind } from '../lib/catalog';
 import { collectEmitters } from '../lib/lighting';
 import { WorldContext, type WorldInfo } from './world';
 import { Ground3D, Fence3D, SceneLighting } from './Environment3D';
+import { renderScene, SceneEffects, SkyReflections } from './Effects3D';
 import { Tent3D } from './Tent3D';
 import {
   BBQ3D,
@@ -392,7 +393,7 @@ function CaptureHandler() {
       first.current = false;
       return;
     }
-    gl.render(scene, camera);
+    renderScene(() => gl.render(scene, camera));
     const st = useEditor.getState();
     const design = activeDesign(st.project);
     if (capture.mode === 'thumb') {
@@ -484,7 +485,7 @@ export default function Scene3D() {
   return (
     <div className="relative h-full w-full bg-[#cfd9e3]" data-testid="scene-3d">
       <Canvas
-        shadows
+        shadows="soft"
         dpr={PROMO ? 1 : MOBILE ? [1, 1.5] : [1, 2]}
         frameloop={PROMO ? 'demand' : 'always'}
         gl={{ preserveDrawingBuffer: true, antialias: true }}
@@ -494,6 +495,7 @@ export default function Scene3D() {
       >
         <WorldContext.Provider value={w}>
           <SceneLighting time={time} hour={hour} land={plan.land} size={size} />
+          {false && quality !== 'low' && <SkyReflections night={night} />}
           <Ground3D land={plan.land} w={w} />
           <Fence3D land={plan.land} w={w} />
           <Surroundings3D land={plan.land} w={w} />
@@ -515,6 +517,7 @@ export default function Scene3D() {
           {walking && <WalkControls plan={plan} w={w} move={move} />}
           {!walking && <DragController grab={grab} />}
           <CaptureHandler />
+          {!PROMO && <SceneEffects quality={quality} night={night} mobile={MOBILE} />}
           <AutoThumb />
         </WorldContext.Provider>
       </Canvas>
