@@ -1,6 +1,7 @@
 import type { MutableRefObject } from 'react';
-import { Camera, Eye, Footprints, DoorOpen, Tent, Plane, Box, ArrowUp, ArrowDown, RotateCcw, RotateCw, X } from 'lucide-react';
+import { Camera, Sparkles, Eye, Footprints, DoorOpen, Tent, Plane, Box, ArrowUp, ArrowDown, RotateCcw, RotateCw, X } from 'lucide-react';
 import { useEditor } from '../store/editorStore';
+import { startPhoto, usePhoto } from './PhotoRender';
 import type { CameraPreset } from '../types/plan';
 import { IconButton, Segmented } from '../components/ui';
 import { HOUR_MAX, HOUR_MIN, SUNSET, formatHour } from '../lib/sunclock';
@@ -26,6 +27,7 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
   const setHour = useEditor((s) => s.setHour);
   const capture = useEditor((s) => s.requestCapture3d);
   const walking = preset === 'walk';
+  const photoBusy = usePhoto((s) => s.status !== 'idle');
   const hold = (k: 'f' | 's' | 'turn', v: number) => ({
     onPointerDown: () => (move.current[k] = v),
     onPointerUp: () => (move.current[k] = 0),
@@ -45,6 +47,17 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
           <Camera size={17} />
         </IconButton>
       </div>
+      {!walking && !photoBusy && (
+        <button
+          type="button"
+          onClick={startPhoto}
+          title="رندر واقعي: صورة كأنها مصوّرة (محاكاة حقيقية للضوء)"
+          data-testid="photo-render"
+          className="pointer-events-auto absolute bottom-3 left-3 flex h-11 items-center gap-1.5 rounded-xl bg-gradient-to-l from-gold-500 to-gold-600 px-4 text-sm font-bold text-white shadow-lg hover:brightness-105"
+        >
+          <Sparkles size={17} /> رندر واقعي
+        </button>
+      )}
       {!walking && (
         <div className="pointer-events-auto absolute top-[3.6rem] right-2 w-52 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs shadow" data-testid="hour-slider">
           <div className="flex items-center justify-between gap-2">

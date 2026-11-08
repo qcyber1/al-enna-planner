@@ -11,6 +11,7 @@ import { collectEmitters } from '../lib/lighting';
 import { WorldContext, type WorldInfo } from './world';
 import { Ground3D, Fence3D, SceneLighting } from './Environment3D';
 import { renderScene, SceneEffects, SkyReflections } from './Effects3D';
+import { PhotoOverlay, PhotoTracer, usePhoto } from './PhotoRender';
 import { Tent3D } from './Tent3D';
 import {
   BBQ3D,
@@ -452,6 +453,7 @@ export default function Scene3D() {
   const hour = useEditor((s) => s.hour);
   const lightsMaster = useEditor((s) => s.lightsMaster);
   const quality = useEditor((s) => s.lightQuality);
+  const photoOn = usePhoto((s) => s.status === 'preparing' || s.status === 'rendering');
   const selection = useEditor((s) => s.selection);
   const showSafety = useEditor((s) => s.overlays.safety);
   const preset = useEditor((s) => s.camera.preset);
@@ -517,12 +519,14 @@ export default function Scene3D() {
           {walking && <WalkControls plan={plan} w={w} move={move} />}
           {!walking && <DragController grab={grab} />}
           <CaptureHandler />
-          {!PROMO && <SceneEffects quality={quality} night={night} mobile={MOBILE} />}
+          {!PROMO && !photoOn && <SceneEffects quality={quality} night={night} mobile={MOBILE} />}
+          <PhotoTracer time={time} />
           <AutoThumb />
         </WorldContext.Provider>
       </Canvas>
       {!ready && <div className="absolute inset-0 flex items-center justify-center text-sand-800">جاري تجهيز المشهد ثلاثي الأبعاد…</div>}
       <Camera3DOverlay move={move} />
+      <PhotoOverlay />
       {!walking && (
         <div className="pointer-events-none absolute inset-0">
           <SelectionBar />
