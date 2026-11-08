@@ -1,49 +1,37 @@
 // تحسين الرندر: ظلال الزوايا (AO)، توهج الأنوار بالليل، حواف ناعمة، وانعكاسات السماء
 // الجودة تتبع إعداد «جودة الإنارة»: منخفضة = بدون مؤثرات (للأجهزة الضعيفة)
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type JSX } from 'react';
 import { Environment, Lightformer } from '@react-three/drei';
 import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, SMAA, ToneMapping, Vignette } from '@react-three/postprocessing';
 import { ToneMappingMode, type EffectComposer as Composer } from 'postprocessing';
 import type { LightQuality } from '../store/editorStore';
-
-/** دالة رسم المشهد مع المؤثرات (للتصدير) — تنضبط لما المؤثرات شغالة */
-let renderWithFx: (() => boolean) | null = null;
-export function renderScene(fallback: () => void) {
-  if (!renderWithFx?.()) fallback();
-}
+import { setFxRenderer } from './photoStore';
 
 export function SceneEffects({ quality, night, mobile }: { quality: LightQuality; night: boolean; mobile: boolean }) {
   const composer = useRef<Composer>(null);
   useEffect(() => {
-    renderWithFx = () => {
+    setFxRenderer(() => {
       if (!composer.current) return false;
       composer.current.render();
       return true;
-    };
-    return () => {
-      renderWithFx = null;
-    };
+    });
+    return () => setFxRenderer(null);
   }, []);
   if (quality === 'low') return null;
   const high = quality === 'high' && !mobile;
+  // نبني السلسلة حسب الحاجة: التوهج بالليل بس، وعلى الجوال بدون تنعيم الحواف (الدقة عالية أصلاً)
+  const fx: JSX.Element[] = [
+    <N8AO key="ao" halfRes={!high} aoRadius={night ? 1.2 : 2.2} distanceFalloff={1} intensity={night ? 1.4 : 2.4} color="#2b1d12" quality={high ? 'high' : 'performance'} />,
+  ];
+  if (night) fx.push(<Bloom key="bloom" mipmapBlur intensity={1.1} luminanceThreshold={0.55} luminanceSmoothing={0.2} radius={0.7} />);
+  fx.push(<ToneMapping key="tm" mode={ToneMappingMode.ACES_FILMIC} />);
+  // تدريج ألوان خفيف مثل برامج الرندر المعماري: تباين وتشبع أعلى شوي
+  fx.push(<BrightnessContrast key="bc" brightness={night ? 0 : -0.05} contrast={night ? 0.05 : 0.14} />, <HueSaturation key="hs" saturation={night ? 0.05 : 0.14} />);
+  fx.push(<Vignette key="vg" eskil={false} offset={0.25} darkness={night ? 0.55 : 0.32} />);
+  if (!mobile) fx.push(<SMAA key="aa" />);
   return (
     <EffectComposer ref={composer} multisampling={0} enableNormalPass={false}>
-      <N8AO
-        halfRes={!high}
-        aoRadius={night ? 1.2 : 2.2}
-        distanceFalloff={1}
-        intensity={night ? 1.4 : 2.4}
-        color="#2b1d12"
-        quality={high ? 'high' : 'performance'}
-      />
-      {/* التوهج بالليل بس: بالنهار يغبّش الرمل */}
-      <Bloom mipmapBlur intensity={night ? 1.1 : 0} luminanceThreshold={0.55} luminanceSmoothing={0.2} radius={0.7} />
-      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      {/* تدريج ألوان خفيف مثل برامج الرندر المعماري: تباين وتشبع أعلى شوي */}
-      <BrightnessContrast brightness={night ? 0 : -0.05} contrast={night ? 0.05 : 0.14} />
-      <HueSaturation saturation={night ? 0.05 : 0.14} />
-      <Vignette eskil={false} offset={0.25} darkness={night ? 0.55 : 0.32} />
-      <SMAA />
+      {fx}
     </EffectComposer>
   );
 }

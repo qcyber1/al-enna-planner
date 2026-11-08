@@ -278,6 +278,8 @@ function send(res, status, data, headers = {}) {
 /** جسم الطلب كـ JSON — الجسم الكبير (أكثر من 100KB) يرجع {} فيرفضه التحقق العادي بدل ما يعلّق الطلب */
 async function readBody(req) {
   const b = await readBodyRaw(req);
+  // جسم مب كائن (null أو رقم أو مصفوفة) = فاضي، عشان ما يطيح الطلب بخطأ 500
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return {};
   return b.__tooLarge ? {} : b;
 }
 // ——— دخول لوحة الإدارة: اسم مستخدم + كلمة مرور (+ رمز 2FA اختياري) وجلسة بكوكي آمن ———

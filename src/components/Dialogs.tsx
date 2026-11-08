@@ -672,9 +672,15 @@ export function ShareDialog() {
       photo.src = src;
       await photo.decode().catch(() => (photo = null));
     }
-    const c = renderPlanSheet(design.plan, { project: project.name, design: design.name, photo });
-    const blob = await canvasToBlob(c);
-    const r = await shareOrDownload(blob, `al-enna-A3-${safeFileName(design.name)}-${stamp()}.png`, `${project.name} — ${design.name}`);
+    let r: Awaited<ReturnType<typeof shareOrDownload>>;
+    try {
+      const c = renderPlanSheet(design.plan, { project: project.name, design: design.name, photo });
+      const blob = await canvasToBlob(c);
+      r = await shareOrDownload(blob, `al-enna-A3-${safeFileName(design.name)}-${stamp()}.png`, `${project.name} — ${design.name}`);
+    } catch {
+      toast('ما قدرنا نطلّع المخطط — جهازك ما تحمّل حجم الصورة، جرّب من لابتوب', 'error');
+      return;
+    }
     if (r !== 'cancelled') toast(photo ? 'تم تصدير المخطط الاحترافي A3' : 'تم تصدير المخطط A3 — سوّ «رندر واقعي» من المشهد 3D عشان تنضاف صورته في المخطط', 'success');
   };
   const export3d = (mode: 'download' | 'share') => {

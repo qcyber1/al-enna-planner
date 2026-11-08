@@ -70,8 +70,39 @@ export function plotsOf(land: Pick<Land, 'width' | 'depth'>): IzbaPlots {
 
 /** قالب عزبة جاهز حسب الاستخدام وعدد الأراضي (ويحافظ على اتجاه الشمال لو عطيناه أرض المستخدم) */
 export function buildIzba(use: IzbaUse, plots: IzbaPlots = 1, base?: Land): Plan {
-  const land = { ...izbaLand(plots), ...(base ? { northAngle: base.northAngle, surroundings: base.surroundings } : {}) };
-  return build(land, ...perimeterLayout(use, land.width, land.depth));
+  // أرض المستخدم (مستطيلة) نحافظ على مقاسها، وإلا مقاس الأراضي القياسي
+  const rect = base && base.shape !== 'polygon' && base.width >= 30 && (base.shape === 'square' ? base.width : base.depth) >= 30;
+  const std = izbaLand(plots);
+  const W = rect ? base.width : std.width;
+  const D = rect ? (base.shape === 'square' ? base.width : base.depth) : std.depth;
+  const northAngle = base?.northAngle ?? 0;
+  // التوزيع مصمم والشمال فوق؛ لو شمال الأرض بجهة ثانية ندوّر التوزيع بأقرب ربع دورة
+  const k = ((Math.round(northAngle / 90) % 4) + 4) % 4;
+  const [lw, ld] = k % 2 ? [D, W] : [W, D];
+  const [specs, ground] = perimeterLayout(use, lw, ld);
+  const plan = build({ ...std, width: W, depth: D, shape: W === D ? 'square' : 'rectangle', northAngle, surroundings: base?.surroundings, fence: rect ? base.fence : std.fence }, specs, ground);
+  if (k) {
+    const turn = (p: { x: number; y: number }) => {
+      // دوران مع عقارب الساعة k مرات داخل الأرض
+      let { x, y } = p;
+      let w = lw;
+      let d = ld;
+      for (let i = 0; i < k; i++) {
+        [x, y] = [d - y, x];
+        [w, d] = [d, w];
+      }
+      return { x, y };
+    };
+    plan.elements = plan.elements.map((e) => {
+      const c = turn(e);
+      return { ...e, x: c.x, y: c.y, rotation: (e.rotation + 90 * k) % 360, ...(e.points ? { points: e.points.map(turn) } : {}) };
+    });
+  }
+  // البوابة: التوزيع يفترض البوابة بالضلع الجنوبي (الأمامي قبل الدوران)
+  const edge = (2 + k) % 4;
+  const edgeLen = edge % 2 ? D : W;
+  plan.land.entrance = { edge, offset: edgeLen / 2, width: 6 };
+  return plan;
 }
 
 /**
@@ -164,7 +195,7 @@ function perimeterLayout(use: IzbaUse, W: number, D: number): [Spec[], PlanEleme
     createElement('path', { x: W / 2, y: my }, {
       name: 'الممر الرئيسي',
       points: [
-        { x: W / 2, y: D - 0.5 },
+        { x: W / 2, y: D - 1.3 },
         { x: W / 2, y: my + 0.5 },
         { x: 9.5, y: my + 0.5 },
       ],

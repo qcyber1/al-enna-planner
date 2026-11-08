@@ -281,14 +281,16 @@ function farmBed(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   const d = el.depth;
   ctx.fillStyle = shade(el.color, 0.25);
   ctx.fillRect(-w / 2, -d / 2, w, d);
-  const rows = Math.max(1, Math.floor(d / 1.2));
+  // سقف لعدد الصفوف والنبتات عشان الأحواض الضخمة ما تثقّل الرسم
+  const rows = Math.min(40, Math.max(1, Math.floor(d / 1.2)));
   const rh = d / rows;
+  const step = Math.max(0.6, w / 80);
   for (let i = 0; i < rows; i++) {
     const y = -d / 2 + rh * i;
     ctx.fillStyle = el.color;
     ctx.fillRect(-w / 2 + 0.2, y + rh * 0.15, w - 0.4, rh * 0.6);
     ctx.fillStyle = el.accent;
-    for (let x = -w / 2 + 0.5; x < w / 2 - 0.2; x += 0.6) {
+    for (let x = -w / 2 + 0.5; x < w / 2 - 0.2; x += step) {
       ctx.beginPath();
       ctx.arc(x, y + rh * 0.45, Math.min(0.22, rh * 0.22), 0, Math.PI * 2);
       ctx.fill();

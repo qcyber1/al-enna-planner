@@ -493,10 +493,13 @@ test('صفحة سياسة الخصوصية: بدون دخول، فيها الب�
 });
 
 test('مسار البيع: /api/track يسجّل، واللوحة بس للأدمن', async () => {
-  const r = await api('/api/track', { e: 'visit', sid: 'test-sid-123456' });
+  const r = await api('/api/track', { e: 'visit', sid: 'abcdef0123456789ab' });
   assert.equal(r.status, 204);
-  await api('/api/track', { e: 'visit', sid: 'test-sid-123456' });
-  assert.equal((await api('/api/track', { e: 'nope', sid: 'test-sid-123456' })).status, 204);
+  await api('/api/track', { e: 'visit', sid: 'abcdef0123456789ab' });
+  assert.equal((await api('/api/track', { e: 'nope', sid: 'abcdef0123456789ab' })).status, 204);
+  // جسم null ما يطيّح الخادم
+  const nr = await fetch(BASE + '/api/track', { method: 'POST', headers: { 'content-type': 'application/json' }, body: 'null' });
+  assert.equal(nr.status, 204);
   assert.equal((await api('/api/admin/funnel')).status, 401);
   const f = await admin('/api/admin/funnel?days=1');
   assert.equal(f.status, 200);

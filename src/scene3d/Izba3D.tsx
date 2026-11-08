@@ -1,8 +1,9 @@
 // نماذج ثلاثية الأبعاد لعناصر العزبة (المركز 0،0 — المحور z = عمق المسقط، الأمام +z)
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import type { PlanElement } from '../types/plan';
-import { Pole, useMat } from './common';
+import { Pole, useGeometry, useMat } from './common';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { corrugatedTexture } from './textures';
 import { shade } from '../lib/color';
 import { Interior3D } from './Interior3D';
@@ -11,6 +12,27 @@ interface P {
   el: PlanElement;
   night: boolean;
   lampsOn: boolean;
+}
+
+const MOBILE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+
+/**
+ * دمج قطع كثيرة في شكل واحد (رسمة وحدة بدل عشرات) — مهم للجوالات:
+ * كل خروف كان 6 رسمات وكل نخلة 14، الحين كل مجموعة رسمة وحدة.
+ */
+type PartSpec = [THREE.BufferGeometry, [number, number, number], [number, number, number]?];
+function mergeParts(parts: PartSpec[], outer?: THREE.Matrix4): THREE.BufferGeometry {
+  const list = parts.map(([g, pos, rot]) => {
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(...pos), new THREE.Quaternion().setFromEuler(new THREE.Euler(...(rot ?? [0, 0, 0]))), new THREE.Vector3(1, 1, 1));
+    if (outer) m.premultiply(outer);
+    const ng = (g.index ? g.toNonIndexed() : g.clone()).applyMatrix4(m);
+    ng.deleteAttribute('uv');
+    return ng;
+  });
+  const merged = mergeGeometries(list) ?? new THREE.BufferGeometry();
+  for (const g of list) g.dispose();
+  for (const [g] of parts) g.dispose();
+  return merged;
 }
 
 /** رقم عشوائي ثابت حسب العنصر (عشان الحيوانات ما تتحرك كل رسم) */
@@ -22,40 +44,37 @@ const seedOf = (el: PlanElement) => Math.round(el.width * 7 + el.depth * 13 + el
 
 /** سياج مواسير حول حوش، مع فتحة بوابة من قدام */
 function PipeFence({ w, d, h, color, gate = 2.4 }: { w: number; d: number; h: number; color: string; gate?: number }) {
-  const rails = [h * 0.35, h * 0.68, h];
-  const posts: [number, number][] = [];
-  const nx = Math.max(1, Math.round(w / 2.5));
-  const nz = Math.max(1, Math.round(d / 2.5));
-  for (let i = 0; i <= nx; i++) {
-    const x = -w / 2 + (w / nx) * i;
-    posts.push([x, -d / 2]);
-    if (Math.abs(x) > gate / 2 - 0.01) posts.push([x, d / 2]);
-  }
-  for (let j = 1; j < nz; j++) {
-    const z = -d / 2 + (d / nz) * j;
-    posts.push([-w / 2, z], [w / 2, z]);
-  }
   const g = Math.min(gate, w * 0.25);
-  const segs: { x: number; z: number; len: number; rotY: number }[] = [
-    { x: 0, z: -d / 2, len: w, rotY: 0 },
-    { x: -w / 2, z: 0, len: d, rotY: Math.PI / 2 },
-    { x: w / 2, z: 0, len: d, rotY: Math.PI / 2 },
-    { x: -(w / 2 + g / 2) / 2, z: d / 2, len: w / 2 - g / 2, rotY: 0 },
-    { x: (w / 2 + g / 2) / 2, z: d / 2, len: w / 2 - g / 2, rotY: 0 },
-  ];
+  const geo = useGeometry(() => {
+    const rails = [h * 0.35, h * 0.68, h];
+    const parts: PartSpec[] = [];
+    const post = (x: number, z: number) => parts.push([new THREE.CylinderGeometry(0.045, 0.05, h, 6), [x, h / 2, z]]);
+    const nx = Math.max(1, Math.round(w / 2.5));
+    const nz = Math.max(1, Math.round(d / 2.5));
+    for (let i = 0; i <= nx; i++) {
+      const x = -w / 2 + (w / nx) * i;
+      post(x, -d / 2);
+      if (Math.abs(x) > g / 2 - 0.01) post(x, d / 2);
+    }
+    for (let j = 1; j < nz; j++) {
+      const z = -d / 2 + (d / nz) * j;
+      post(-w / 2, z);
+      post(w / 2, z);
+    }
+    const segs: [number, number, number, number][] = [
+      [0, -d / 2, w, 0],
+      [-w / 2, 0, d, Math.PI / 2],
+      [w / 2, 0, d, Math.PI / 2],
+      [-(w / 2 + g / 2) / 2, d / 2, w / 2 - g / 2, 0],
+      [(w / 2 + g / 2) / 2, d / 2, w / 2 - g / 2, 0],
+    ];
+    for (const [x, z, len, ry] of segs) for (const y of rails) parts.push([new THREE.CylinderGeometry(0.025, 0.025, len, 5), [x, y, z], [0, ry, Math.PI / 2]]);
+    return mergeParts(parts);
+  }, [w, d, h, g]);
+  const mat = useMat({ color, metalness: 0.5, roughness: 0.5 });
   return (
     <group>
-      {posts.map(([x, z], i) => (
-        <Pole key={i} x={x} z={z} h={h} r={0.045} color={color} />
-      ))}
-      {segs.flatMap((s, si) =>
-        rails.map((y, ri) => (
-          <mesh key={`${si}-${ri}`} position={[s.x, y, s.z]} rotation={[0, s.rotY, Math.PI / 2]}>
-            <cylinderGeometry args={[0.025, 0.025, s.len, 6]} />
-            <meshStandardMaterial color={color} metalness={0.5} roughness={0.5} />
-          </mesh>
-        )),
-      )}
+      <mesh geometry={geo} material={mat} castShadow />
       {/* البوابة نص مفتوحة */}
       <mesh position={[-g / 2 + (g * 0.5) / 2, h * 0.55, d / 2 + g * 0.2]} rotation={[0, -0.6, 0]}>
         <boxGeometry args={[g * 0.55, h * 0.8, 0.04]} />
@@ -86,57 +105,56 @@ function ShedRoof({ w, d, h, color, poleColor, x = 0, z = 0 }: { w: number; d: n
   );
 }
 
-function Sheep({ x, z, rot, s = 1 }: { x: number; z: number; rot: number; s?: number }) {
-  return (
-    <group position={[x, 0, z]} rotation={[0, rot, 0]} scale={s}>
-      <mesh position={[0, 0.5, 0]} castShadow>
-        <boxGeometry args={[0.8, 0.45, 0.42]} />
-        <meshStandardMaterial color="#f1ece0" roughness={1} />
-      </mesh>
-      <mesh position={[0.48, 0.62, 0]} castShadow>
-        <boxGeometry args={[0.24, 0.24, 0.2]} />
-        <meshStandardMaterial color="#3a2f28" roughness={1} />
-      </mesh>
-      {[-0.28, 0.28].flatMap((lx) =>
-        [-0.13, 0.13].map((lz) => (
-          <mesh key={`${lx}${lz}`} position={[lx, 0.15, lz]}>
-            <boxGeometry args={[0.08, 0.3, 0.08]} />
-            <meshStandardMaterial color="#3a2f28" />
-          </mesh>
-        )),
-      )}
-    </group>
+/** القطيع كامل في رسمتين (جسم + رأس/أرجل) */
+function Herd({ animals, camel }: { animals: { x: number; z: number; rot: number }[]; camel: boolean }) {
+  const key = animals.map((a) => `${a.x.toFixed(2)},${a.z.toFixed(2)},${a.rot.toFixed(2)}`).join('|');
+  const [body, dark] = useMemo(() => {
+    const B: THREE.BufferGeometry[] = [];
+    const D: THREE.BufferGeometry[] = [];
+    for (const a of animals) {
+      const m = new THREE.Matrix4().compose(new THREE.Vector3(a.x, 0, a.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, a.rot, 0)), new THREE.Vector3(1, 1, 1));
+      if (camel) {
+        B.push(
+          mergeParts(
+            [
+              [new THREE.BoxGeometry(1.6, 0.7, 0.6), [0, 1.55, 0]],
+              [new THREE.SphereGeometry(0.38, 8, 6), [0, 2.0, 0]],
+              [new THREE.BoxGeometry(0.25, 1.0, 0.25), [1.0, 2.0, 0], [0, 0, -0.5]],
+              ...[-0.6, 0.6].flatMap((lx) => [-0.2, 0.2].map((lz): PartSpec => [new THREE.BoxGeometry(0.13, 1.25, 0.13), [lx, 0.62, lz]])),
+            ],
+            m,
+          ),
+        );
+        D.push(mergeParts([[new THREE.BoxGeometry(0.45, 0.25, 0.25), [1.3, 2.45, 0]]], m));
+      } else {
+        B.push(mergeParts([[new THREE.BoxGeometry(0.8, 0.45, 0.42), [0, 0.5, 0]]], m));
+        D.push(
+          mergeParts(
+            [[new THREE.BoxGeometry(0.24, 0.24, 0.2), [0.48, 0.62, 0]], ...[-0.28, 0.28].flatMap((lx) => [-0.13, 0.13].map((lz): PartSpec => [new THREE.BoxGeometry(0.08, 0.3, 0.08), [lx, 0.15, lz]]))],
+            m,
+          ),
+        );
+      }
+    }
+    const out = [mergeGeometries(B) ?? new THREE.BufferGeometry(), mergeGeometries(D) ?? new THREE.BufferGeometry()];
+    for (const g of [...B, ...D]) g.dispose();
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, camel]);
+  useEffect(
+    () => () => {
+      body.dispose();
+      dark.dispose();
+    },
+    [body, dark],
   );
-}
-
-function Camel({ x, z, rot }: { x: number; z: number; rot: number }) {
-  const c = '#c49a6c';
+  const c = camel ? '#c49a6c' : '#f1ece0';
+  const bodyMat = useMat({ color: c, roughness: 1 });
+  const darkMat = useMat({ color: camel ? shade(c, -0.1) : '#3a2f28', roughness: 1 });
   return (
-    <group position={[x, 0, z]} rotation={[0, rot, 0]}>
-      <mesh position={[0, 1.55, 0]} castShadow>
-        <boxGeometry args={[1.6, 0.7, 0.6]} />
-        <meshStandardMaterial color={c} roughness={1} />
-      </mesh>
-      <mesh position={[0, 2.0, 0]} castShadow>
-        <sphereGeometry args={[0.38, 10, 8]} />
-        <meshStandardMaterial color={c} roughness={1} />
-      </mesh>
-      <mesh position={[1.0, 2.0, 0]} rotation={[0, 0, -0.5]} castShadow>
-        <boxGeometry args={[0.25, 1.0, 0.25]} />
-        <meshStandardMaterial color={c} roughness={1} />
-      </mesh>
-      <mesh position={[1.3, 2.45, 0]} castShadow>
-        <boxGeometry args={[0.45, 0.25, 0.25]} />
-        <meshStandardMaterial color={shade(c, -0.1)} roughness={1} />
-      </mesh>
-      {[-0.6, 0.6].flatMap((lx) =>
-        [-0.2, 0.2].map((lz) => (
-          <mesh key={`${lx}${lz}`} position={[lx, 0.62, lz]}>
-            <boxGeometry args={[0.13, 1.25, 0.13]} />
-            <meshStandardMaterial color={shade(c, -0.05)} />
-          </mesh>
-        )),
-      )}
+    <group>
+      <mesh geometry={body} material={bodyMat} castShadow />
+      <mesh geometry={dark} material={darkMat} castShadow />
     </group>
   );
 }
@@ -148,7 +166,8 @@ function Pen({ el, camel }: P & { camel: boolean }) {
   const animals = useMemo(() => {
     const r = rng(seedOf(el));
     const per = camel ? 30 : 6;
-    const n = Math.max(2, Math.min(camel ? 8 : 16, Math.round((w * (d - sd)) / per)));
+    // على الجوال عدد أقل (يكفي يبين إنها حظيرة)
+    const n = Math.max(2, Math.min(camel ? (MOBILE ? 4 : 8) : MOBILE ? 6 : 16, Math.round((w * (d - sd)) / per)));
     const m = camel ? 1.6 : 0.6;
     return Array.from({ length: n }, () => ({
       x: (r() - 0.5) * (w - 2 * m),
@@ -168,7 +187,7 @@ function Pen({ el, camel }: P & { camel: boolean }) {
         <boxGeometry args={[w * 0.7, 0.5, 0.5]} />
         <meshStandardMaterial color="#9aa3a8" metalness={0.4} />
       </mesh>
-      {animals.map((a, i) => (camel ? <Camel key={i} {...a} /> : <Sheep key={i} {...a} />))}
+      <Herd animals={animals} camel={camel} />
     </group>
   );
 }
@@ -329,25 +348,28 @@ function Room({ el, night, lampsOn, majlis }: P & { majlis: boolean }) {
 function Palm({ el }: P) {
   const h = el.height;
   const r = Math.min(el.width, el.depth) / 2;
-  const fronds = 12;
+  // السعف كله رسمة وحدة
+  const fronds = useGeometry(() => {
+    const n = MOBILE ? 8 : 12;
+    const list: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const droop = i % 2 ? 0.55 : 0.3;
+      const outer = new THREE.Matrix4().compose(new THREE.Vector3(0, h, 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, a, 0)), new THREE.Vector3(1, 1, 1));
+      list.push(mergeParts([[new THREE.BoxGeometry(r, 0.04, 0.55), [r * 0.48, -r * droop * 0.45, 0], [0, 0, -droop]]], outer));
+    }
+    const g = mergeGeometries(list) ?? new THREE.BufferGeometry();
+    for (const x of list) x.dispose();
+    return g;
+  }, [h, r]);
+  const leaf = useMat({ color: el.color, roughness: 0.9, side: THREE.DoubleSide });
+  const trunk = useMat({ color: el.accent, roughness: 1 });
   return (
     <group>
-      <mesh position={[0, h / 2, 0]} castShadow>
+      <mesh position={[0, h / 2, 0]} material={trunk} castShadow>
         <cylinderGeometry args={[0.2, 0.28, h, 8]} />
-        <meshStandardMaterial color={el.accent} roughness={1} />
       </mesh>
-      {Array.from({ length: fronds }).map((_, i) => {
-        const a = (i / fronds) * Math.PI * 2;
-        const droop = i % 2 ? 0.55 : 0.3;
-        return (
-          <group key={i} position={[0, h, 0]} rotation={[0, a, 0]}>
-            <mesh position={[r * 0.48, -r * droop * 0.45, 0]} rotation={[0, 0, -droop]} castShadow>
-              <boxGeometry args={[r, 0.04, 0.55]} />
-              <meshStandardMaterial color={i % 2 ? el.color : shade(el.color, 0.12)} roughness={0.9} side={THREE.DoubleSide} />
-            </mesh>
-          </group>
-        );
-      })}
+      <mesh geometry={fronds} material={leaf} castShadow />
       {/* عذوق */}
       <mesh position={[0, h - 0.5, 0]}>
         <sphereGeometry args={[0.45, 8, 6]} />
@@ -360,22 +382,19 @@ function Palm({ el }: P) {
 function Tree({ el }: P) {
   const h = el.height;
   const r = Math.min(el.width, el.depth) / 2;
-  const blobs = useMemo(() => {
+  const crown = useGeometry(() => {
     const g = rng(seedOf(el));
-    return Array.from({ length: 6 }, () => [(g() - 0.5) * r, h * 0.62 + (g() - 0.3) * r * 0.5, (g() - 0.5) * r, r * (0.45 + g() * 0.25)] as const);
-  }, [el, r, h]);
+    return mergeParts(Array.from({ length: 6 }, (): PartSpec => [new THREE.IcosahedronGeometry(r * (0.45 + g() * 0.25), 1), [(g() - 0.5) * r, h * 0.62 + (g() - 0.3) * r * 0.5, (g() - 0.5) * r]]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [r, h, el.x, el.y, el.width, el.depth]);
+  const leaf = useMat({ color: el.color, roughness: 1 });
+  const trunk = useMat({ color: el.accent, roughness: 1 });
   return (
     <group>
-      <mesh position={[0, h * 0.3, 0]} castShadow>
+      <mesh position={[0, h * 0.3, 0]} material={trunk} castShadow>
         <cylinderGeometry args={[0.16, 0.26, h * 0.6, 7]} />
-        <meshStandardMaterial color={el.accent} roughness={1} />
       </mesh>
-      {blobs.map(([x, y, z, s], i) => (
-        <mesh key={i} position={[x, y, z]} castShadow>
-          <icosahedronGeometry args={[s, 1]} />
-          <meshStandardMaterial color={i % 2 ? el.color : shade(el.color, 0.1)} roughness={1} flatShading />
-        </mesh>
-      ))}
+      <mesh geometry={crown} material={leaf} castShadow />
     </group>
   );
 }
@@ -383,9 +402,10 @@ function Tree({ el }: P) {
 function FarmBed({ el }: P) {
   const w = el.width;
   const d = el.depth;
-  const rows = Math.max(1, Math.floor(d / 1.2));
+  const rows = Math.min(30, Math.max(1, Math.floor(d / 1.2)));
   const rh = d / rows;
-  const plants = Math.max(1, Math.floor((w - 0.6) / 0.6));
+  const plants = Math.min(80, Math.max(1, Math.floor((w - 0.6) / 0.6)));
+  const pstep = (w - 0.6) / plants;
   return (
     <group>
       {Array.from({ length: rows }).map((_, i) => {
@@ -402,7 +422,7 @@ function FarmBed({ el }: P) {
                 if (!m) return;
                 const o = new THREE.Object3D();
                 for (let k = 0; k < plants; k++) {
-                  o.position.set(-w / 2 + 0.5 + k * 0.6, 0.32, z);
+                  o.position.set(-w / 2 + 0.5 + k * pstep, 0.32, z);
                   o.updateMatrix();
                   m.setMatrixAt(k, o.matrix);
                 }
@@ -424,7 +444,7 @@ function Greenhouse({ el }: P) {
   const w = el.width;
   const d = el.depth;
   const h = el.height;
-  const geo = useMemo(() => {
+  const geo = useGeometry(() => {
     // نص أسطوانة مضغوطة: عرضها w وارتفاعها h وطولها d
     const g = new THREE.CylinderGeometry(1, 1, d, 24, 1, true, -Math.PI / 2, Math.PI);
     g.rotateX(Math.PI / 2);

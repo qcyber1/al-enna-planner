@@ -53,6 +53,8 @@ type Rule = 'error' | 'warning' | 'ok';
 
 /** الحلال وأحواشه */
 const PENS = new Set<string>(['sheep-pen', 'camel-pen']);
+/** اللي طبيعي يكون داخل الحوش (مب مجلس ولا مولد) */
+const IN_PEN = new Set<string>(['trough', 'animal-shade', 'feed-store', 'tree', 'palm']);
 const LIVESTOCK = new Set<string>(['sheep-pen', 'camel-pen', 'horse-stable']);
 /** أماكن الجلوس اللي ما نبي ريحة الحلال توصلها */
 const SITTING = new Set<string>(['majlis-room', 'main-tent', 'canopy', 'majlis-rug', 'seating', 'fire-pit', 'dakka', 'dining-tent', 'pool']);
@@ -192,8 +194,8 @@ export function validatePlan(plan: Plan): ValidationResult {
       // غرف لاصقة في بعض (جدار مشترك) مب تداخل
       if (A.el.kind === 'room' && B.el.kind === 'room' && roomsOnlyTouch(A.el, B.el)) continue;
       // اللي داخل حوش الحلال بالكامل (معلف، مظلة، شجرة) مسموح
-      if (PENS.has(B.el.kind) && fullyInside(A.el, B.el)) continue;
-      if (PENS.has(A.el.kind) && fullyInside(B.el, A.el)) continue;
+      if (PENS.has(B.el.kind) && IN_PEN.has(A.el.kind) && fullyInside(A.el, B.el)) continue;
+      if (PENS.has(A.el.kind) && IN_PEN.has(B.el.kind) && fullyInside(B.el, A.el)) continue;
       // الأثاث داخل الخيمة مسموح
       if (A.cls === 'soft' && isTentKind(B.el.kind) && fullyInside(A.el, B.el)) continue;
       if (B.cls === 'soft' && isTentKind(A.el.kind) && fullyInside(B.el, A.el)) continue;

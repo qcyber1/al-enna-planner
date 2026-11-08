@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { usePhoto } from './photoStore';
+import { saveThumbs } from '../lib/storage';
 import { GradientEquirectTexture, WebGLPathTracer } from 'three-gpu-pathtracer';
 import type { TimeOfDay } from '../types/plan';
 import { Sparkles, Download, X } from 'lucide-react';
@@ -15,6 +16,7 @@ import { withWatermark } from '../render2d/watermark';
 import { safeFileName, shareOrDownload, stamp } from '../lib/files';
 
 export { usePhoto };
+export { startPhoto } from './photoStore';
 
 
 /** ألوان السماء حسب الوقت (الضوء المحيط في المحاكاة) */
@@ -25,6 +27,59 @@ function skyFor(time: TimeOfDay): { top: string; bottom: string; exp: number; st
   return { top: '#8db8ea', bottom: '#eadbb8', exp: 1.4, strength: 0.35 };
 }
 
+/** محاكي واحد نعيد استخدامه (إنشاء جديد كل مرة يسرّب ذاكرة كرت الشاشة) */
+let shared: { gl: THREE.WebGLRenderer; tracer: WebGLPathTracer } | null = null;
+function getTracer(gl: THREE.WebGLRenderer): WebGLPathTracer {
+  if (shared?.gl === gl) return shared.tracer;
+  disposeShared();
+  const t = new WebGLPathTracer(gl);
+  t.bounces = 5;
+  t.filterGlossyFactor = 0.5;
+  t.tiles.set(2, 2);
+  t.renderDelay = 0;
+  t.minSamples = 1;
+  t.fadeDuration = 0;
+  t.dynamicLowRes = false;
+  shared = { gl, tracer: t };
+  return t;
+}
+/** تنظيف كامل: المكتبة ما تنظف خامات البيانات بنفسها */
+function disposeShared() {
+  if (!shared) return;
+  const t = shared.tracer as unknown as { _pathTracer?: { material?: THREE.ShaderMaterial } };
+  try {
+    const m = t._pathTracer?.material;
+    if (m?.uniforms)
+      for (const u of Object.values(m.uniforms)) {
+        const v = (u as { value?: { dispose?: () => void } }).value;
+        if (v && typeof v.dispose === 'function') v.dispose();
+      }
+    m?.dispose();
+  } catch {
+    /* تجاهل */
+  }
+  try {
+    shared.tracer.dispose();
+  } catch {
+    /* تنظيف المكتبة أحياناً يطيح (نسخة 0.0.23) — ما نخليه يطيّح الصفحة */
+  }
+  shared = null;
+}
+
+/** نحفظ آخر رندر كصورة التصميم (تنحط في المخطط الاحترافي A3) */
+function keepAsThumb(canvas: HTMLCanvasElement) {
+  try {
+    const k = Math.min(1, 1600 / canvas.width);
+    const c = document.createElement('canvas');
+    c.width = Math.round(canvas.width * k);
+    c.height = Math.round(canvas.height * k);
+    c.getContext('2d')?.drawImage(canvas, 0, 0, c.width, c.height);
+    saveThumbs(activeDesign(useEditor.getState().project).id, { d3: c.toDataURL('image/jpeg', 0.85) });
+  } catch {
+    /* تجاهل */
+  }
+}
+
 /** داخل الـ Canvas: يشغّل المحاكاة لما الحالة «preparing/rendering» */
 export function PhotoTracer({ time }: { time: TimeOfDay }) {
   const { gl, scene, camera, invalidate } = useThree();
@@ -32,15 +87,38 @@ export function PhotoTracer({ time }: { time: TimeOfDay }) {
   const active = status === 'preparing' || status === 'rendering';
   const pt = useRef<WebGLPathTracer | null>(null);
   const done = useRef(false);
+  const camMat = useRef(new THREE.Matrix4());
+
+  // لما نطلع من 3D: نلغي الرندر وننظف الذاكرة
+  useEffect(
+    () => () => {
+      const st = usePhoto.getState();
+      if (st.status === 'preparing' || st.status === 'rendering') st.close();
+      disposeShared();
+    },
+    [],
+  );
+
+  // تغيير التصميم أو الوقت أو الساعة أثناء الرندر = نلغيه (الصورة بتطلع غلط)
+  useEffect(() => {
+    if (!active) return;
+    const unsub = useEditor.subscribe((s, p) => {
+      if (s.hour !== p.hour || s.time !== p.time || s.project !== p.project) {
+        usePhoto.getState().close();
+        s.toast('توقف الرندر لأنك غيّرت المشهد — سوّه مرة ثانية', 'info');
+      }
+    });
+    return unsub;
+  }, [active]);
 
   useEffect(() => {
     if (!active) return;
     done.current = false;
-    // نخفي اللي المحاكاة ما تفهمه: قبة السماء (شيدر)، النجوم، الخطوط
+    // نخفي اللي المحاكاة ما تفهمه: قبة السماء (شيدر)، النجوم، الخطوط، والعناصر المكررة (instanced)
     const hidden: THREE.Object3D[] = [];
     scene.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.Material | undefined;
-      const odd = (m && (m as THREE.ShaderMaterial).isShaderMaterial) || (o as THREE.Points).isPoints || (o as THREE.Line).isLine;
+      const odd = (m && (m as THREE.ShaderMaterial).isShaderMaterial) || (o as THREE.Points).isPoints || (o as THREE.Line).isLine || (o as THREE.InstancedMesh).isInstancedMesh;
       if (odd && o.visible) {
         o.visible = false;
         hidden.push(o);
@@ -57,19 +135,12 @@ export function PhotoTracer({ time }: { time: TimeOfDay }) {
     scene.background = env;
     scene.environmentIntensity = sky.strength;
     scene.fog = null;
-
-    let tracer: WebGLPathTracer | null = null;
     try {
-      tracer = new WebGLPathTracer(gl);
-      tracer.bounces = 5;
-      tracer.filterGlossyFactor = 0.5;
-      tracer.tiles.set(2, 2);
-      tracer.renderDelay = 0;
-      tracer.minSamples = 1;
-      tracer.fadeDuration = 0;
-      tracer.dynamicLowRes = false;
-      tracer.setScene(scene, camera);
-      pt.current = tracer;
+      const t = getTracer(gl);
+      t.setScene(scene, camera);
+      t.reset();
+      camMat.current.copy(camera.matrixWorld);
+      pt.current = t;
       usePhoto.getState().progress(0);
       invalidate();
     } catch (e) {
@@ -77,15 +148,10 @@ export function PhotoTracer({ time }: { time: TimeOfDay }) {
       usePhoto.getState().fail();
     }
     return () => {
-      // تنظيف المكتبة أحياناً يطيح (نسخة 0.0.23) — ما نخليه يطيّح الصفحة
-      try {
-        tracer?.dispose();
-      } catch {
-        /* تجاهل */
-      }
       pt.current = null;
       for (const o of hidden) o.visible = true;
-      scene.environment = prev.env;
+      // لو بيئة السماء تبدلت أثناء الرندر ما نرجع خامة انحذفت
+      scene.environment = prev.env && (prev.env as THREE.Texture & { source?: { data?: unknown } }).source?.data !== null ? prev.env : null;
       scene.background = prev.bg;
       scene.fog = prev.fog;
       scene.environmentIntensity = prev.envI;
@@ -98,16 +164,28 @@ export function PhotoTracer({ time }: { time: TimeOfDay }) {
   useFrame(() => {
     const t = pt.current;
     if (!t || done.current) return;
-    t.renderSample();
-    // نطلب الإطار الجاي حتى لو المشهد على «الرسم عند الطلب»
-    invalidate();
     const st = usePhoto.getState();
+    try {
+      // الكاميرا تحركت؟ نبدأ العينات من جديد من الزاوية الجديدة
+      if (!camMat.current.equals(camera.matrixWorld)) {
+        camMat.current.copy(camera.matrixWorld);
+        t.updateCamera();
+      }
+      t.renderSample();
+    } catch (e) {
+      console.error(e);
+      done.current = true;
+      st.fail();
+      return;
+    }
+    invalidate();
     const n = Math.floor(t.samples);
     if (n !== st.samples) st.progress(n);
     if (n >= st.target) {
       done.current = true;
       try {
         st.finish(gl.domElement.toDataURL('image/png'));
+        keepAsThumb(gl.domElement);
       } catch {
         st.fail();
       }
@@ -117,13 +195,6 @@ export function PhotoTracer({ time }: { time: TimeOfDay }) {
 }
 
 // ——— الواجهة (برا الـ Canvas) ———
-
-const MOBILE = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
-export const PHOTO_SAMPLES = MOBILE ? 90 : 220;
-
-export function startPhoto() {
-  usePhoto.getState().start(PHOTO_SAMPLES);
-}
 
 async function savePhoto(url: string) {
   const st = useEditor.getState();

@@ -77,3 +77,19 @@ describe('العزبة: الحفظ والمولّد', () => {
     expect(izbaIdeas({ ...izbaLand(1), northAngle: 30 })[0].plan.land.northAngle).toBe(30);
   });
 });
+
+describe('أفكار العزبة على أرض المستخدم', () => {
+  it('تحافظ على مقاس الأرض', () => {
+    const p = izbaIdeas({ ...izbaLand(1), shape: 'rectangle', width: 70, depth: 45 })[0].plan;
+    expect([p.land.width, p.land.depth]).toEqual([70, 45]);
+  });
+  for (const na of [0, 90, 180, 270])
+    it(`الشمال ${na}°: الحلال تحت الريح وما فيه تنبيهات`, () => {
+      const ideas = izbaIdeas({ ...izbaLand(1), northAngle: na });
+      for (const i of ideas) {
+        const v = validatePlan(i.plan);
+        if (v.issues.length) console.log(na, i.title, v.issues.map((x) => x.message));
+        expect(v.issues.length).toBe(0);
+      }
+    });
+});

@@ -111,13 +111,15 @@ import { recordEvent, funnelSummary, qaDay } from '../funnel.mjs';
 test('مسار البيع: الحدث ينحسب مرة لكل شخص باليوم، والأحداث الغريبة تنرفض', () => {
   const db = { orders: [] };
   const now = Date.UTC(2026, 10, 7, 12);
-  assert.equal(recordEvent(db, 'visit', 'sid-aaaaaaaa', now), true);
-  assert.equal(recordEvent(db, 'visit', 'sid-aaaaaaaa', now), false, 'نفس الشخص ما ينحسب مرتين');
-  assert.equal(recordEvent(db, 'visit', 'sid-bbbbbbbb', now), true);
-  assert.equal(recordEvent(db, 'hack', 'sid-aaaaaaaa', now), false);
+  assert.equal(recordEvent(db, 'visit', 'aaaaaaaaaaaaaaaa01', now), true);
+  assert.equal(recordEvent(db, 'visit', 'aaaaaaaaaaaaaaaa01', now), false, 'نفس الشخص ما ينحسب مرتين');
+  assert.equal(recordEvent(db, 'visit', 'bbbbbbbbbbbbbbbb02', now), true);
+  assert.equal(recordEvent(db, 'hack', 'aaaaaaaaaaaaaaaa01', now), false);
   assert.equal(recordEvent(db, 'visit', 'short', now), false);
-  assert.equal(recordEvent(db, '__proto__', 'sid-aaaaaaaa', now), false);
-  assert.ok(!JSON.stringify(db).includes('sid-aaaaaaaa'), 'المعرّف ينحفظ مشفّر');
+  assert.equal(recordEvent(db, '__proto__', 'aaaaaaaaaaaaaaaa01', now), false);
+  assert.equal(recordEvent(db, 'visit', { a: 1 }, now), false, 'المعرّف لازم نص');
+  assert.equal(recordEvent(db, 'visit', 'not-hex-id-zzzzzzzz', now), false, 'المعرّف لازم hex');
+  assert.ok(!JSON.stringify(db).includes('aaaaaaaaaaaaaaaa01'), 'المعرّف ينحفظ مشفّر');
   const s = funnelSummary(db, 7, now);
   assert.equal(s.days.length, 7);
   assert.equal(s.total.visit, 2);
@@ -142,6 +144,6 @@ test('مسار البيع: المبيعات من الطلبات الحقيقية
 test('مسار البيع: يوم قطر يبدأ الساعة 12 بالليل بتوقيت قطر، والأيام القديمة تنمسح', () => {
   assert.equal(qaDay(Date.UTC(2026, 10, 6, 21, 30)), '2026-11-07');
   const db = { funnel: {} };
-  for (let i = 0; i < 95; i++) recordEvent(db, 'visit', 'sid-cccccccc', Date.UTC(2026, 0, 1) + i * 86400000);
+  for (let i = 0; i < 95; i++) recordEvent(db, 'visit', 'cccccccccccccccc03', Date.UTC(2026, 0, 1) + i * 86400000);
   assert.equal(Object.keys(db.funnel).length, 90);
 });

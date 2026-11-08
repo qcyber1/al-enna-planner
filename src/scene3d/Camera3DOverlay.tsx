@@ -2,7 +2,7 @@ import type { MutableRefObject } from 'react';
 import { Camera, Home, Sparkles, Eye, Footprints, DoorOpen, Tent, Plane, Box, ArrowUp, ArrowDown, RotateCcw, RotateCw, X } from 'lucide-react';
 import { useEditor, usePlan } from '../store/editorStore';
 import { useView3D } from './viewStore';
-import { startPhoto, usePhoto } from './PhotoRender';
+import { startPhoto, usePhoto } from './photoStore';
 import { izbaEnabled } from '../lib/izba';
 
 const BETA = izbaEnabled();

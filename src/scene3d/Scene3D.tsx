@@ -10,9 +10,14 @@ import { isLightKind, isTentKind } from '../lib/catalog';
 import { collectEmitters } from '../lib/lighting';
 import { WorldContext, type WorldInfo } from './world';
 import { Ground3D, Fence3D, SceneLighting } from './Environment3D';
-import { renderScene, SceneEffects, SkyReflections } from './Effects3D';
+import { lazy, Suspense } from 'react';
+import { renderScene, usePhoto } from './photoStore';
+// المؤثرات والرندر الواقعي مكتبات ثقيلة: تنحمّل بس للي عنده التجربة (?izba=1)
+const SceneEffects = lazy(() => import('./Effects3D').then((m) => ({ default: m.SceneEffects })));
+const SkyReflections = lazy(() => import('./Effects3D').then((m) => ({ default: m.SkyReflections })));
+const PhotoTracer = lazy(() => import('./PhotoRender').then((m) => ({ default: m.PhotoTracer })));
+const PhotoOverlay = lazy(() => import('./PhotoRender').then((m) => ({ default: m.PhotoOverlay })));
 import { izbaEnabled } from '../lib/izba';
-import { PhotoOverlay, PhotoTracer, usePhoto } from './PhotoRender';
 import { Tent3D } from './Tent3D';
 import {
   BBQ3D,
@@ -510,7 +515,11 @@ export default function Scene3D() {
       >
         <WorldContext.Provider value={w}>
           <SceneLighting time={time} hour={hour} land={plan.land} size={size} />
-          {BETA && quality !== 'low' && !night && <SkyReflections night={false} />}
+          {BETA && quality !== 'low' && !night && (
+            <Suspense fallback={null}>
+              <SkyReflections night={false} />
+            </Suspense>
+          )}
           <Ground3D land={plan.land} w={w} />
           <Fence3D land={plan.land} w={w} />
           <Surroundings3D land={plan.land} w={w} />
@@ -532,14 +541,22 @@ export default function Scene3D() {
           {walking && <WalkControls plan={plan} w={w} move={move} />}
           {!walking && <DragController grab={grab} />}
           <CaptureHandler />
-          {BETA && !PROMO && !photoOn && <SceneEffects quality={quality} night={night} mobile={MOBILE} />}
-          {BETA && <PhotoTracer time={time} />}
+          {BETA && (
+            <Suspense fallback={null}>
+              {!PROMO && !photoOn && <SceneEffects quality={quality} night={night} mobile={MOBILE} />}
+              <PhotoTracer time={time} />
+            </Suspense>
+          )}
           <AutoThumb />
         </WorldContext.Provider>
       </Canvas>
       {!ready && <div className="absolute inset-0 flex items-center justify-center text-sand-800">جاري تجهيز المشهد ثلاثي الأبعاد…</div>}
       <Camera3DOverlay move={move} />
-      {BETA && <PhotoOverlay />}
+      {BETA && (
+        <Suspense fallback={null}>
+          <PhotoOverlay />
+        </Suspense>
+      )}
       {!walking && (
         <div className="pointer-events-none absolute inset-0">
           <SelectionBar />

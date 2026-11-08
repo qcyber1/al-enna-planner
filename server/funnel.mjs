@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 
 export const FUNNEL_EVENTS = ['visit', 'trial_start', 'trial_end', 'export_blocked', 'demo_buy_click', 'checkout_click'];
 const KEEP_DAYS = 90;
+export const MAX_PER_DAY = 20000;
 // تاريخ اليوم بتوقيت قطر (UTC+3) عشان «اليوم» يطابق يومك
 export const qaDay = (t = Date.now()) => new Date(t + 3 * 3600 * 1000).toISOString().slice(0, 10);
 const hashSid = (sid) => crypto.createHash('sha256').update('funnel:' + sid).digest('base64url').slice(0, 12);
@@ -10,12 +11,15 @@ const hashSid = (sid) => crypto.createHash('sha256').update('funnel:' + sid).dig
 /** يسجّل حدث مرة وحدة لكل متصفح في اليوم (عدد أشخاص، مو عدد ضغطات) */
 export function recordEvent(db, event, sid, now = Date.now()) {
   if (!FUNNEL_EVENTS.includes(event)) return false;
-  const s = String(sid || '');
-  if (s.length < 8 || s.length > 64) return false;
+  // المعرّف لازم نص hex عشوائي من المتصفح (مب أي شي)
+  if (typeof sid !== 'string' || !/^[0-9a-f]{16,64}$/i.test(sid)) return false;
+  const s = sid;
   if (!db.funnel) db.funnel = {};
   const day = qaDay(now);
   const d = (db.funnel[day] ??= {});
   const seen = (d[event] ??= []);
+  // سقف يومي لكل حدث (حماية من الإغراق) — أكبر بوايد من أي يوم طبيعي
+  if (seen.length >= MAX_PER_DAY) return false;
   const h = hashSid(s);
   if (seen.includes(h)) return false;
   seen.push(h);

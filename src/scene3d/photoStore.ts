@@ -24,3 +24,18 @@ export const usePhoto = create<PhotoState>((set) => ({
   fail: () => set({ status: 'error' }),
   close: () => set({ status: 'idle', samples: 0, url: '' }),
 }));
+
+const MOBILE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+export const PHOTO_SAMPLES = MOBILE ? 90 : 220;
+export function startPhoto() {
+  usePhoto.getState().start(PHOTO_SAMPLES);
+}
+
+// ——— جسر المؤثرات: التصدير يرسم المشهد مع المؤثرات لو هي شغالة (بدون ما نحمّل مكتبتها) ———
+let renderWithFx: (() => boolean) | null = null;
+export function setFxRenderer(fn: (() => boolean) | null) {
+  renderWithFx = fn;
+}
+export function renderScene(fallback: () => void) {
+  if (!renderWithFx?.()) fallback();
+}

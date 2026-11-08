@@ -2,7 +2,7 @@
 // إطار، جدول عنوان، المسقط بالمقاسات، سهم الشمال والريح، مقياس رسم، جدول العناصر والمساحات، وصورة 3D اختيارية.
 import type { Plan, PlanElement } from '../types/plan';
 import { CATALOG_BY_KIND } from '../lib/catalog';
-import { landBounds, polylineLength } from '../lib/geometry';
+import { landBounds, polygonArea, polylineLength } from '../lib/geometry';
 import { validatePlan } from '../lib/validation';
 import { WIND_FROM } from '../lib/wind';
 import { FONT, drawElementWorld, drawFence, drawGrid, drawLabels, drawLand, drawMeasurement, type DrawOpts } from './draw';
@@ -39,7 +39,8 @@ export interface SheetStats {
 
 export function sheetStats(plan: Plan): SheetStats {
   const L = plan.land;
-  const landArea = L.width * (L.shape === 'square' ? L.width : L.depth);
+  // الأرض غير المنتظمة: مساحة المضلع الحقيقية
+  const landArea = L.shape === 'polygon' && L.polygon?.length ? Math.abs(polygonArea(L.polygon)) : L.width * (L.shape === 'square' ? L.width : L.depth);
   let builtArea = 0;
   let greenArea = 0;
   const tall: string[] = [];
@@ -220,7 +221,7 @@ export function renderPlanSheet(plan: Plan, info: SheetInfo): HTMLCanvasElement 
   let y = top + 300;
   const row = (k: string, v: string, size = 42) => {
     text(ctx, k, R, y, 30, '#7a5c3e', 600);
-    text(ctx, v, R, y + 52, size, '#2b1d12', 700);
+    text(ctx, fit(ctx, v, tbW - 100, size), R, y + 52, size, '#2b1d12', 700);
     y += 130;
   };
   row('المشروع', info.project);
@@ -228,7 +229,7 @@ export function renderPlanSheet(plan: Plan, info: SheetInfo): HTMLCanvasElement 
   if (info.owner) row('المالك', info.owner);
   const d = info.date ?? new Date();
   const L = plan.land;
-  row('الأرض', `${fmt(L.width)} × ${fmt(L.shape === 'square' ? L.width : L.depth)} م  (${fmt(stats.landArea, 0)} م²)`);
+  row('الأرض', L.shape === 'polygon' ? `${fmt(stats.landArea, 0)} م²` : `${fmt(L.width)} × ${fmt(L.shape === 'square' ? L.width : L.depth)} م  (${fmt(stats.landArea, 0)} م²)`);
   hr(y - 40);
 
   // المساحات
@@ -264,7 +265,7 @@ export function renderPlanSheet(plan: Plan, info: SheetInfo): HTMLCanvasElement 
   let shown = 0;
   for (const r of rows) {
     if (y > maxY - 50) break;
-    text(ctx, r.label, cols.name, y, 30, '#2b1d12', 600);
+    text(ctx, fit(ctx, r.label, 380, 30), cols.name, y, 30, '#2b1d12', 600);
     text(ctx, String(r.count), cols.count, y, 30, '#2b1d12', 700, 'center');
     text(ctx, r.size, cols.size, y, 24, '#5b4a3a', 600, 'center');
     text(ctx, fmt(r.area, 0), cols.area, y, 30, '#2b1d12', 600, 'left');
@@ -333,6 +334,15 @@ export function renderPlanSheet(plan: Plan, info: SheetInfo): HTMLCanvasElement 
   const scale = Math.round(1000 / (ppm * (420 / W)));
   text(ctx, `مقياس الرسم تقريباً 1:${niceScale(scale)} (عند الطباعة A3)`, bx, cy + 60, 26, '#4a3a2a', 600, 'left');
   return c;
+}
+
+/** يقص النص بنقاط إذا أطول من المساحة */
+function fit(ctx: CanvasRenderingContext2D, s: string, maxW: number, size: number, weight = 700): string {
+  ctx.font = `${weight} ${size}px ${FONT}`;
+  if (ctx.measureText(s).width <= maxW) return s;
+  let t = s;
+  while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+  return t + '…';
 }
 
 function wrap(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, maxW: number, size: number, lh: number, color: string): string[] {
