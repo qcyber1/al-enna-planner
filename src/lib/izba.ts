@@ -46,88 +46,6 @@ export function izbaLand(plots: IzbaPlots = 1): Land {
 
 type Spec = [ElementKind, number, number, Partial<PlanElement>?];
 
-/** صف نخل على طول خط */
-function palmRow(x0: number, x1: number, y: number, step = 7): Spec[] {
-  const out: Spec[] = [];
-  const n = Math.max(1, Math.floor((x1 - x0) / step));
-  for (let i = 0; i <= n; i++) out.push(['palm', x0 + ((x1 - x0) * i) / n, y]);
-  return out;
-}
-
-/** مجموعة المجلس فوق الريح (الشمال الغربي): مجلس، جلسة خارجية، شوي، حمام */
-function majlisZone(x: number, y: number, big: boolean): Spec[] {
-  return [
-    ['majlis-room', x, y, big ? { width: 14, depth: 7 } : {}],
-    ['canopy', x + (big ? 13 : 11), y + 1, { name: 'جلسة خارجية', width: 6, depth: 5 }],
-    ['majlis-rug', x + (big ? 13 : 11), y + 1, { name: 'جلسة شعبية' }],
-    ['fire-pit', x, y + 10],
-    ['bbq', x + 7, y + 10, { rotation: 180 }],
-    ['toilet', x - 6, y + 10, { name: 'حمام', rotation: 90 }],
-  ];
-}
-
-/** الخدمات على الضلع الغربي: خزان ماي ومولد */
-function services(y: number): Spec[] {
-  return [
-    ['water-tank', 3, y],
-    ['generator', 3.5, y + 5, { rotation: 90 }],
-  ];
-}
-
-function parking(x: number, D: number, slots = 4): Spec {
-  return ['parking', x, D - 4, { width: slots * 2.7, parking: { slots, showCars: true } }];
-}
-
-/** منطقة الحلال تحت الريح (الجنوب الشرقي) داخل مستطيل x0..x1 / y0..y1 */
-function livestockZone(x0: number, x1: number, y0: number, y1: number, rich: boolean, gateX = 0): Spec[] {
-  const out: Spec[] = [];
-  const w = x1 - x0;
-  // غرفة العامل والعلف بأعلى المنطقة
-  out.push(['worker-room', x0 + 3, y0 + 2.5]);
-  out.push(['feed-store', x0 + 11, y0 + 3]);
-  out.push(['water-tank', x0 + 17, y0 + 2.5, { name: 'خزان ماي الحلال' }]);
-  // حظاير الغنم بالأسفل
-  const pens = Math.max(1, Math.floor((w + 2) / 14));
-  // ما نسد البوابة الرئيسية (منتصف الضلع الأمامي)
-  const xs = Array.from({ length: pens }, (_, i) => x1 - 6.5 - i * 14).filter((x) => !gateX || Math.abs(x - gateX) > 6 + 4);
-  xs.forEach((x, i) => out.push(['sheep-pen', x, y1 - 4.5, { name: `حظيرة غنم ${xs.length > 1 ? i + 1 : ''}`.trim() }]));
-  if (rich) {
-    out.push(['camel-pen', x1 - 10.5, y1 - 21, { name: 'حظيرة إبل' }]);
-    out.push(['horse-stable', x0 + 8, y1 - 21, { name: 'إسطبل خيل', width: 14 }]);
-  }
-  return out;
-}
-
-function farmZone(x0: number, x1: number, y0: number, y1: number): Spec[] {
-  const out: Spec[] = [];
-  const w = x1 - x0;
-  const h = y1 - y0;
-  // صفوف نخل
-  for (let y = y0 + 3; y <= y1 - 3 + 1e-6; y += 7) out.push(...palmRow(x0 + 3, x0 + Math.min(w, 22) - 3, y));
-  if (w >= 34) {
-    out.push(['greenhouse', x0 + w - 6.5, y0 + Math.min(h, 22) / 2, { width: 9, depth: Math.min(20, h - 2) }]);
-    // أحواض الخضرة بين النخل والبيت المحمي إذا فيه مكان
-    if (w >= 44) {
-      out.push(['farm-bed', x0 + 27, y0 + 5]);
-      if (h >= 18) out.push(['farm-bed', x0 + 27, y0 + 13]);
-    }
-  } else if (w >= 26) out.push(['farm-bed', x0 + w - 6, y0 + 5]);
-  return out;
-}
-
-/** الممر الرئيسي: من البوابة لين قدام المجلس */
-function mainPath(W: number, D: number, toX: number, atY: number): PlanElement {
-  return createElement('path', { x: W / 2, y: atY }, {
-    name: 'الممر الرئيسي',
-    points: [
-      { x: W / 2, y: D - 0.5 },
-      { x: W / 2, y: atY },
-      { x: toX, y: atY },
-    ],
-    path: { material: 'tiles', width: 3, edgeLights: true, edgeLightSpacing: 4 },
-  });
-}
-
 /** حديقة حشيش دائرية */
 function lawn(x: number, y: number, r: number): PlanElement {
   const g = circlePath({ x, y }, r, true, 2);
@@ -153,57 +71,107 @@ export function plotsOf(land: Pick<Land, 'width' | 'depth'>): IzbaPlots {
 /** قالب عزبة جاهز حسب الاستخدام وعدد الأراضي (ويحافظ على اتجاه الشمال لو عطيناه أرض المستخدم) */
 export function buildIzba(use: IzbaUse, plots: IzbaPlots = 1, base?: Land): Plan {
   const land = { ...izbaLand(plots), ...(base ? { northAngle: base.northAngle, surroundings: base.surroundings } : {}) };
-  const W = land.width;
-  const D = land.depth;
-  const big = plots > 1;
+  return build(land, ...perimeterLayout(use, land.width, land.depth));
+}
+
+/**
+ * التوزيع على السور (مثل صور مجمعات العزب من القمر الصناعي):
+ * - المجلس والمباني على السور الغربي (فوق الريح)
+ * - الحظاير والمظلات على السور الشرقي (تحت الريح)
+ * - صف شجر على السور الشمالي (مصد ريح وغبار)
+ * - الحوش مفتوح في النص، والمواقف جنب البوابة
+ */
+function perimeterLayout(use: IzbaUse, W: number, D: number): [Spec[], PlanElement[]] {
   const s: Spec[] = [];
   const ground: PlanElement[] = [];
-  switch (use) {
-    case 'livestock':
-      s.push(['majlis-room', 12, 8, { width: 8, depth: 5 }], ['fire-pit', 12, 17], ['toilet', 3, 17, { rotation: 90 }]);
-      s.push(...services(26));
-      s.push(parking(W / 2 - 12, D, 3));
-      s.push(...livestockZone(big ? W / 2 + 2 : 28, W - 1, big && D > 50 ? 28 : 18, D - 1, big, W / 2));
-      ground.push(mainPath(W, D, 12, 12.5));
-      if (D > 50) s.push(...farmZone(1, W / 2 - 4, 52, D - 12));
-      else if (big) s.push(...farmZone(8, W / 2 - 4, 24, D - 10));
-      break;
-    case 'rest':
-      s.push(...majlisZone(12, 8, big));
-      s.push(['pool', big ? 40 : 30, 22, big ? { width: 12, depth: 6 } : {}]);
-      s.push(['seating', big ? 40 : 30, 29, { name: 'جلسة المسبح' }]);
-      s.push(['kids-area', big ? 62 : 42, 22]);
-      s.push(...services(26));
-      s.push(parking(W / 2 - 12, D, big ? 5 : 3));
-      s.push(...palmRow(4, W - 4, 3.5, big ? 8 : 7).filter(([, x]) => x > 22 && !(big && x < 32)));
-      s.push(...palmRow(14, W - 6, D - 12, 8).filter(([, x]) => Math.abs(x - W / 2) > 6 && x > 20));
-      if (big) s.push(['volleyball', W - 18, D > 50 ? 60 : 36, { rotation: 0 }]);
-      ground.push(mainPath(W, D, 12, 13.5), lawn(12, big ? 34 : 31, 5));
-      break;
-    case 'farm':
-      s.push(['majlis-room', 9, 7, { width: 8, depth: 5 }], ['worker-room', 3.5, 15, { rotation: 90 }]);
-      s.push(...services(24));
-      s.push(parking(W / 2 - 10, D, 2));
-      s.push(...farmZone(16, W - 1, 1, D - 10));
-      break;
-    case 'mixed':
-    default:
-      s.push(...majlisZone(12, 8, big));
-      s.push(...services(26));
-      s.push(parking(W / 2 - 12, D, big ? 5 : 3));
-      if (big) {
-        s.push(...farmZone(W / 2 + 2, W - 1, 1, D > 50 ? 46 : 24));
-        s.push(...livestockZone(W / 2 + 2, W - 1, D > 50 ? 50 : 27, D - 1, D > 50));
-        if (D > 50) s.push(['pool', 22, 40, { width: 10, depth: 5 }], ...palmRow(6, 40, 56, 8));
-      } else {
-        s.push(...palmRow(28, 46, 3.5, 6));
-        s.push(['farm-bed', 40, 14]);
-        s.push(...livestockZone(26, 49, 24, 49, false));
+  const big = W > 60;
+  const tall = D > 60;
+  const red = '#b8423a';
+  const blue = '#2f5f9e';
+  const livestock = use === 'livestock' || use === 'mixed';
+  const farm = use === 'farm' || use === 'mixed';
+  const rest = use === 'rest';
+
+  // 1) صف شجر على السور الشمالي، مع فتحات للنخل
+  for (let x = 4, i = 0; x <= W - 4 + 1e-6; x += big ? 7 : 6, i++) s.push([i % 2 && farm ? 'palm' : 'tree', x, 2.6]);
+
+  // 2) المجلس على السور الغربي، بابه للحوش (شرق)
+  const mw = rest || big ? 16 : 12;
+  const my = 8 + mw / 2;
+  s.push(['majlis-room', 4.5, my, { width: mw, depth: 7, rotation: 270, roof: rest ? undefined : red }]);
+  s.push(['toilet', 2.2, my + mw / 2 + 2, { rotation: 270, name: 'حمام' }]);
+  s.push(['worker-room', 3, my + mw / 2 + 6, { rotation: 270, roof: red }]);
+  const yardX = 12;
+  // جلسة خارجية قدام المجلس + ضو وشوي
+  s.push(['canopy', yardX + 5, my - mw / 4 - 1, { name: 'جلسة خارجية', width: 6, depth: 5 }]);
+  s.push(['majlis-rug', yardX + 5, my - mw / 4 - 1, { name: 'جلسة شعبية' }]);
+  s.push(['fire-pit', yardX + 5, my + mw / 4 + 3]);
+  s.push(['bbq', yardX + 12, my + mw / 4 + 3, { rotation: 180 }]);
+
+  // 3) الخدمات بالزاوية الأمامية اليسار
+  s.push(['water-tank', 3, D - 9]);
+  s.push(['generator', 3.5, D - 4, { rotation: 90 }]);
+  s.push(['parking', 11, D - 4, { width: (big ? 5 : 3) * 2.7, parking: { slots: big ? 5 : 3, showCars: true } }]);
+
+  // 4) الحلال على السور الشرقي (ظهر المظلة على السور)
+  if (livestock) {
+    const x = W - 4.5;
+    const top = tall ? D / 2 + 4 : 15;
+    s.push(['feed-store', W - 2.5, top + 1, { rotation: 90, roof: blue }]);
+    s.push(['trough', W - 9, top + 1, { rotation: 90, name: 'مشرب' }]);
+    const yMax = big ? D - 17 : D - 0.5;
+    // صف حظاير على السور، وصف ثاني قدامه في الأراضي الكبيرة
+    const cols = big ? [x, x - 9] : [x];
+    let n = 0;
+    for (const cx of cols)
+      for (let y = top + 11.5; y + 6 <= yMax && n < 8; y += 12.5) {
+        n++;
+        s.push(['sheep-pen', cx, y, { rotation: 90, name: `حظيرة غنم ${n}`, roof: blue }]);
       }
-      ground.push(mainPath(W, D, 12, 13.5));
-      break;
+    if (big) {
+      // إبل وخيل على السور الجنوبي جهة الشرق، بعيد عن البوابة
+      s.push(['camel-pen', W - 12, D - 8, { name: 'حظيرة إبل', roof: blue }]);
+      if (use === 'livestock') s.push(['horse-stable', W - 32, D - 3, { name: 'إسطبل خيل', roof: red, rotation: 180 }]);
+    }
   }
-  return build(land, s, ground);
+
+  // 5) وسط الحوش حسب الاستخدام
+  const cx0 = yardX + 18;
+  const cx1 = livestock ? W - 16 : W - 4;
+  const mid = (cx0 + cx1) / 2;
+  if (rest) {
+    s.push(['pool', mid, D / 2 - 2, big ? { width: 12, depth: 6 } : {}]);
+    s.push(['seating', mid, D / 2 + 5, { name: 'جلسة المسبح' }]);
+    s.push(['kids-area', cx1 - 4, 12]);
+    ground.push(lawn(mid - (big ? 14 : 0), D - 16, big ? 7 : 5));
+    for (let y = 12; y <= D - 12; y += 8) s.push(['palm', W - 3, y]);
+    if (big) s.push(['volleyball', cx1 - 12, tall ? D - 20 : D / 2]);
+  }
+  if (farm) {
+    const fx0 = cx0;
+    const fx1 = Math.min(cx1, fx0 + (big ? 50 : 14));
+    const fy1 = livestock && !tall ? D / 2 - 3 : tall ? D / 2 - 6 : D - 30;
+    for (let y = 9; y <= fy1 + 1e-6; y += 7) for (let x = fx0 + 2; x <= fx1 - 2 + 1e-6; x += 7) s.push(['palm', x, y]);
+    if (big && !livestock) s.push(['greenhouse', fx1 + 8, 16, { width: 9, depth: 20 }]);
+    if (use === 'farm') {
+      s.push(['farm-bed', cx0 + 6, D - 16]);
+      s.push(['farm-bed', cx0 + 6, D - 24]);
+    }
+  }
+
+  // 6) الممر الرئيسي: من البوابة لين باب المجلس
+  ground.push(
+    createElement('path', { x: W / 2, y: my }, {
+      name: 'الممر الرئيسي',
+      points: [
+        { x: W / 2, y: D - 0.5 },
+        { x: W / 2, y: my + 0.5 },
+        { x: 9.5, y: my + 0.5 },
+      ],
+      path: { material: 'tiles', width: 2.5, edgeLights: true, edgeLightSpacing: 4 },
+    }),
+  );
+  return [s, ground];
 }
 
 /**

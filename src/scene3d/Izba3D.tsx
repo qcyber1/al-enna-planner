@@ -162,7 +162,7 @@ function Pen({ el, camel }: P & { camel: boolean }) {
         <meshStandardMaterial color={el.color} roughness={1} />
       </mesh>
       <PipeFence w={w} d={d} h={el.height} color={el.accent} />
-      <ShedRoof w={w - 0.2} d={sd} h={camel ? 3.4 : 2.6} z={-d / 2 + sd / 2} color="#d6d3cc" poleColor="#7d7f82" />
+      <ShedRoof w={w - 0.2} d={sd} h={camel ? 3.4 : 2.6} z={-d / 2 + sd / 2} color={el.roof ?? '#d6d3cc'} poleColor="#7d7f82" />
       <mesh position={[0, 0.3, -d / 2 + sd + 0.4]} castShadow>
         <boxGeometry args={[w * 0.7, 0.5, 0.5]} />
         <meshStandardMaterial color="#9aa3a8" metalness={0.4} />
@@ -197,13 +197,13 @@ function Stable({ el }: P) {
           <meshStandardMaterial color={el.accent} roughness={0.8} />
         </mesh>
       ))}
-      <ShedRoof w={w + 0.4} d={d} h={h} color={shade(el.color, -0.05)} poleColor={el.accent} />
+      <ShedRoof w={w + 0.4} d={d} h={h} color={el.roof ?? shade(el.color, -0.05)} poleColor={el.accent} />
     </group>
   );
 }
 
 function AnimalShade({ el }: P) {
-  return <ShedRoof w={el.width} d={el.depth} h={el.height} color={el.color} poleColor={el.accent} />;
+  return <ShedRoof w={el.width} d={el.depth} h={el.height} color={el.roof ?? el.color} poleColor={el.accent} />;
 }
 
 function FeedStore({ el }: P) {
@@ -223,7 +223,7 @@ function FeedStore({ el }: P) {
           <meshStandardMaterial color={i % 3 ? '#d9b84e' : '#c9a63e'} roughness={1} />
         </mesh>
       ))}
-      <ShedRoof w={w} d={d} h={el.height} color={el.color} poleColor="#6b6b6b" />
+      <ShedRoof w={w} d={d} h={el.height} color={el.roof ?? el.color} poleColor="#6b6b6b" />
     </group>
   );
 }
@@ -246,6 +246,23 @@ function Trough({ el }: P) {
   );
 }
 
+/** سقف ساندوتش بانل (كيربي) مائل شوي مع بروز من كل جهة */
+function KirbyRoof({ w, d, h, color }: { w: number; d: number; h: number; color: string }) {
+  const mat = useMat({ color, map: corrugatedTexture(), roughness: 0.5, metalness: 0.3 });
+  const slope = Math.min(0.35, d * 0.05);
+  return (
+    <group>
+      <mesh position={[0, h + 0.02, 0]}>
+        <boxGeometry args={[w + 0.05, 0.08, d + 0.05]} />
+        <meshStandardMaterial color="#d8d4cc" />
+      </mesh>
+      <mesh position={[0, h + 0.1 + slope / 2, 0]} rotation={[Math.atan2(slope, d), 0, 0]} material={mat} castShadow receiveShadow>
+        <boxGeometry args={[w + 0.6, 0.07, Math.hypot(d, slope) + 0.6]} />
+      </mesh>
+    </group>
+  );
+}
+
 function Room({ el, night, lampsOn, majlis }: P & { majlis: boolean }) {
   const w = el.width;
   const d = el.depth;
@@ -263,12 +280,16 @@ function Room({ el, night, lampsOn, majlis }: P & { majlis: boolean }) {
         <boxGeometry args={[w, h - 0.2, d]} />
         <meshStandardMaterial color={el.color} roughness={0.9} />
       </mesh>
-      {/* إطار السطح */}
-      <mesh position={[0, h + 0.15, 0]} castShadow>
-        <boxGeometry args={[w + 0.2, 0.3, d + 0.2]} />
-        <meshStandardMaterial color={shade(el.color, -0.12)} />
-      </mesh>
-      {majlis && (
+      {el.roof ? (
+        <KirbyRoof w={w} d={d} h={h} color={el.roof} />
+      ) : (
+        /* إطار السطح */
+        <mesh position={[0, h + 0.15, 0]} castShadow>
+          <boxGeometry args={[w + 0.2, 0.3, d + 0.2]} />
+          <meshStandardMaterial color={shade(el.color, -0.12)} />
+        </mesh>
+      )}
+      {majlis && !el.roof && (
         <mesh position={[0, h + 0.36, 0]}>
           <boxGeometry args={[w + 0.25, 0.12, d + 0.25]} />
           <meshStandardMaterial color={el.accent} />

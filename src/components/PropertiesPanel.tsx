@@ -15,6 +15,8 @@ import {
   TENT_STYLE_LABELS,
   createElement,
   qiblaRotation,
+  ROOF_COLORS,
+  ROOF_KINDS,
 } from '../lib/catalog';
 import {
   dist,
@@ -310,6 +312,27 @@ function SingleElement({ el }: { el: PlanElement }) {
         </Section>
       )}
 
+      {ROOF_KINDS.has(el.kind) && (
+        <Section title="لون السقف (كيربي)">
+          <div className="flex flex-wrap gap-1.5" data-testid="roof-colors">
+            {ROOF_COLORS.map((r) => (
+              <button
+                key={r.color}
+                type="button"
+                disabled={dis}
+                onClick={() => upd({ roof: r.color }, 'roof')}
+                title={r.label}
+                className={cx('flex h-9 items-center gap-1.5 rounded-lg border px-2 text-[12px] font-semibold', el.roof === r.color ? 'border-gold-500 ring-2 ring-gold-500/30' : 'border-sand-300')}
+              >
+                <span className="h-4 w-4 rounded" style={{ background: r.color }} /> {r.label}
+              </button>
+            ))}
+            {el.roof && (
+              <button type="button" disabled={dis} onClick={() => upd({ roof: undefined }, 'roof')} className="h-9 rounded-lg border border-sand-300 px-2 text-[12px] text-sand-700">بدون</button>
+            )}
+          </div>
+        </Section>
+      )}
       {el.kind !== 'string-lights' && (
         <Section title="الألوان">
           <ColorInput label="اللون الأساسي" value={el.color} onChange={(c) => upd({ color: c }, 'color')} />

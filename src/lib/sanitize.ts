@@ -107,6 +107,7 @@ export function sanitizeElement(raw: unknown): PlanElement | null {
     rotation: num(raw.rotation, 0, -3600, 3600),
     color: color(raw.color, d.color),
     accent: color(raw.accent, d.accent),
+    ...(typeof raw.roof === 'string' && /^#[0-9a-f]{6}$/i.test(raw.roof) ? { roof: raw.roof } : {}),
     locked: bool(raw.locked, false),
   };
   if (raw.allowOutside === true) el.allowOutside = true;

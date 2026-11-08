@@ -888,6 +888,17 @@ export function createElement(
   return { ...el, ...clone(overrides) };
 }
 
+/** ألوان سقوف الكيربي المنتشرة في العزب */
+export const ROOF_COLORS: { color: string; label: string }[] = [
+  { color: '#b8423a', label: 'أحمر' },
+  { color: '#2f5f9e', label: 'أزرق' },
+  { color: '#e9e7e2', label: 'أبيض' },
+  { color: '#9aa0a6', label: 'رمادي' },
+  { color: '#4f7a55', label: 'أخضر' },
+];
+/** العناصر اللي لها سقف يتغير لونه */
+export const ROOF_KINDS = new Set<ElementKind>(['majlis-room', 'worker-room', 'feed-store', 'horse-stable', 'animal-shade', 'sheep-pen', 'camel-pen']);
+
 /** اتجاه القبلة من قطر (تقريباً 255° من الشمال) */
 export const QIBLA_BEARING = 255;
 

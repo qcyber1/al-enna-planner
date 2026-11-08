@@ -112,7 +112,7 @@ function pen(ctx: Ctx, el: PlanElement, o: DrawOpts, animal: { size: number; col
   const sd = Math.min(d * 0.4, 5);
   ctx.fillStyle = 'rgba(40,30,20,0.12)';
   ctx.fillRect(-w / 2 + 0.2, -d / 2 + 0.3, w - 0.2, sd);
-  corrugated(ctx, -w / 2, -d / 2, w, sd, '#d6d3cc', o);
+  corrugated(ctx, -w / 2, -d / 2, w, sd, el.roof ?? '#d6d3cc', o);
   // معلف قدام المظلة
   ctx.fillStyle = '#9aa3a8';
   ctx.fillRect(-w * 0.35, -d / 2 + sd + 0.2, w * 0.7, 0.45);
@@ -127,7 +127,7 @@ function stable(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   const w = el.width;
   const d = el.depth;
   shadow(ctx, w, d);
-  corrugated(ctx, -w / 2, -d / 2, w, d, shade(el.color, 0.05), o);
+  corrugated(ctx, -w / 2, -d / 2, w, d, el.roof ?? shade(el.color, 0.05), o);
   const n = Math.max(1, Math.round(w / 3.5));
   const bw = w / n;
   ctx.strokeStyle = el.accent;
@@ -153,7 +153,7 @@ function animalShade(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   const w = el.width;
   const d = el.depth;
   ctx.globalAlpha = 0.85;
-  corrugated(ctx, -w / 2, -d / 2, w, d, el.color, o);
+  corrugated(ctx, -w / 2, -d / 2, w, d, el.roof ?? el.color, o);
   ctx.globalAlpha = 1;
   ctx.fillStyle = el.accent;
   const n = Math.max(1, Math.round(w / 4));
@@ -166,7 +166,7 @@ function feedStore(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   const w = el.width;
   const d = el.depth;
   shadow(ctx, w, d);
-  corrugated(ctx, -w / 2, -d / 2, w, d, el.color, o);
+  corrugated(ctx, -w / 2, -d / 2, w, d, el.roof ?? el.color, o);
   const s = Math.min(1.1, w / 5, d / 3);
   for (let i = 0; i < 3; i++) hay(ctx, -w / 2 + s * 0.8 + i * s * 1.15, d / 2 - s * 0.6, s);
   outline(ctx, w, d, o);
@@ -201,8 +201,8 @@ function room(ctx: Ctx, el: PlanElement, o: DrawOpts, majlis: boolean) {
     ctx.fillRect(-w / 2 + 0.4, -d / 2 + 0.4, t, d - 0.8);
     ctx.fillRect(w / 2 - 0.4 - t, -d / 2 + 0.4, t, d - 0.8);
   }
-  ctx.strokeStyle = shade(el.color, -0.45);
-  ctx.lineWidth = lw(o, 2.4);
+  ctx.strokeStyle = el.roof ?? shade(el.color, -0.45);
+  ctx.lineWidth = el.roof ? Math.max(0.25, lw(o, 3)) : lw(o, 2.4);
   ctx.strokeRect(-w / 2, -d / 2, w, d);
   // الباب
   const dw = Math.min(1.2, w * 0.25);

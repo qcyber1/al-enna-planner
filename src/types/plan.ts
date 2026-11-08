@@ -196,6 +196,8 @@ export interface PlanElement {
   string?: StringLightProps;
   parking?: ParkingProps;
   furniture?: FurnitureProps;
+  /** لون السقف (ألواح الساندوتش بانل / الكيربي) للمباني والمظلات */
+  roof?: string;
   notes?: string;
 }
 
