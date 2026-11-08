@@ -1,5 +1,6 @@
 import type { Plan, PlanElement, Vec2 } from '../types/plan';
 import { CATALOG_BY_KIND, isTentKind, type CollisionClass } from './catalog';
+import { angleDiff, compassName, WIND_FROM } from './wind';
 import {
   boundsIntersect,
   boundsOf,
@@ -17,6 +18,7 @@ import {
   add,
   scale,
   centroid,
+  rotate,
 } from './geometry';
 
 export type IssueSeverity = 'error' | 'warning';
@@ -28,7 +30,8 @@ export type IssueCode =
   | 'court-clearance'
   | 'court-zone-outside'
   | 'entrance-blocked'
-  | 'tent-entrance-blocked';
+  | 'tent-entrance-blocked'
+  | 'livestock-wind';
 
 export interface Issue {
   id: string;
@@ -47,6 +50,14 @@ export interface ValidationResult {
 }
 
 type Rule = 'error' | 'warning' | 'ok';
+
+/** الحلال وأحواشه */
+const PENS = new Set<string>(['sheep-pen', 'camel-pen']);
+const LIVESTOCK = new Set<string>(['sheep-pen', 'camel-pen', 'horse-stable']);
+/** أماكن الجلوس اللي ما نبي ريحة الحلال توصلها */
+const SITTING = new Set<string>(['majlis-room', 'main-tent', 'canopy', 'majlis-rug', 'seating', 'fire-pit', 'dakka', 'dining-tent', 'pool']);
+export const LIVESTOCK_MIN_GAP = 10;
+export const LIVESTOCK_WIND_GAP = 30;
 
 function pairRule(a: CollisionClass, b: CollisionClass): Rule {
   const key = [a, b].sort().join('|');
@@ -166,6 +177,9 @@ export function validatePlan(plan: Plan): ValidationResult {
       if (!shapesIntersect(A.shapes, B.shapes)) continue;
       // مظلة السيارات فوق المواقف مسموحة
       if ((A.el.kind === 'carport' && B.el.kind === 'parking') || (B.el.kind === 'carport' && A.el.kind === 'parking')) continue;
+      // اللي داخل حوش الحلال بالكامل (معلف، مظلة، شجرة) مسموح
+      if (PENS.has(B.el.kind) && fullyInside(A.el, B.el)) continue;
+      if (PENS.has(A.el.kind) && fullyInside(B.el, A.el)) continue;
       // الأثاث داخل الخيمة مسموح
       if (A.cls === 'soft' && isTentKind(B.el.kind) && fullyInside(A.el, B.el)) continue;
       if (B.cls === 'soft' && isTentKind(A.el.kind) && fullyInside(B.el, A.el)) continue;
@@ -229,7 +243,7 @@ export function validatePlan(plan: Plan): ValidationResult {
       code: 'entrance-blocked',
       severity: 'warning',
       elementIds: [O.el.id],
-      message: `«${O.el.name}» يعيق المدخل الرئيسي للعنة`,
+      message: `«${O.el.name}» يعيق المدخل الرئيسي`,
       at: ent.center,
     });
   }
@@ -249,6 +263,30 @@ export function validatePlan(plan: Plan): ValidationResult {
         elementIds: [T.el.id, O.el.id],
         message: `مدخل «${T.el.name}» مسدود بـ«${O.el.name}»`,
         at: centroid(zone),
+      });
+    }
+  }
+
+  // 5) الحلال والمجلس: المسافة واتجاه الريح (الشمال تهب من الشمال الغربي)
+  for (const L of items) {
+    if (!LIVESTOCK.has(L.el.kind) || !L.shapes.length) continue;
+    for (const S of items) {
+      if (!SITTING.has(S.el.kind) || !S.shapes.length) continue;
+      const gap = shapesDistance(L.shapes, S.shapes).dist;
+      const v = rotate({ x: L.el.x - S.el.x, y: L.el.y - S.el.y }, -plan.land.northAngle);
+      const bearing = (((Math.atan2(v.x, -v.y) * 180) / Math.PI) % 360 + 360) % 360;
+      const upwind = angleDiff(bearing, WIND_FROM) <= 60;
+      let message = '';
+      if (gap < LIVESTOCK_MIN_GAP) message = `«${L.el.name}» قريبة وايد من «${S.el.name}» (${formatMeters(gap)}) — الريحة والذباب. خلها ${LIVESTOCK_MIN_GAP} م على الأقل`;
+      else if (upwind && gap < LIVESTOCK_WIND_GAP)
+        message = `«${L.el.name}» فوق الريح عن «${S.el.name}» — مع ريح الشمال ريحتها بتوصلكم. الأفضل تكون جهة ${compassName(WIND_FROM + 180)} منه`;
+      if (!message) continue;
+      push({
+        code: 'livestock-wind',
+        severity: 'warning',
+        elementIds: [L.el.id, S.el.id],
+        message,
+        at: centroid(L.shapes[0]),
       });
     }
   }

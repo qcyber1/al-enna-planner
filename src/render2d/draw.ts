@@ -26,6 +26,7 @@ import { LIGHT_HEX, floodTarget, pathEdgeLights, stringBulbs } from '../lib/ligh
 import { isPolyline, isTentKind, CATALOG_BY_KIND } from '../lib/catalog';
 import { tentEntranceZone } from '../lib/validation';
 import { drawExtra } from './drawExtra';
+import { drawIzba } from './drawIzba';
 import { drawSurroundings } from './surroundings';
 
 export const FONT = "'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif";
@@ -879,7 +880,7 @@ export function drawLocalElement(ctx: Ctx, el: PlanElement, o: DrawOpts) {
     case 'lantern':
       return drawLightPoint(ctx, el, o);
     default:
-      if (drawExtra(ctx, el, o)) return;
+      if (drawExtra(ctx, el, o) || drawIzba(ctx, el, o)) return;
       ctx.fillStyle = el.color;
       ctx.fillRect(-el.width / 2, -el.depth / 2, el.width, el.depth);
   }
@@ -1310,10 +1311,12 @@ export function drawLabels(ctx: Ctx, plan: Plan, o: LabelOpts) {
       }
     }
     if (minScreen < 22) continue;
-    const showName = o.names && minScreen > 34;
+    // النخل والشجر واضحين من رسمتهم — بدون اسم ومقاس عشان ما تزحم المخطط
+    const quiet = el.kind === 'palm' || el.kind === 'tree';
+    const showName = o.names && minScreen > 34 && !quiet;
     const lines: { s: string; size: number; color: string; weight: number }[] = [];
     if (showName) lines.push({ s: el.name, size: 12, color: '#2b1d12', weight: 700 });
-    if (o.dims && el.kind !== 'string-lights') lines.push({ s: dims, size: 10.5, color: '#5b3a1e', weight: 600 });
+    if (o.dims && el.kind !== 'string-lights' && !quiet) lines.push({ s: dims, size: 10.5, color: '#5b3a1e', weight: 600 });
     const lh = px(o, 15);
     const start = cy - ((lines.length - 1) * lh) / 2;
     lines.forEach((l, i) => text(ctx, l.s, cx, start + i * lh, o, l.size, l.color, l.weight));

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
-import { CATALOG, CATEGORY_LABELS, CATEGORY_ORDER, createElement, qiblaRotation, type CatalogItem } from '../lib/catalog';
-import { getPlan, useEditor } from '../store/editorStore';
+import { CATALOG, CATEGORY_LABELS, CATEGORY_ORDER, IZBA_CATEGORY_ORDER, createElement, qiblaRotation, type CatalogItem } from '../lib/catalog';
+import { getPlan, useEditor, usePlan } from '../store/editorStore';
 import { landBounds } from '../lib/geometry';
 import { DND_MIME } from '../editor2d/Editor2D';
 import { useViewport } from '../editor2d/viewport';
@@ -90,11 +90,13 @@ export function addCircleGrass(center?: { x: number; y: number }, r = 3) {
 
 export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: boolean }) {
   const [q, setQ] = useState('');
-  const items = CATALOG.filter((c) => !q || c.label.includes(q) || c.description.includes(q));
+  const izba = usePlan().land.site === 'izba';
+  const items = CATALOG.filter((c) => (izba || !c.izbaOnly) && (!q || c.label.includes(q) || c.description.includes(q)));
+  const order = izba ? IZBA_CATEGORY_ORDER : CATEGORY_ORDER;
   return (
     <div className="flex h-full flex-col">
       <div className={sheet ? 'border-b border-sand-200 px-3 pb-2' : 'border-b border-sand-200 p-3'}>
-        {!sheet && <h2 className="mb-2 text-sm font-bold text-dune">مكتبة عناصر العنة</h2>}
+        {!sheet && <h2 className="mb-2 text-sm font-bold text-dune">{izba ? 'مكتبة عناصر العزبة' : 'مكتبة عناصر العنة'}</h2>}
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute top-2.5 right-2.5 text-sand-500" />
           <input
@@ -107,7 +109,7 @@ export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: bo
         {!sheet && <p className="mt-2 text-[11px] leading-relaxed text-sand-600">اسحب العنصر إلى المخطط أو انقر عليه لإضافته في منتصف العرض.</p>}
       </div>
       <div className="scroll-thin flex-1 overflow-y-auto p-2">
-        {CATEGORY_ORDER.map((cat) => {
+        {order.map((cat) => {
           const list = items.filter((i) => i.category === cat);
           if (!list.length) return null;
           return (

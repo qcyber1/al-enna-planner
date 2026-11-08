@@ -3,6 +3,7 @@ import { Minus, Plus, Sparkles, Check, Layers } from 'lucide-react';
 import { useEditor, usePlan } from '../store/editorStore';
 import { Button, Modal, Toggle, cx } from './ui';
 import { DEFAULT_GEN, generateDesigns, type GenInput, type GenResult } from '../lib/generator';
+import { izbaIdeas } from '../lib/izba';
 import { planThumbnail } from '../render2d/exportImage';
 import { landBounds } from '../lib/geometry';
 import { useViewport } from '../editor2d/viewport';
@@ -36,6 +37,7 @@ export function GeneratorDialog() {
   const [busy, setBusy] = useState(false);
   const set = (p: Partial<GenInput>) => setInput((i) => ({ ...i, ...p }));
   const b = landBounds(plan.land);
+  const izba = plan.land.site === 'izba';
   const thumbs = useMemo(() => (results ? results.map((r) => planThumbnail(r.plan, 520)) : []), [results]);
 
   const [seed, setSeed] = useState(0);
@@ -43,7 +45,7 @@ export function GeneratorDialog() {
     setBusy(true);
     setSeed(nextSeed);
     setTimeout(() => {
-      setResults(generateDesigns(plan.land, { ...input, tents: Math.max(1, input.tents) }, nextSeed));
+      setResults(izba ? izbaIdeas(plan.land) : generateDesigns(plan.land, { ...input, tents: Math.max(1, input.tents) }, nextSeed));
       setBusy(false);
     }, 30);
   };
@@ -64,26 +66,33 @@ export function GeneratorDialog() {
       open={open}
       onClose={() => openDialog(null)}
       wide={results ? 'xl' : true}
-      title={<span className="flex items-center gap-2"><Sparkles size={18} className="text-gold-600" /> مولّد تصاميم العنة</span>}
+      title={<span className="flex items-center gap-2"><Sparkles size={18} className="text-gold-600" /> {izba ? 'أفكار جاهزة للعزبة' : 'مولّد تصاميم العنة'}</span>}
       footer={
         results ? (
           <>
             <Button onClick={() => setResults(null)}>تعديل المتطلبات</Button>
-            <Button onClick={() => run(seed + 1)} disabled={busy} data-testid="gen-more">
+            {!izba && <Button onClick={() => run(seed + 1)} disabled={busy} data-testid="gen-more">
               🎲 {busy ? 'جاري…' : 'أفكار ثانية'}
-            </Button>
+            </Button>}
             <Button variant="primary" onClick={() => adopt(results)} data-testid="gen-add-all">
-              <Layers size={15} /> أضف الأفكار الخمس كتصاميم للمقارنة
+              <Layers size={15} /> {izba ? 'أضف الأفكار كلها كتصاميم للمقارنة' : 'أضف الأفكار الخمس كتصاميم للمقارنة'}
             </Button>
           </>
         ) : (
           <Button variant="gold" onClick={() => run(0)} disabled={busy} data-testid="gen-run">
-            <Sparkles size={16} /> {busy ? 'جاري التوليد…' : 'ولّد 5 أفكار'}
+            <Sparkles size={16} /> {busy ? 'جاري التوليد…' : izba ? 'وريني 4 أفكار' : 'ولّد 5 أفكار'}
           </Button>
         )
       }
     >
-      {!results ? (
+      {!results && izba ? (
+        <div className="space-y-3 p-5">
+          <p className="text-sm text-sand-700">
+            بنوزّع لك العزبة بأربع طرق على أرضك ({Math.round(b.maxX - b.minX)} × {Math.round(b.maxY - b.minY)} م): متكاملة، حلال، استراحة، وزراعة — والحلال دايم تحت الريح عن المجلس.
+          </p>
+          <p className="text-[12px] text-sand-600">التصميم الحالي ما يتغيّر — الأفكار تنضاف كتصاميم جديدة تقدر تقارن بينها.</p>
+        </div>
+      ) : !results ? (
         <div className="space-y-4 p-5">
           <p className="text-sm text-sand-700">
             حدّد وش تبي في عنتك، والمولّد يوزّعها لك بخمس طرق مختلفة على أرضك ({Math.round(b.maxX - b.minX)} × {Math.round(b.maxY - b.minY)} م) مع الممرات والإنارة، بدون تداخل.

@@ -70,6 +70,7 @@ export function sanitizeLand(raw: unknown): Land {
     depth,
     polygon,
     ground: oneOf(raw.ground, ['sand', 'soil', 'flat'] as const, d.ground),
+    ...(raw.site === 'izba' ? { site: 'izba' as const } : {}),
     northAngle: num(raw.northAngle, 0, -360, 360),
     entrance: {
       edge: Math.round(num(ent.edge, d.entrance.edge, 0, 64)),

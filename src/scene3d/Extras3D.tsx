@@ -5,6 +5,7 @@ import type { PlanElement } from '../types/plan';
 import { Pole, scaledPlane, useGeometry, useMat, WOOD } from './common';
 import { carpetTexture, corrugatedTexture, fabricTexture, labelTexture } from './textures';
 import { shade } from '../lib/color';
+import { Izba3D } from './Izba3D';
 
 interface P {
   el: PlanElement;
@@ -393,6 +394,6 @@ export function Extra3D(props: P) {
     case 'carport':
       return <Carport {...props} />;
     default:
-      return null;
+      return <Izba3D {...props} />;
   }
 }

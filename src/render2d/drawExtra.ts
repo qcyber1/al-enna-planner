@@ -7,7 +7,7 @@ import { FONT, type DrawOpts } from './draw';
 type Ctx = CanvasRenderingContext2D;
 const px = (o: DrawOpts, n: number) => n / o.ppm;
 
-function label(ctx: Ctx, s: string, x: number, y: number, o: DrawOpts, size = 11, color = '#2b1d12') {
+export function label(ctx: Ctx, s: string, x: number, y: number, o: DrawOpts, size = 11, color = '#2b1d12') {
   s = trIfEn(s);
   ctx.save();
   ctx.font = `700 ${px(o, size)}px ${FONT}`;
@@ -18,7 +18,7 @@ function label(ctx: Ctx, s: string, x: number, y: number, o: DrawOpts, size = 11
   ctx.restore();
 }
 
-function outline(ctx: Ctx, w: number, d: number, o: DrawOpts) {
+export function outline(ctx: Ctx, w: number, d: number, o: DrawOpts) {
   if (!o.issue && !o.selected) return;
   ctx.save();
   ctx.strokeStyle = o.issue === 'error' ? '#d62828' : o.issue === 'warning' ? '#e09f1f' : '#1d6fd8';

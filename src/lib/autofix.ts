@@ -29,6 +29,8 @@ export function pickMover(plan: Plan, issue: Issue, preferId?: string): PlanElem
   const pref = preferId ? els.find((e) => e.id === preferId && !e.points) : undefined;
   if (pref) return pref;
   if (issue.code === 'tent-entrance-blocked') return els.find((e) => e.id === issue.elementIds[1]) ?? null;
+  // الحلال هو اللي ينتقل، مو المجلس
+  if (issue.code === 'livestock-wind') return els.find((e) => e.id === issue.elementIds[0]) ?? els[0];
   if (issue.code === 'court-clearance') return els.find((e) => e.id === issue.elementIds[0]) ?? els[0];
   if (els.length === 1) return els[0];
   return [...els].sort((a, b) => rank(a) - rank(b))[0];
@@ -116,6 +118,7 @@ export function fixIssue(plan: Plan, issue: Issue, maxRadius = 25, preferId?: st
     if (m.kind === 'volleyball') w += 2;
     if (m.id === preferId) w *= 0.4;
     if (issue.code === 'tent-entrance-blocked' && m.id === issue.elementIds[0]) w *= 3; // نحرك اللي يسد المدخل مو الخيمة
+    if (issue.code === 'livestock-wind' && m.id === issue.elementIds[1]) w *= 4; // نحرك الحلال مو المجلس
     const c = searchFor(plan, m, w, maxRadius, best ? best.cost : Infinity);
     if (c && (!best || c.cost < best.cost)) best = c;
   }

@@ -13,7 +13,7 @@ import type {
 } from '../types/plan';
 import { uid } from './id';
 
-export type Category = 'tents' | 'facilities' | 'paths' | 'lighting' | 'furniture';
+export type Category = 'tents' | 'facilities' | 'paths' | 'lighting' | 'furniture' | 'livestock' | 'garden';
 export type Geometry = 'rect' | 'point' | 'polyline';
 /** فئة التصادم المستخدمة في التنبيهات */
 export type CollisionClass = 'structure' | 'cover' | 'soft' | 'court' | 'path' | 'pole' | 'none';
@@ -31,6 +31,8 @@ export interface CatalogItem {
   minSize: number;
   isTent?: boolean;
   isLight?: boolean;
+  /** يطلع في المكتبة بس لما المشروع عزبة */
+  izbaOnly?: boolean;
 }
 
 export const CATEGORY_LABELS: Record<Category, string> = {
@@ -39,9 +41,13 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   paths: 'الممرات',
   lighting: 'الإنارة',
   furniture: 'الجلسات والأثاث',
+  livestock: 'الحلال',
+  garden: 'الزراعة والحديقة',
 };
 
-export const CATEGORY_ORDER: Category[] = ['tents', 'facilities', 'paths', 'lighting', 'furniture'];
+export const CATEGORY_ORDER: Category[] = ['tents', 'facilities', 'paths', 'lighting', 'furniture', 'livestock', 'garden'];
+/** ترتيب المكتبة في العزبة: الحلال والزراعة أول */
+export const IZBA_CATEGORY_ORDER: Category[] = ['livestock', 'facilities', 'garden', 'tents', 'furniture', 'paths', 'lighting'];
 
 export const TENT_STYLE_LABELS: Record<TentStyle, string> = {
   majlis: 'مجلس (سقف مائل)',
@@ -664,6 +670,165 @@ export const CATALOG: CatalogItem[] = [
     collision: 'cover',
     minSize: 2,
     defaults: { ...base, width: 9, depth: 6, height: 3, color: '#e9e2d0', accent: '#6b6b6b' },
+  },
+
+  // ——— العزبة: الحلال ———
+  {
+    kind: 'sheep-pen',
+    category: 'livestock',
+    label: 'حظيرة غنم',
+    description: 'حوش شبك مع مظلة في جهة — يُفضّل تحت الريح بعيد عن المجلس',
+    icon: '🐑',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 2,
+    izbaOnly: true,
+    defaults: { ...base, width: 12, depth: 8, height: 1.6, color: '#c9b48c', accent: '#8a8f94' },
+  },
+  {
+    kind: 'camel-pen',
+    category: 'livestock',
+    label: 'حظيرة إبل',
+    description: 'حوش واسع بسياج مواسير عالي',
+    icon: '🐪',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 4,
+    izbaOnly: true,
+    defaults: { ...base, width: 20, depth: 15, height: 2, color: '#cdb995', accent: '#7d7f82' },
+  },
+  {
+    kind: 'horse-stable',
+    category: 'livestock',
+    label: 'إسطبل خيل',
+    description: 'صف بوكسات خيل تحت سقف واحد',
+    icon: '🐎',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 3,
+    izbaOnly: true,
+    defaults: { ...base, width: 14, depth: 5, height: 3.2, color: '#d8c7a4', accent: '#6b4a2b' },
+  },
+  {
+    kind: 'animal-shade',
+    category: 'livestock',
+    label: 'مظلة حلال',
+    description: 'مظلة صاج على أعمدة تحمي الحلال من الشمس',
+    icon: '⛱️',
+    geometry: 'rect',
+    collision: 'cover',
+    minSize: 2,
+    izbaOnly: true,
+    defaults: { ...base, width: 10, depth: 6, height: 3, color: '#d9d6cf', accent: '#5f6266' },
+  },
+  {
+    kind: 'feed-store',
+    category: 'livestock',
+    label: 'مخزن علف',
+    description: 'مخزن مسقوف لبالات البرسيم والشعير',
+    icon: '🌾',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 1.5,
+    izbaOnly: true,
+    defaults: { ...base, width: 6, depth: 4, height: 3.2, color: '#b7a07a', accent: '#d9b84e' },
+  },
+  {
+    kind: 'trough',
+    category: 'livestock',
+    label: 'معلف / مشرب',
+    description: 'حوض أكل أو ماي للحلال',
+    icon: '🪣',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 0.4,
+    izbaOnly: true,
+    defaults: { ...base, width: 3, depth: 0.8, height: 0.6, color: '#9aa3a8', accent: '#6fa8c9' },
+  },
+  {
+    kind: 'worker-room',
+    category: 'facilities',
+    label: 'غرفة عامل',
+    description: 'غرفة سكن للعامل مع حمام — قريبة من الحلال',
+    icon: '🛖',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 2,
+    izbaOnly: true,
+    defaults: { ...base, width: 4, depth: 3, height: 2.8, color: '#e6dccb', accent: '#7a5c3e' },
+  },
+  {
+    kind: 'majlis-room',
+    category: 'facilities',
+    label: 'المجلس',
+    description: 'مجلس بناء أو بورتا كابن، مسقوف ومكيف — قلب العزبة',
+    icon: '🏠',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 3,
+    izbaOnly: true,
+    defaults: { ...base, width: 10, depth: 6, height: 3.2, color: '#efe6d4', accent: '#8a6a3a' },
+  },
+  // ——— العزبة: الزراعة والحديقة ———
+  {
+    kind: 'palm',
+    category: 'garden',
+    label: 'نخلة',
+    description: 'نخلة — قطر السعف تقريباً 5 م',
+    icon: '🌴',
+    geometry: 'rect',
+    collision: 'none',
+    minSize: 1,
+    izbaOnly: true,
+    defaults: { ...base, width: 5, depth: 5, height: 7, color: '#4f7a3a', accent: '#8a6a45' },
+  },
+  {
+    kind: 'tree',
+    category: 'garden',
+    label: 'شجرة (سدر / غاف)',
+    description: 'شجرة ظل',
+    icon: '🌳',
+    geometry: 'rect',
+    collision: 'none',
+    minSize: 1,
+    izbaOnly: true,
+    defaults: { ...base, width: 5, depth: 5, height: 5, color: '#5b7f3f', accent: '#6b4a2b' },
+  },
+  {
+    kind: 'farm-bed',
+    category: 'garden',
+    label: 'أحواض زراعة',
+    description: 'أحواض خضرة مع ري بالتنقيط',
+    icon: '🥬',
+    geometry: 'rect',
+    collision: 'soft',
+    minSize: 1,
+    izbaOnly: true,
+    defaults: { ...base, width: 10, depth: 6, height: 0.3, color: '#7a5a3a', accent: '#5f9a3e' },
+  },
+  {
+    kind: 'greenhouse',
+    category: 'garden',
+    label: 'بيت محمي',
+    description: 'بيت زراعي مقوّس مغطى بالنايلون',
+    icon: '🏕️',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 3,
+    izbaOnly: true,
+    defaults: { ...base, width: 9, depth: 20, height: 3.5, color: '#e8f0ec', accent: '#9aa5a0' },
+  },
+  {
+    kind: 'pool',
+    category: 'garden',
+    label: 'مسبح',
+    description: 'مسبح مع ممشى حوله',
+    icon: '🏊',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 2,
+    izbaOnly: true,
+    defaults: { ...base, width: 8, depth: 4, height: 0.2, color: '#3fa7d6', accent: '#e9e2d0' },
   },
 ];
 

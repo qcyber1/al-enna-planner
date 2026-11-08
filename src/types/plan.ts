@@ -28,7 +28,12 @@ export interface Fence {
   color: string;
 }
 
+/** نوع المكان: عنة (مخيم بر) أو عزبة */
+export type SiteKind = 'enna' | 'izba';
+
 export interface Land {
+  /** عنة أو عزبة (الافتراضي عنة للمشاريع القديمة) */
+  site?: SiteKind;
   shape: LandShape;
   /** الطول على المحور الأفقي (x) */
   width: number;
@@ -82,7 +87,21 @@ export type ElementKind =
   | 'dakka'
   | 'tannour'
   | 'diesel-tank'
-  | 'carport';
+  | 'carport'
+  // ——— العزبة ———
+  | 'sheep-pen'
+  | 'camel-pen'
+  | 'horse-stable'
+  | 'animal-shade'
+  | 'feed-store'
+  | 'trough'
+  | 'worker-room'
+  | 'majlis-room'
+  | 'palm'
+  | 'tree'
+  | 'farm-bed'
+  | 'greenhouse'
+  | 'pool';
 
 export type TentStyle = 'majlis' | 'bedouin' | 'pyramid';
 export type Side = 'front' | 'back' | 'left' | 'right';

@@ -12,6 +12,7 @@ import { askConfirm, stamp, copyText, exportDesignJson, exportProjectJson, readF
 import { buildShareLink } from '../lib/share';
 import { ImportError, parseImport } from '../lib/sanitize';
 import { createSamplePlan, defaultLand, emptyPlan } from '../lib/sample';
+import { buildIzba, izbaEnabled, izbaLand, IZBA_PLOT_OPTIONS, IZBA_USES, type IzbaPlots, type IzbaUse } from '../lib/izba';
 import { loadThumbs } from '../lib/storage';
 import { validatePlan } from '../lib/validation';
 import { useViewport } from '../editor2d/viewport';
@@ -35,6 +36,28 @@ import { markBackup } from './BackupNudge';
 export function WelcomeDialog() {
   const open = useEditor((s) => s.dialog === 'welcome');
   const openDialog = useEditor((s) => s.openDialog);
+  const [site, setSite] = useState<'enna' | 'izba'>('enna');
+  const [plots, setPlots] = useState<IzbaPlots>(1);
+  const showIzba = useMemo(() => izbaEnabled(), []);
+  const applyIzba = (use: IzbaUse) => {
+    const st = useEditor.getState();
+    const u = IZBA_USES.find((x) => x.id === use)!;
+    const size = IZBA_PLOT_OPTIONS.find((x) => x.n === plots)!.size;
+    st.addDesign(`${u.title} ${size}`, 'blank');
+    st.setPlan(() => buildIzba(use, plots), { history: false });
+    openDialog(null);
+    setTimeout(() => useViewport.getState().requestFit(), 60);
+    st.toast(`تم فتح «${u.title}» على ${size} م — عدّل عليها براحتك`, 'success');
+  };
+  const startEmptyIzba = () => {
+    const st = useEditor.getState();
+    const size = IZBA_PLOT_OPTIONS.find((x) => x.n === plots)!.size;
+    st.addDesign(`عزبة فاضية ${size}`, 'blank');
+    st.setPlan(() => emptyPlan(izbaLand(plots)), { history: false });
+    openDialog(null);
+    setTimeout(() => useViewport.getState().requestFit(), 60);
+    st.toast(`أرض العزبة ${size} جاهزة — ابدأ من مكتبة العناصر`, 'success');
+  };
   const applyTemplate = (t: Template) => {
     const st = useEditor.getState();
     const plan = buildTemplate(t);
@@ -57,6 +80,71 @@ export function WelcomeDialog() {
     <Modal open={open} onClose={() => openDialog(null)} title="أهلاً بك في مخطط العنة ⛺">
       <div className="space-y-4 p-5">
         <div className="sadu-band h-2 rounded" />
+        {showIzba && (
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-sand-100 p-1" role="tablist" data-testid="site-switch">
+            {([['enna', '⛺ عنة (مخيم بر)'], ['izba', '🏡 عزبة']] as const).map(([k, l]) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={site === k}
+                onClick={() => setSite(k)}
+                data-testid={`site-${k}`}
+                className={cx('h-10 rounded-lg text-sm font-bold transition', site === k ? 'bg-white text-dune shadow-sm' : 'text-sand-700 hover:text-dune')}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        )}
+        {site === 'izba' ? (
+          <div className="space-y-4">
+            <p className="text-sm leading-relaxed text-sand-800">
+              خطط عزبتك قبل البناء: الحلال والمجلس والزراعة بمقاسات حقيقية، والنظام ينبهك إذا الحلال فوق الريح عن المجلس.
+            </p>
+            <div>
+              <div className="mb-1.5 text-[13px] font-bold text-dune">كم أرض عندك؟ (الأرض 50 × 50 م)</div>
+              <div className="grid grid-cols-3 gap-2">
+                {IZBA_PLOT_OPTIONS.map((p) => (
+                  <button
+                    key={p.n}
+                    type="button"
+                    onClick={() => setPlots(p.n)}
+                    data-testid={`plots-${p.n}`}
+                    className={cx('rounded-xl border p-2 text-center transition', plots === p.n ? 'border-gold-500 bg-gold-50 ring-2 ring-gold-500/30' : 'border-sand-300 bg-white hover:border-gold-500')}
+                  >
+                    <div className="text-[13px] font-bold text-dune">{p.label}</div>
+                    <div className="text-[11px] text-sand-600" dir="ltr">{p.size} m</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="mb-1.5 text-[13px] font-bold text-dune">شنو استخدامها؟ (يطلع لك تصميم جاهز تعدل عليه)</div>
+              <div className="grid grid-cols-2 gap-2">
+                {IZBA_USES.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => applyIzba(u.id)}
+                    data-testid={`izba-${u.id}`}
+                    className="flex items-start gap-2 rounded-xl border border-sand-300 bg-white p-2.5 text-right transition hover:border-gold-500 hover:bg-sand-50"
+                  >
+                    <span className="text-2xl leading-none">{u.icon}</span>
+                    <span>
+                      <span className="block text-[13px] font-bold leading-tight text-dune">{u.title}</span>
+                      <span className="block text-[11px] leading-snug text-sand-600">{u.blurb}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button type="button" onClick={startEmptyIzba} className="w-full rounded-lg border border-sand-300 bg-white px-3 py-2 text-[13px] font-semibold text-dune hover:border-gold-500" data-testid="izba-empty">
+              أو ابدأ من أرض فاضية ({IZBA_PLOT_OPTIONS.find((x) => x.n === plots)!.size} م)
+            </button>
+          </div>
+        ) : (
+        <>
         <p className="text-sm leading-relaxed text-sand-800">
           صمّم عنتك قبل التركيب: وزّع الخيام والملعب والممرات والإنارة بمقاسات حقيقية بالمتر، شاهدها مجسمة ثلاثية الأبعاد نهاراً وليلاً، واحفظ أكثر من مقترح وشاركه مع الشباب.
         </p>
@@ -100,6 +188,8 @@ export function WelcomeDialog() {
             </button>
           ))}
         </div>
+        </>
+        )}
       </div>
     </Modal>
   );
@@ -111,6 +201,7 @@ export function LandDialog() {
   const openDialog = useEditor((s) => s.openDialog);
   const plan = usePlan();
   const [land, setLand] = useState<Land>(plan.land);
+  const izbaOn = useMemo(() => izbaEnabled(), []);
   useEffect(() => {
     if (open) setLand(plan.land);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,7 +222,7 @@ export function LandDialog() {
     <Modal
       open={open}
       onClose={() => openDialog(null)}
-      title="مساحة العنة"
+      title={land.site === 'izba' ? 'أرض العزبة' : 'مساحة العنة'}
       footer={
         <>
           <Button onClick={() => openDialog(null)}>إلغاء</Button>
@@ -140,6 +231,38 @@ export function LandDialog() {
       }
     >
       <div className="space-y-4 p-5">
+        {(izbaOn || land.site === 'izba') && (
+          <Field label="نوع المكان" hint="العزبة تفتح عناصر الحلال والزراعة في المكتبة">
+            <Select
+              value={land.site === 'izba' ? 'izba' : 'enna'}
+              onChange={(v) => setLand(v === 'izba' ? { ...land, site: 'izba' } : (({ site: _s, ...rest }) => rest)(land))}
+              options={[
+                { value: 'enna', label: '⛺ عنة (مخيم بر)' },
+                { value: 'izba', label: '🏡 عزبة' },
+              ]}
+            />
+          </Field>
+        )}
+        {land.site === 'izba' ? (
+          <div>
+            <span className="mb-1 block text-[12px] font-medium text-sand-700">الأرض 50 × 50 — كم أرض عندك؟</span>
+            <div className="flex flex-wrap gap-2">
+              {IZBA_PLOT_OPTIONS.map((o) => {
+                const L = izbaLand(o.n);
+                return (
+                  <Button
+                    key={o.n}
+                    variant={land.width === L.width && land.depth === L.depth ? 'gold' : 'secondary'}
+                    onClick={() => setLand({ ...land, shape: L.shape, width: L.width, depth: L.depth, entrance: { ...land.entrance, offset: L.width / 2 } })}
+                    data-testid={`land-plots-${o.n}`}
+                  >
+                    {o.label} ({o.size})
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
         <div>
           <span className="mb-1 block text-[12px] font-medium text-sand-700">المقاس المعتاد للعنة</span>
           <div className="flex flex-wrap gap-2">
@@ -159,6 +282,7 @@ export function LandDialog() {
             <span className="self-center text-[12px] text-sand-600">أو أدخل أي مقاس آخر بالأسفل</span>
           </div>
         </div>
+        )}
         <Field label="شكل الأرض">
           <Select
             value={land.shape === 'polygon' ? 'rectangle' : land.shape}
