@@ -5,6 +5,7 @@ import type { PlanElement } from '../types/plan';
 import { Pole, useMat } from './common';
 import { corrugatedTexture } from './textures';
 import { shade } from '../lib/color';
+import { Interior3D } from './Interior3D';
 
 interface P {
   el: PlanElement;
@@ -508,6 +509,6 @@ export function Izba3D(props: P) {
     case 'pool':
       return <Pool {...props} />;
     default:
-      return null;
+      return <Interior3D {...props} />;
   }
 }

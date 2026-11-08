@@ -280,6 +280,8 @@ function presetPose(preset: CameraPreset, plan: Plan, w: WorldInfo): { pos: [num
   const inn = ent.inward;
   const main =
     plan.elements.find((e) => e.kind === 'main-tent') ??
+    [...plan.elements].filter((e) => e.room?.type === 'majlis').sort((a, c) => c.width * c.depth - a.width * a.depth)[0] ??
+    plan.elements.find((e) => e.kind === 'majlis-room') ??
     [...plan.elements].filter((e) => isTentKind(e.kind)).sort((a, c) => c.width * c.depth - a.width * a.depth)[0];
   switch (preset) {
     case 'top':
@@ -294,6 +296,14 @@ function presetPose(preset: CameraPreset, plan: Plan, w: WorldInfo): { pos: [num
     case 'main-tent': {
       if (!main) return presetPose('oblique', plan, w);
       const f = { x: -Math.sin(main.rotation * DEG), y: Math.cos(main.rotation * DEG) };
+      if (main.kind === 'room') {
+        // المجلس من فوق بزاوية: يبين الأثاث والتشطيب (مع «شوف الداخل»)
+        const k = Math.max(main.width, main.depth);
+        return {
+          pos: [main.x - w.ox + f.x * k * 0.75, k * 0.85 + 2, main.y - w.oy + f.y * k * 0.75],
+          target: [main.x - w.ox, 0.6, main.y - w.oy],
+        };
+      }
       const dd = Math.max(main.width, main.depth) * 1.05 + 4;
       return {
         pos: [main.x - w.ox + f.x * dd + 2, 3.4, main.y - w.oy + f.y * dd],

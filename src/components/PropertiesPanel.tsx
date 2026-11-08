@@ -1,5 +1,5 @@
 import { AlertTriangle, Copy, Lock, Trash2, Unlock, ArrowUpToLine, ArrowDownToLine, RotateCcw, RotateCw, Plus, Ruler, Wand2 } from 'lucide-react';
-import type { PlanElement } from '../types/plan';
+import type { FloorFinish, PlanElement, RoomType, Side, WallFinish } from '../types/plan';
 import { getPlan, useEditor, usePlan } from '../store/editorStore';
 import { useValidation } from '../hooks/useDerived';
 import { FixButton, runFixAll } from './FixButton';
@@ -17,7 +17,12 @@ import {
   qiblaRotation,
   ROOF_COLORS,
   ROOF_KINDS,
+  ROOM_TYPE_LABELS,
+  ROOM_PRESETS,
+  FLOOR_LABELS,
+  WALL_LABELS,
 } from '../lib/catalog';
+import { roomNetArea } from '../lib/rooms';
 import {
   dist,
   elementCenter,
@@ -312,6 +317,7 @@ function SingleElement({ el }: { el: PlanElement }) {
         </Section>
       )}
 
+      {el.room && <RoomSection el={el} upd={upd} dis={dis} />}
       {ROOF_KINDS.has(el.kind) && (
         <Section title="لون السقف (كيربي)">
           <div className="flex flex-wrap gap-1.5" data-testid="roof-colors">
@@ -577,5 +583,59 @@ function WindNoteRow({ note, showSelect, disabled }: { note: WindNote; showSelec
         {showSelect && <Button size="sm" variant="ghost" onClick={() => st.select([note.elementId])}>اختر الخيمة</Button>}
       </div>
     </div>
+  );
+}
+
+// ——— الغرفة: النوع والتشطيب والأبواب والشبابيك ———
+function RoomSection({ el, upd, dis }: { el: PlanElement; upd: (p: Partial<PlanElement>, key?: string) => void; dis: boolean }) {
+  const r = el.room!;
+  const set = (p: Partial<NonNullable<PlanElement['room']>>, key?: string) => upd({ room: { ...r, ...p } }, key);
+  const setType = (type: RoomType) => {
+    const preset = ROOM_PRESETS[type];
+    const keepName = el.name !== ROOM_TYPE_LABELS[r.type] && el.name !== 'غرفة';
+    upd({ room: { ...r, ...preset, type }, ...(keepName ? {} : { name: ROOM_TYPE_LABELS[type] }) });
+  };
+  const sideOpts = (Object.keys(SIDE_LABELS) as Side[]).map((v) => ({ value: v, label: SIDE_LABELS[v] }));
+  const list = (key: 'doors' | 'windows', label: string, defW: number) => (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <b className="text-[12px] text-dune">{label}</b>
+        <Button size="sm" disabled={dis} onClick={() => set({ [key]: [...r[key], { side: 'front', offset: 0, width: defW }] })} data-testid={`room-add-${key}`}>
+          <Plus size={13} /> إضافة
+        </Button>
+      </div>
+      {r[key].length === 0 && <p className="text-[11px] text-sand-600">ما فيه</p>}
+      {r[key].map((o, i) => (
+        <div key={i} className="grid grid-cols-[1fr_4.5rem_4.5rem_auto] items-end gap-1">
+          <Select value={o.side} onChange={(side) => set({ [key]: r[key].map((x, j) => (j === i ? { ...x, side } : x)) })} options={sideOpts} disabled={dis} ariaLabel="الجهة" />
+          <NumberInput value={o.offset} step={0.1} min={-20} max={20} onChange={(offset) => set({ [key]: r[key].map((x, j) => (j === i ? { ...x, offset } : x)) }, `${key}${i}o`)} unit="م" />
+          <NumberInput value={o.width} step={0.1} min={0.4} max={6} onChange={(width) => set({ [key]: r[key].map((x, j) => (j === i ? { ...x, width } : x)) }, `${key}${i}w`)} unit="م" />
+          <button type="button" disabled={dis} onClick={() => set({ [key]: r[key].filter((_, j) => j !== i) })} className="mb-1 rounded p-1.5 text-red-700 hover:bg-red-50" aria-label="حذف">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+  return (
+    <Section title="الغرفة">
+      <Field label="نوع الغرفة">
+        <Select value={r.type} onChange={setType} disabled={dis} options={(Object.keys(ROOM_TYPE_LABELS) as RoomType[]).map((v) => ({ value: v, label: ROOM_TYPE_LABELS[v] }))} />
+      </Field>
+      <p className="text-[12px] text-sand-700">المساحة من الداخل: <b>{roomNetArea(el).toFixed(1)} م²</b> — الارتفاع {el.height.toFixed(1)} م{el.height > 4 ? ' ⚠ أعلى من 4 م (اشتراطات البلدية)' : ''}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="الأرضية">
+          <Select value={r.floor} onChange={(floor) => set({ floor })} disabled={dis} options={(Object.keys(FLOOR_LABELS) as FloorFinish[]).map((v) => ({ value: v, label: FLOOR_LABELS[v] }))} />
+        </Field>
+        <Field label="الجدران من داخل">
+          <Select value={r.wall} onChange={(wall) => set({ wall })} disabled={dis} options={(Object.keys(WALL_LABELS) as WallFinish[]).map((v) => ({ value: v, label: WALL_LABELS[v] }))} />
+        </Field>
+      </div>
+      {r.wall === 'paint' && <ColorInput label="لون الدهان" value={r.wallColor} onChange={(wallColor) => set({ wallColor }, 'wallColor')} />}
+      <Toggle label="إضاءة مخفية في السقف (جبس)" checked={r.coveLight} onChange={(coveLight) => set({ coveLight })} />
+      <p className="text-[11px] text-sand-600">الإزاحة من منتصف الجدار (سالب = يسار/فوق)، والعرض بالمتر.</p>
+      {list('doors', '🚪 الأبواب', 0.9)}
+      {list('windows', '🪟 الشبابيك', 1.2)}
+    </Section>
   );
 }

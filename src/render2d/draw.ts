@@ -27,6 +27,7 @@ import { isPolyline, isTentKind, CATALOG_BY_KIND } from '../lib/catalog';
 import { tentEntranceZone } from '../lib/validation';
 import { drawExtra } from './drawExtra';
 import { drawIzba } from './drawIzba';
+import { drawInterior } from './drawRoom';
 import { drawSurroundings } from './surroundings';
 
 export const FONT = "'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif";
@@ -880,7 +881,7 @@ export function drawLocalElement(ctx: Ctx, el: PlanElement, o: DrawOpts) {
     case 'lantern':
       return drawLightPoint(ctx, el, o);
     default:
-      if (drawExtra(ctx, el, o) || drawIzba(ctx, el, o)) return;
+      if (drawExtra(ctx, el, o) || drawIzba(ctx, el, o) || drawInterior(ctx, el, o)) return;
       ctx.fillStyle = el.color;
       ctx.fillRect(-el.width / 2, -el.depth / 2, el.width, el.depth);
   }

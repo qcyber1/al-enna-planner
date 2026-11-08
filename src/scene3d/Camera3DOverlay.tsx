@@ -1,6 +1,7 @@
 import type { MutableRefObject } from 'react';
-import { Camera, Sparkles, Eye, Footprints, DoorOpen, Tent, Plane, Box, ArrowUp, ArrowDown, RotateCcw, RotateCw, X } from 'lucide-react';
-import { useEditor } from '../store/editorStore';
+import { Camera, Home, Sparkles, Eye, Footprints, DoorOpen, Tent, Plane, Box, ArrowUp, ArrowDown, RotateCcw, RotateCw, X } from 'lucide-react';
+import { useEditor, usePlan } from '../store/editorStore';
+import { useView3D } from './viewStore';
 import { startPhoto, usePhoto } from './PhotoRender';
 import { izbaEnabled } from '../lib/izba';
 
@@ -31,6 +32,9 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
   const capture = useEditor((s) => s.requestCapture3d);
   const walking = preset === 'walk';
   const photoBusy = usePhoto((s) => s.status !== 'idle');
+  const interior = useView3D((s) => s.interior);
+  const toggleInterior = useView3D((s) => s.toggleInterior);
+  const hasRooms = usePlan().elements.some((e) => e.kind === 'room');
   const hold = (k: 'f' | 's' | 'turn', v: number) => ({
     onPointerDown: () => (move.current[k] = v),
     onPointerUp: () => (move.current[k] = 0),
@@ -46,6 +50,12 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
           </IconButton>
         ))}
         <span className="mx-1 h-6 w-px bg-sand-300" />
+        {BETA && hasRooms && (
+          <IconButton label="شوف داخل المباني (يشيل السقوف)" active={interior} onClick={toggleInterior} data-testid="cam-interior">
+            <Home size={17} />
+            <span className="hidden text-xs lg:inline">الداخل</span>
+          </IconButton>
+        )}
         <IconButton label="حفظ لقطة 3D لهذا التصميم (للمقارنة)" onClick={() => capture('thumb')}>
           <Camera size={17} />
         </IconButton>

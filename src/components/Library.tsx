@@ -7,6 +7,7 @@ import { DND_MIME } from '../editor2d/Editor2D';
 import { useViewport } from '../editor2d/viewport';
 import { cx } from './ui';
 import type { PlanElement } from '../types/plan';
+import { BUILDING_PRESETS, buildPreset, type BuildingPreset } from '../lib/buildings';
 import { circlePath } from '../lib/angleAssist';
 
 type Box = { minX: number; minY: number; maxX: number; maxY: number };
@@ -62,6 +63,25 @@ function addAtCenter(item: CatalogItem) {
   st.toast(`تمت إضافة «${el.name}» — اضغط عليه واسحبه لمكانه`, 'success');
 }
 
+/** مبنى جاهز (غرف + أثاث) في وسط الشاشة، بمكان فاضي */
+export function addBuilding(id: BuildingPreset['id']) {
+  const st = useEditor.getState();
+  const preset = BUILDING_PRESETS.find((b) => b.id === id)!;
+  const plan = getPlan();
+  const b = landBounds(plan.land);
+  const vp = useViewport.getState();
+  let p = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
+  const host = document.querySelector('[data-testid="editor-2d"]');
+  if (host && st.view !== '3d') p = { x: (host.clientWidth / 2 - vp.x) / vp.scale, y: (host.clientHeight / 2 - vp.y) / vp.scale };
+  // نلقى مكان فاضي بحجم المبنى كامل
+  const probe = createElement('room', { x: Math.round(p.x), y: Math.round(p.y) }, { width: preset.width, depth: preset.depth });
+  const spot = freeSpot(probe, plan.elements, b);
+  const els = buildPreset(id, Math.round((spot.x - preset.width / 2) * 2) / 2, Math.round((spot.y - preset.depth / 2) * 2) / 2);
+  st.setTool('select');
+  st.addElements(els);
+  st.toast(`تمت إضافة «${preset.title}» — اضغط أي غرفة وغيّر نوعها وتشطيبها، أو شوف الداخل من 3D`, 'success');
+}
+
 /** دائرة حشيش كاملة (مثلاً تحت جلسة دائرية) — نصف القطر يتعدل من الخصائص */
 export function addCircleGrass(center?: { x: number; y: number }, r = 3) {
   const st = useEditor.getState();
@@ -115,6 +135,28 @@ export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: bo
           return (
             <div key={cat} className="mb-3">
               <div className="mb-1.5 px-1 text-[11px] font-bold tracking-wide text-sand-600">{CATEGORY_LABELS[cat]}</div>
+              {cat === 'building' && !q && (
+                <div className="mb-1.5 grid gap-1.5">
+                  {BUILDING_PRESETS.map((bp) => (
+                    <button
+                      key={bp.id}
+                      type="button"
+                      onClick={() => {
+                        addBuilding(bp.id);
+                        onPicked?.();
+                      }}
+                      data-testid={`lib-building-${bp.id}`}
+                      className="flex items-center gap-2 rounded-xl border border-gold-500/60 bg-gold-50 p-2 text-right transition hover:border-gold-500 hover:shadow-sm"
+                    >
+                      <span className="text-xl leading-none">🏠</span>
+                      <span>
+                        <span className="block text-[12px] font-bold leading-tight text-dune">{bp.title} ({bp.width}×{bp.depth} م)</span>
+                        <span className="block text-[10px] leading-tight text-sand-600">{bp.blurb}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className={sheet ? 'grid grid-cols-3 gap-1.5' : 'grid grid-cols-2 gap-1.5'}>
                 {list.map((item) => (
                   <button

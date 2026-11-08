@@ -1,4 +1,9 @@
 import type {
+  FloorFinish,
+  Opening,
+  RoomProps,
+  RoomType,
+  WallFinish,
   CourtSurface,
   ElementKind,
   FenceType,
@@ -13,7 +18,7 @@ import type {
 } from '../types/plan';
 import { uid } from './id';
 
-export type Category = 'tents' | 'facilities' | 'paths' | 'lighting' | 'furniture' | 'livestock' | 'garden';
+export type Category = 'tents' | 'facilities' | 'paths' | 'lighting' | 'furniture' | 'livestock' | 'garden' | 'building' | 'interior';
 export type Geometry = 'rect' | 'point' | 'polyline';
 /** فئة التصادم المستخدمة في التنبيهات */
 export type CollisionClass = 'structure' | 'cover' | 'soft' | 'court' | 'path' | 'pole' | 'none';
@@ -43,11 +48,13 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   furniture: 'الجلسات والأثاث',
   livestock: 'الحلال',
   garden: 'الزراعة والحديقة',
+  building: 'المباني والغرف',
+  interior: 'الأثاث الداخلي',
 };
 
-export const CATEGORY_ORDER: Category[] = ['tents', 'facilities', 'paths', 'lighting', 'furniture', 'livestock', 'garden'];
+export const CATEGORY_ORDER: Category[] = ['tents', 'facilities', 'paths', 'lighting', 'furniture', 'livestock', 'garden', 'building', 'interior'];
 /** ترتيب المكتبة في العزبة: الحلال والزراعة أول */
-export const IZBA_CATEGORY_ORDER: Category[] = ['livestock', 'facilities', 'garden', 'tents', 'furniture', 'paths', 'lighting'];
+export const IZBA_CATEGORY_ORDER: Category[] = ['building', 'interior', 'livestock', 'facilities', 'garden', 'tents', 'furniture', 'paths', 'lighting'];
 
 export const TENT_STYLE_LABELS: Record<TentStyle, string> = {
   majlis: 'مجلس (سقف مائل)',
@@ -145,6 +152,45 @@ const base = {
   color: '#e9dcc0',
   accent: '#9b2c2c',
 };
+
+// ——— الغرف ———
+export const ROOM_TYPE_LABELS: Record<RoomType, string> = {
+  majlis: 'مجلس',
+  bedroom: 'غرفة نوم',
+  bathroom: 'حمام',
+  kitchen: 'مطبخ',
+  hall: 'صالة',
+  games: 'غرفة ألعاب',
+  store: 'مخزن',
+  dining: 'غرفة طعام',
+};
+export const FLOOR_LABELS: Record<FloorFinish, string> = {
+  marble: 'رخام أبيض',
+  wood: 'باركيه خشب',
+  microcement: 'مايكروسمنت رمادي',
+  tiles: 'بلاط',
+  carpet: 'موكيت',
+};
+export const WALL_LABELS: Record<WallFinish, string> = {
+  paint: 'دهان',
+  'wood-panel': 'ألواح خشب',
+  stone: 'حجر',
+  marble: 'رخام',
+};
+/** تشطيبات افتراضية حسب نوع الغرفة (مثل عزب سميسمة) */
+export const ROOM_PRESETS: Record<RoomType, Omit<RoomProps, 'type' | 'doors' | 'windows'>> = {
+  majlis: { floor: 'marble', wall: 'paint', wallColor: '#f3eee4', coveLight: true },
+  bedroom: { floor: 'wood', wall: 'paint', wallColor: '#ece6dc', coveLight: true },
+  bathroom: { floor: 'marble', wall: 'marble', wallColor: '#f1f1ef', coveLight: false },
+  kitchen: { floor: 'tiles', wall: 'marble', wallColor: '#f1f1ef', coveLight: false },
+  hall: { floor: 'marble', wall: 'paint', wallColor: '#f3eee4', coveLight: true },
+  games: { floor: 'wood', wall: 'wood-panel', wallColor: '#a57a52', coveLight: true },
+  store: { floor: 'tiles', wall: 'paint', wallColor: '#e6e1d8', coveLight: false },
+  dining: { floor: 'marble', wall: 'paint', wallColor: '#f3eee4', coveLight: true },
+};
+export function makeRoom(type: RoomType, doors: Opening[] = [{ side: 'front', offset: 0, width: 1 }], windows: Opening[] = []): RoomProps {
+  return { type, ...ROOM_PRESETS[type], doors, windows };
+}
 
 export const CATALOG: CatalogItem[] = [
   // ——— الخيام ———
@@ -830,6 +876,117 @@ export const CATALOG: CatalogItem[] = [
     izbaOnly: true,
     defaults: { ...base, width: 8, depth: 4, height: 0.2, color: '#3fa7d6', accent: '#e9e2d0' },
   },
+
+  // ——— المباني والغرف ———
+  {
+    kind: 'room',
+    category: 'building',
+    label: 'غرفة',
+    description: 'غرفة بجدران وباب وشبابيك — حط الغرف جنب بعض تصير مبنى، واختار نوعها وتشطيبها',
+    icon: '🚪',
+    geometry: 'rect',
+    collision: 'structure',
+    minSize: 1.2,
+    izbaOnly: true,
+    defaults: { ...base, width: 5, depth: 4, height: 3.2, color: '#e7dcc6', accent: '#f4f4f2', room: makeRoom('majlis') },
+  },
+  // ——— الأثاث الداخلي ———
+  {
+    kind: 'sofa-l',
+    category: 'interior',
+    label: 'جلسة أرضية (L)',
+    description: 'جلسة مجلس على الجدار بشكل L مع مساند',
+    icon: '🛋️',
+    geometry: 'rect',
+    collision: 'none',
+    minSize: 0.8,
+    izbaOnly: true,
+    defaults: { ...base, width: 5, depth: 3.5, height: 0.8, color: '#d9c7a3', accent: '#8a6a45' },
+  },
+  {
+    kind: 'tv-unit',
+    category: 'interior',
+    label: 'مكتبة تلفزيون',
+    description: 'وحدة خشب مع شاشة',
+    icon: '📺',
+    geometry: 'rect',
+    collision: 'soft',
+    minSize: 0.4,
+    izbaOnly: true,
+    defaults: { ...base, width: 3, depth: 0.5, height: 2.2, color: '#6b4a2b', accent: '#1d1d1f' },
+  },
+  {
+    kind: 'coffee-table',
+    category: 'interior',
+    label: 'طاولة قهوة',
+    description: 'طاولة وسط المجلس',
+    icon: '☕',
+    geometry: 'rect',
+    collision: 'soft',
+    minSize: 0.4,
+    izbaOnly: true,
+    defaults: { ...base, width: 1.6, depth: 0.9, height: 0.45, color: '#5a3a22', accent: '#c9a26a' },
+  },
+  {
+    kind: 'bed',
+    category: 'interior',
+    label: 'سرير',
+    description: 'سرير مع كوميدينات',
+    icon: '🛏️',
+    geometry: 'rect',
+    collision: 'soft',
+    minSize: 0.8,
+    izbaOnly: true,
+    defaults: { ...base, width: 1.8, depth: 2.1, height: 0.6, color: '#f2efe8', accent: '#8a7a6a' },
+  },
+  {
+    kind: 'wardrobe',
+    category: 'interior',
+    label: 'دولاب',
+    description: 'دولاب ملابس',
+    icon: '🚪',
+    geometry: 'rect',
+    collision: 'soft',
+    minSize: 0.4,
+    izbaOnly: true,
+    defaults: { ...base, width: 2, depth: 0.6, height: 2.4, color: '#e8e2d6', accent: '#b9a88e' },
+  },
+  {
+    kind: 'billiard',
+    category: 'interior',
+    label: 'طاولة بلياردو',
+    description: 'بلياردو مع مساحة اللعب حولها',
+    icon: '🎱',
+    geometry: 'rect',
+    collision: 'soft',
+    minSize: 1,
+    izbaOnly: true,
+    defaults: { ...base, width: 2.6, depth: 1.5, height: 0.85, color: '#2f6fb0', accent: '#5a3a22' },
+  },
+  {
+    kind: 'kitchen-counter',
+    category: 'interior',
+    label: 'كاونتر مطبخ',
+    description: 'كاونتر مع موقد ومغسلة وثلاجة',
+    icon: '🍳',
+    geometry: 'rect',
+    collision: 'soft',
+    minSize: 0.5,
+    izbaOnly: true,
+    defaults: { ...base, width: 3, depth: 0.65, height: 0.9, color: '#e6e1d8', accent: '#3a3a3a' },
+  },
+  {
+    kind: 'bath-set',
+    category: 'interior',
+    label: 'طقم حمام',
+    description: 'مرحاض ومغسلة ودش',
+    icon: '🚿',
+    geometry: 'rect',
+    collision: 'soft',
+    minSize: 0.8,
+    izbaOnly: true,
+    defaults: { ...base, width: 2, depth: 1.6, height: 1, color: '#f4f4f2', accent: '#9fb8c8' },
+  },
 ];
 
 export const CATALOG_BY_KIND: Record<ElementKind, CatalogItem> = Object.fromEntries(
@@ -897,7 +1054,7 @@ export const ROOF_COLORS: { color: string; label: string }[] = [
   { color: '#4f7a55', label: 'أخضر' },
 ];
 /** العناصر اللي لها سقف يتغير لونه */
-export const ROOF_KINDS = new Set<ElementKind>(['majlis-room', 'worker-room', 'feed-store', 'horse-stable', 'animal-shade', 'sheep-pen', 'camel-pen']);
+export const ROOF_KINDS = new Set<ElementKind>(['room', 'majlis-room', 'worker-room', 'feed-store', 'horse-stable', 'animal-shade', 'sheep-pen', 'camel-pen']);
 
 /** اتجاه القبلة من قطر (تقريباً 255° من الشمال) */
 export const QIBLA_BEARING = 255;

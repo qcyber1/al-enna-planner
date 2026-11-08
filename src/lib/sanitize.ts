@@ -9,6 +9,7 @@ import {
   type Project,
   type Vec2,
 } from '../types/plan';
+import { sanitizeRoom } from './rooms';
 import { CATALOG_BY_KIND } from './catalog';
 import { uid } from './id';
 import { defaultLand } from './sample';
@@ -118,6 +119,7 @@ export function sanitizeElement(raw: unknown): PlanElement | null {
     if (pts.length < 2) return null;
     el.points = pts.slice(0, 200);
   }
+  if (d.room) el.room = sanitizeRoom(raw.room, JSON.parse(JSON.stringify(d.room)));
   if (d.tent) {
     const t = isObj(raw.tent) ? raw.tent : {};
     el.tent = {

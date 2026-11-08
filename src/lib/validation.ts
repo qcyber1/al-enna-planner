@@ -87,6 +87,15 @@ function shapesIntersect(a: Vec2[][], b: Vec2[][]): boolean {
   return false;
 }
 
+/** غرفتين متلاصقتين: التداخل ما يتعدى سماكة جدار (0.25 م) */
+function roomsOnlyTouch(a: PlanElement, b: PlanElement): boolean {
+  const A = elementBounds(a);
+  const B = elementBounds(b);
+  const ox = Math.min(A.maxX, B.maxX) - Math.max(A.minX, B.minX);
+  const oy = Math.min(A.maxY, B.maxY) - Math.max(A.minY, B.minY);
+  return Math.min(ox, oy) <= 0.25;
+}
+
 /** هل العنصر (أثاث) داخل الخيمة بالكامل؟ */
 function fullyInside(inner: PlanElement, outer: PlanElement): boolean {
   const poly = rectCorners(outer.x, outer.y, outer.width, outer.depth, outer.rotation);
@@ -177,6 +186,11 @@ export function validatePlan(plan: Plan): ValidationResult {
       if (!shapesIntersect(A.shapes, B.shapes)) continue;
       // مظلة السيارات فوق المواقف مسموحة
       if ((A.el.kind === 'carport' && B.el.kind === 'parking') || (B.el.kind === 'carport' && A.el.kind === 'parking')) continue;
+      // الأثاث وأي شي داخل الغرفة بالكامل مسموح
+      if (B.el.kind === 'room' && A.el.kind !== 'room' && fullyInside(A.el, B.el)) continue;
+      if (A.el.kind === 'room' && B.el.kind !== 'room' && fullyInside(B.el, A.el)) continue;
+      // غرف لاصقة في بعض (جدار مشترك) مب تداخل
+      if (A.el.kind === 'room' && B.el.kind === 'room' && roomsOnlyTouch(A.el, B.el)) continue;
       // اللي داخل حوش الحلال بالكامل (معلف، مظلة، شجرة) مسموح
       if (PENS.has(B.el.kind) && fullyInside(A.el, B.el)) continue;
       if (PENS.has(A.el.kind) && fullyInside(B.el, A.el)) continue;

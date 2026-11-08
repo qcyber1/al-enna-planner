@@ -101,7 +101,17 @@ export type ElementKind =
   | 'tree'
   | 'farm-bed'
   | 'greenhouse'
-  | 'pool';
+  | 'pool'
+  // ——— المباني والتصميم الداخلي ———
+  | 'room'
+  | 'sofa-l'
+  | 'tv-unit'
+  | 'coffee-table'
+  | 'bed'
+  | 'wardrobe'
+  | 'billiard'
+  | 'kitchen-counter'
+  | 'bath-set';
 
 export type TentStyle = 'majlis' | 'bedouin' | 'pyramid';
 export type Side = 'front' | 'back' | 'left' | 'right';
@@ -168,6 +178,28 @@ export interface ParkingProps {
   showCars: boolean;
 }
 
+/** الغرف: نوعها وتشطيباتها وفتحاتها (الأبواب والشبابيك) */
+export type RoomType = 'majlis' | 'bedroom' | 'bathroom' | 'kitchen' | 'hall' | 'games' | 'store' | 'dining';
+export type FloorFinish = 'marble' | 'wood' | 'microcement' | 'tiles' | 'carpet';
+export type WallFinish = 'paint' | 'wood-panel' | 'stone' | 'marble';
+export interface Opening {
+  side: Side;
+  /** إزاحة منتصف الفتحة عن منتصف الضلع بالمتر */
+  offset: number;
+  width: number;
+}
+export interface RoomProps {
+  type: RoomType;
+  floor: FloorFinish;
+  wall: WallFinish;
+  /** لون الجدران من الداخل */
+  wallColor: string;
+  doors: Opening[];
+  windows: Opening[];
+  /** إضاءة مخفية في السقف (جبس) */
+  coveLight: boolean;
+}
+
 export interface FurnitureProps {
   seats: number;
 }
@@ -196,6 +228,7 @@ export interface PlanElement {
   string?: StringLightProps;
   parking?: ParkingProps;
   furniture?: FurnitureProps;
+  room?: RoomProps;
   /** لون السقف (ألواح الساندوتش بانل / الكيربي) للمباني والمظلات */
   roof?: string;
   notes?: string;

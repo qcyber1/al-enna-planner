@@ -467,3 +467,54 @@ export function skyGradientTexture(top: string, bottom: string): THREE.Texture {
     return finish(`sky:${top}:${bottom}`, c, { repeat: false });
   });
 }
+
+/** رخام أبيض بعروق رمادية/سودا (مثل مجالس العزب) */
+export function marbleTexture(): THREE.Texture {
+  return cached('marble', () => {
+    const size = 512;
+    const [c, ctx] = makeCanvas(size, size);
+    const r = rng(53);
+    ctx.fillStyle = '#f1f0ec';
+    ctx.fillRect(0, 0, size, size);
+    for (let k = 0; k < 14; k++) {
+      ctx.strokeStyle = `rgba(${30 + r() * 40},${30 + r() * 40},${35 + r() * 40},${0.15 + r() * 0.45})`;
+      ctx.lineWidth = 0.6 + r() * 2.2;
+      let x = r() * size;
+      let y = r() * size;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      for (let i = 0; i < 6; i++) {
+        const nx = x + (r() - 0.3) * 160;
+        const ny = y + (r() - 0.5) * 120;
+        ctx.quadraticCurveTo(x + (r() - 0.5) * 80, y + (r() - 0.5) * 80, nx, ny);
+        x = nx;
+        y = ny;
+      }
+      ctx.stroke();
+    }
+    // فواصل البلاطات
+    ctx.strokeStyle = 'rgba(150,150,150,0.35)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, size, size);
+    return finish('marble', c);
+  });
+}
+
+/** مايكروسمنت رمادي ناعم */
+export function microcementTexture(): THREE.Texture {
+  return cached('microcement', () => {
+    const size = 256;
+    const [c, ctx] = makeCanvas(size, size);
+    const n = valueNoise(size, 6, 61);
+    const img = ctx.createImageData(size, size);
+    for (let i = 0; i < size * size; i++) {
+      const v = 168 + n[i] * 34;
+      img.data[i * 4] = v;
+      img.data[i * 4 + 1] = v - 2;
+      img.data[i * 4 + 2] = v - 6;
+      img.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return finish('microcement', c);
+  });
+}
