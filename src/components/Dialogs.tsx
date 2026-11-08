@@ -12,6 +12,8 @@ import { askConfirm, stamp, copyText, exportDesignJson, exportProjectJson, readF
 import { buildShareLink } from '../lib/share';
 import { ImportError, parseImport } from '../lib/sanitize';
 import { createSamplePlan, defaultLand, emptyPlan } from '../lib/sample';
+import { renderPlanSheet } from '../render2d/planSheet';
+import { usePhoto } from '../scene3d/photoStore';
 import { buildIzba, izbaEnabled, izbaLand, IZBA_PLOT_OPTIONS, IZBA_USES, type IzbaPlots, type IzbaUse } from '../lib/izba';
 import { loadThumbs } from '../lib/storage';
 import { validatePlan } from '../lib/validation';
@@ -659,6 +661,21 @@ export function ShareDialog() {
     if (r === 'downloaded' && mode === 'share') toast('تم تنزيل الصورة — أرسلها في قروب الواتساب', 'success');
     else if (r !== 'cancelled') toast('تم تصدير صورة المخطط', 'success');
   };
+  const exportSheet = async () => {
+    if (demoBlock('plan-sheet')) return;
+    // صورة 3D: آخر رندر واقعي، وإلا آخر لقطة محفوظة للتصميم
+    const src = usePhoto.getState().url || loadThumbs(design.id).d3 || '';
+    let photo: HTMLImageElement | null = null;
+    if (src) {
+      photo = new Image();
+      photo.src = src;
+      await photo.decode().catch(() => (photo = null));
+    }
+    const c = renderPlanSheet(design.plan, { project: project.name, design: design.name, photo });
+    const blob = await canvasToBlob(c);
+    const r = await shareOrDownload(blob, `al-enna-A3-${safeFileName(design.name)}-${stamp()}.png`, `${project.name} — ${design.name}`);
+    if (r !== 'cancelled') toast(photo ? 'تم تصدير المخطط الاحترافي A3' : 'تم تصدير المخطط A3 — سوّ «رندر واقعي» من المشهد 3D عشان تنضاف صورته في المخطط', 'success');
+  };
   const export3d = (mode: 'download' | 'share') => {
     if (view === '2d') {
       setView('3d');
@@ -697,6 +714,7 @@ export function ShareDialog() {
           <Toggle label="مع خريطة الإضاءة الليلية" checked={lightMap} onChange={setLightMap} />
           <Button variant="primary" className="w-full" onClick={() => export3d('share')} data-testid="export-3d"><Box size={16} /> صورة المشهد 3D (الزاوية الحالية)</Button>
           <Button className="w-full" onClick={() => openDialog('compare')}><ImageIcon size={16} /> صورة مقارنة التصاميم</Button>
+          <Button className="w-full" onClick={() => void exportSheet()} data-testid="export-sheet">📐 المخطط الاحترافي A3 (للطباعة والمقاول)</Button>
         </div>
         <div className="space-y-2 rounded-xl border border-sand-200 bg-white p-4">
           <h3 className="font-bold text-dune">رابط مشاركة</h3>

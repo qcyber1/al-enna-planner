@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { create } from 'zustand';
+import { usePhoto } from './photoStore';
 import { GradientEquirectTexture, WebGLPathTracer } from 'three-gpu-pathtracer';
 import type { TimeOfDay } from '../types/plan';
 import { Sparkles, Download, X } from 'lucide-react';
@@ -14,29 +14,8 @@ import { canvasToBlob } from '../render2d/exportImage';
 import { withWatermark } from '../render2d/watermark';
 import { safeFileName, shareOrDownload, stamp } from '../lib/files';
 
-type Status = 'idle' | 'preparing' | 'rendering' | 'done' | 'error';
-interface PhotoState {
-  status: Status;
-  samples: number;
-  target: number;
-  url: string;
-  start: (target: number) => void;
-  progress: (n: number) => void;
-  finish: (url: string) => void;
-  fail: () => void;
-  close: () => void;
-}
-export const usePhoto = create<PhotoState>((set) => ({
-  status: 'idle',
-  samples: 0,
-  target: 200,
-  url: '',
-  start: (target) => set({ status: 'preparing', samples: 0, target, url: '' }),
-  progress: (samples) => set({ status: 'rendering', samples }),
-  finish: (url) => set({ status: 'done', url }),
-  fail: () => set({ status: 'error' }),
-  close: () => set({ status: 'idle', samples: 0, url: '' }),
-}));
+export { usePhoto };
+
 
 /** ألوان السماء حسب الوقت (الضوء المحيط في المحاكاة) */
 function skyFor(time: TimeOfDay): { top: string; bottom: string; exp: number; strength: number } {
@@ -47,7 +26,7 @@ function skyFor(time: TimeOfDay): { top: string; bottom: string; exp: number; st
 
 /** داخل الـ Canvas: يشغّل المحاكاة لما الحالة «preparing/rendering» */
 export function PhotoTracer({ time }: { time: TimeOfDay }) {
-  const { gl, scene, camera } = useThree();
+  const { gl, scene, camera, invalidate } = useThree();
   const status = usePhoto((s) => s.status);
   const active = status === 'preparing' || status === 'rendering';
   const pt = useRef<WebGLPathTracer | null>(null);
@@ -91,6 +70,7 @@ export function PhotoTracer({ time }: { time: TimeOfDay }) {
       tracer.setScene(scene, camera);
       pt.current = tracer;
       usePhoto.getState().progress(0);
+      invalidate();
     } catch (e) {
       console.error(e);
       usePhoto.getState().fail();
@@ -113,6 +93,8 @@ export function PhotoTracer({ time }: { time: TimeOfDay }) {
     const t = pt.current;
     if (!t || done.current) return;
     t.renderSample();
+    // نطلب الإطار الجاي حتى لو المشهد على «الرسم عند الطلب»
+    invalidate();
     const st = usePhoto.getState();
     const n = Math.floor(t.samples);
     if (n !== st.samples) st.progress(n);
