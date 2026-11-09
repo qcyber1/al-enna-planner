@@ -12,7 +12,7 @@ import { recordEvent, funnelSummary } from './funnel.mjs';
 import { validateBuyer, parsePhone } from './buyer.mjs';
 import { safeJoin, readBody as readBodyRaw } from './http-utils.mjs';
 import { sendEvent, userData, metaCookies, capiEnabled } from './meta.mjs';
-import { sendSnap, snapUser, snapCookies, snapEnabled, snapPixelId } from './snap.mjs';
+import { sendSnap, snapUser, snapCookies, snapEnabled } from './snap.mjs';
 import { loadDbFile, latestBackup, writeDbFile, dailyBackup } from './datastore.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
 
@@ -542,7 +542,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === '/api/status') {
       const refId = parseRef(url.searchParams.get('ref'));
-      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null, izba: { price: izbaPrice(), basePrice: Math.max(izbaPrice(), izbaListPrice()), upgrade: izbaUpgrade() }, snapPixel: snapPixelId || undefined });
+      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null, izba: { price: izbaPrice(), basePrice: Math.max(izbaPrice(), izbaListPrice()), upgrade: izbaUpgrade() } });
     }
 
     // عرض «خلصت التجربة»: نعطي المتصفح عرض موقّع بوقت محدود

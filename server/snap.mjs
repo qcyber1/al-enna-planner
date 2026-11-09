@@ -1,14 +1,15 @@
 // Snapchat Conversions API: نرسل الشراء وبدء الدفع من السيرفر لسناب (مثل ميتا بالضبط)
-// الإعداد في Railway: SNAP_CAPI_TOKEN + SNAP_PIXEL_ID (الاثنين لازم عشان يشتغل)، SNAP_TEST=1 للتجربة (يرسل لرابط التحقق بس)
+// الإعداد في Railway: SNAP_CAPI_TOKEN (إلزامي للتشغيل)، SNAP_PIXEL_ID (افتراضي بكسل i3enna)، SNAP_TEST=1 للتجربة (يرسل لرابط التحقق بس)
 import crypto from 'node:crypto';
 
-const PIXEL_ID = process.env.SNAP_PIXEL_ID || '';
+const PIXEL_ID = process.env.SNAP_PIXEL_ID || '93a05422-2f32-4445-9757-9f9ef923cb73'; // رقم البكسل عام (يطلع في الصفحة)، التوكن هو السري
 const TOKEN = process.env.SNAP_CAPI_TOKEN || '';
 const TEST = process.env.SNAP_TEST === '1';
 const BASE = (process.env.SNAP_API_URL || 'https://tr.snapchat.com').replace(/\/$/, '');
 export const snapEnabled = !!(TOKEN && PIXEL_ID);
 export const snapPixelId = PIXEL_ID;
 
+const ITEM = { enna: 'i3enna-lifetime', izba: 'i3enna-izba-lifetime' };
 const sha = (v) => crypto.createHash('sha256').update(String(v).trim().toLowerCase()).digest('hex');
 
 /** بيانات العميل لسناب: الإيميل والجوال مشفّرين SHA-256، والباقي مثل ما هو */
@@ -38,9 +39,10 @@ export function snapPayload({ name, eventId, value, url, user, product, now = Da
           event_id: eventId,
           value: Number(value) || 0,
           currency: 'QAR',
-          content_ids: [p],
+          content_ids: [ITEM[p]],
           content_category: [p === 'izba' ? 'izba-planner' : 'camp-planner'],
           number_items: ['1'],
+          order_id: eventId,
         },
       },
     ],
