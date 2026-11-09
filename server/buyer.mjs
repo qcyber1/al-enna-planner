@@ -35,15 +35,19 @@ export function parseBuyerPhone(raw) {
   const p = s.startsWith('+') ? s.slice(1) : s.startsWith('00') ? s.slice(2) : s;
   if (!/^\d+$/.test(p)) return { error: 'رقم الجوال أرقام بس (مثل 55123456)' };
   if (p.length === 8 || (p.length === 11 && p.startsWith('974'))) return parsePhone(p);
+  if (p.startsWith('974')) return { error: 'رقم جوال قطر 8 أرقام (مثل 55123456)' };
   const gcc = [
-    ['965', 8, /^[569]/],
-    ['973', 8, /^3/],
-    ['968', 8, /^[79]/],
-    ['966', 9, /^5/],
-    ['971', 9, /^5/],
+    ['965', 'الكويت', 8, /^[569]/, '50012345'],
+    ['973', 'البحرين', 8, /^3/, '36123456'],
+    ['968', 'عُمان', 8, /^[79]/, '92123456'],
+    ['966', 'السعودية', 9, /^5/, '501234567'],
+    ['971', 'الإمارات', 9, /^5/, '501234567'],
   ];
-  for (const [cc, len, re] of gcc) {
-    if (p.startsWith(cc) && p.length === cc.length + len) return re.test(p.slice(cc.length)) ? { phone: p } : { error: 'رقم الجوال مو صحيح — تأكد منه' };
+  for (const [cc, name, len, re, ex] of gcc) {
+    if (!p.startsWith(cc)) continue;
+    const rest = p.slice(cc.length);
+    if (rest.length === len && re.test(rest)) return { phone: p };
+    if (intl) return { error: `رقم جوال ${name} ${len} أرقام (مثل ${ex})` };
   }
   if (intl && p.length >= 10 && p.length <= 15 && !p.startsWith('0')) return { phone: p };
   return { error: 'رقم الجوال القطري 8 أرقام (مثل 55123456) — ولو رقمك من دولة ثانية اكتبه مع رمز الدولة مثل +965' };

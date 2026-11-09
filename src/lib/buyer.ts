@@ -31,6 +31,46 @@ export function parsePhone(raw: string): { phone?: string; error?: string } {
   return { error: 'رقم الجوال لازم 8 أرقام (مثل 55123456)' };
 }
 
+/** دول الخليج (أغلب عملائنا): رمز الدولة وطول الرقم وأوله ومثال */
+export interface GccCountry {
+  cc: string;
+  flag: string;
+  name: string;
+  len: number;
+  re: RegExp;
+  ex: string;
+}
+export const GCC: GccCountry[] = [
+  { cc: '974', flag: '🇶🇦', name: 'قطر', len: 8, re: /^[3567]/, ex: '55123456' },
+  { cc: '966', flag: '🇸🇦', name: 'السعودية', len: 9, re: /^5/, ex: '501234567' },
+  { cc: '965', flag: '🇰🇼', name: 'الكويت', len: 8, re: /^[569]/, ex: '50012345' },
+  { cc: '971', flag: '🇦🇪', name: 'الإمارات', len: 9, re: /^5/, ex: '501234567' },
+  { cc: '973', flag: '🇧🇭', name: 'البحرين', len: 8, re: /^3/, ex: '36123456' },
+  { cc: '968', flag: '🇴🇲', name: 'عُمان', len: 8, re: /^[79]/, ex: '92123456' },
+];
+
+/** الدولة الافتراضية من المنطقة الزمنية لجهاز العميل (وإلا قطر) */
+export function guessGcc(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const m: Record<string, string> = { 'Asia/Riyadh': '966', 'Asia/Kuwait': '965', 'Asia/Dubai': '971', 'Asia/Bahrain': '973', 'Asia/Muscat': '968' };
+    return m[tz] ?? '974';
+  } catch {
+    return '974';
+  }
+}
+
+/** يركّب الرقم الكامل من الدولة المختارة + الرقم المكتوب (ولو كتب رمز دولة بنفسه نحترمه) */
+export function fullBuyerPhone(cc: string, local: string): string {
+  const raw = normalizeDigits(local).replace(/[\s\-().]/g, '');
+  if (!raw) return '';
+  if (raw.startsWith('+') || raw.startsWith('00')) return raw;
+  let d = raw.replace(/^0+/, ''); // السعودي والإماراتي يكتبون 05…
+  const c = GCC.find((g) => g.cc === cc);
+  if (c && d.startsWith(cc) && d.length === cc.length + c.len) d = d.slice(cc.length);
+  return '+' + cc + d;
+}
+
 /**
  * رقم الشراء (صارم): لازم يكون رقم يقبله نظام الدفع، وإلا سكيب كاش يرفض بـ «Invalid details».
  * قطري 8 أرقام، أو خليجي برمز دولته وطوله الصحيح، أو أي رقم دولي مكتوب بـ + أو 00 في أوله.
@@ -42,15 +82,12 @@ export function parseBuyerPhone(raw: string): { phone?: string; error?: string }
   const p = s.startsWith('+') ? s.slice(1) : s.startsWith('00') ? s.slice(2) : s;
   if (!/^\d+$/.test(p)) return { error: 'رقم الجوال أرقام بس (مثل 55123456)' };
   if (p.length === 8 || (p.length === 11 && p.startsWith('974'))) return parsePhone(p);
-  const gcc = [
-    ['965', 8, /^[569]/],
-    ['973', 8, /^3/],
-    ['968', 8, /^[79]/],
-    ['966', 9, /^5/],
-    ['971', 9, /^5/],
-  ] as const;
-  for (const [cc, len, re] of gcc as unknown as [string, number, RegExp][]) {
-    if (p.startsWith(cc) && p.length === cc.length + len) return re.test(p.slice(cc.length)) ? { phone: p } : { error: 'رقم الجوال مو صحيح — تأكد منه' };
+  if (p.startsWith('974')) return { error: 'رقم جوال قطر 8 أرقام (مثل 55123456)' };
+  for (const g of GCC) {
+    if (g.cc === '974' || !p.startsWith(g.cc)) continue;
+    const rest = p.slice(g.cc.length);
+    if (rest.length === g.len && g.re.test(rest)) return { phone: p };
+    if (intl) return { error: `رقم جوال ${g.name} ${g.len} أرقام (مثل ${g.ex})` };
   }
   if (intl && p.length >= 10 && p.length <= 15 && !p.startsWith('0')) return { phone: p };
   return { error: 'رقم الجوال القطري 8 أرقام (مثل 55123456) — ولو رقمك من دولة ثانية اكتبه مع رمز الدولة مثل +965' };

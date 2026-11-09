@@ -22,3 +22,19 @@ describe('رقم جوال الشراء (اللي يقبله نظام الدفع)
     expect(parsePhone('8897796495').phone).toBe('8897796495');
   });
 });
+
+import { fullBuyerPhone } from '../buyer';
+describe('اختيار دولة الخليج', () => {
+  it('يركّب الرقم من الدولة المختارة', () => {
+    expect(parseBuyerPhone(fullBuyerPhone('974', '55123456')).phone).toBe('97455123456');
+    expect(parseBuyerPhone(fullBuyerPhone('966', '0501234567')).phone).toBe('966501234567');
+    expect(parseBuyerPhone(fullBuyerPhone('965', '50012345')).phone).toBe('96550001234'.slice(0, 3) + '50012345');
+    expect(parseBuyerPhone(fullBuyerPhone('971', '050 123 4567')).phone).toBe('971501234567');
+    expect(parseBuyerPhone(fullBuyerPhone('966', '+96550001234')).phone).toBe('96550001234');
+  });
+  it('رسالة حسب الدولة لو الطول غلط', () => {
+    expect(parseBuyerPhone(fullBuyerPhone('966', '5012345')).error).toMatch(/السعودية 9 أرقام/);
+    expect(parseBuyerPhone(fullBuyerPhone('965', '500123')).error).toMatch(/الكويت 8 أرقام/);
+    expect(parseBuyerPhone(fullBuyerPhone('974', '8897796495')).error).toMatch(/قطر 8 أرقام/);
+  });
+});

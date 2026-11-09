@@ -1183,5 +1183,19 @@
 "الشبابيك": "Windows",
 "تمت إضافة «{0}» — اضغط أي غرفة وغيّر نوعها وتشطيبها، أو شوف الداخل من 3D": "Added \"{0}\" — tap any room to change its type and finishes, or see inside in 3D",
 "المساحة من الداخل: {0} م² — الارتفاع {1} م{2}": "Interior area: {0} m² — height {1} m{2}",
-"{0} ({1}×{2} م)": "{0} ({1}×{2} m)"
+"{0} ({1}×{2} م)": "{0} ({1}×{2} m)",
+"قطر": "Qatar",
+"السعودية": "Saudi Arabia",
+"الكويت": "Kuwait",
+"الإمارات": "UAE",
+"البحرين": "Bahrain",
+"عُمان": "Oman",
+"الدولة": "Country",
+"رقم جوال {0} {1} أرقام (مثل {2})": "{0} mobile numbers are {1} digits (e.g. {2})",
+"رقم الجوال ({0} أرقام)": "Mobile number ({0} digits)",
+"رقم الجوال القطري 8 أرقام (مثل 55123456) — ولو رقمك من دولة ثانية اكتبه مع رمز الدولة مثل +965": "Qatari mobile numbers are 8 digits (e.g. 55123456) — for another country, pick it from the list or type the country code like +965",
+"نظام الدفع ما قبل بياناتك — تأكد من رقم جوالك، أو كلّمنا واتساب ونكمل لك الطلب": "The payment system didn't accept your details — check your mobile number, or message us on WhatsApp and we'll complete your order",
+"ما قدرنا نفتح صفحة الدفع الحين — حاول بعد شوي أو كلّمنا واتساب": "We couldn't open the payment page right now — try again shortly or message us on WhatsApp",
+"تأكد من الرقم: القطري 8 أرقام (مثل 55123456)": "Check the number: Qatari numbers are 8 digits (e.g. 55123456)",
+"💬 كلّمنا واتساب ونكمل لك الطلب": "💬 Message us on WhatsApp and we'll complete your order"
 }

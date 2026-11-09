@@ -12,7 +12,7 @@ function skipIntro() {
 }
 import { renderPlanCanvas } from '../render2d/exportImage';
 import { OWNER_AR, OWNER_LINE } from '../lib/brand';
-import { checkEmail, checkName, parseBuyerPhone, parsePhone } from '../lib/buyer';
+import { checkEmail, checkName, fullBuyerPhone, GCC, guessGcc, parseBuyerPhone, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2, LogIn } from 'lucide-react';
 import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
@@ -132,9 +132,13 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [acctPhone, setAcctPhone] = useState('');
   const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean; sale?: boolean; content: SiteContent }>({ price: 299, online: false, basePrice: 299, refValid: false, content: {} });
   const [buyer, setBuyer] = useState({ name: '', phone: '', email: '' });
+  // دولة الجوال (خليجي): الافتراضي من المنطقة الزمنية لجهازه
+  const [cc, setCc] = useState(guessGcc);
+  const country = GCC.find((g) => g.cc === cc) ?? GCC[0];
+  const fullPhone = (v: string) => fullBuyerPhone(cc, v);
   const [fieldErr, setFieldErr] = useState<{ name?: string | null; phone?: string | null; email?: string | null }>({});
   const checkField = (k: 'name' | 'phone' | 'email', v: string) =>
-    k === 'name' ? checkName(v) : k === 'phone' ? parseBuyerPhone(v).error ?? null : checkEmail(v);
+    k === 'name' ? checkName(v) : k === 'phone' ? parseBuyerPhone(fullPhone(v)).error ?? null : checkEmail(v);
   // الخطأ يطلع بعد ما يطلع من الخانة، ويختفي أول ما يصلّحه
   const onField = (k: 'name' | 'phone' | 'email', v: string) => {
     setBuyer((b) => ({ ...b, [k]: v }));
@@ -274,15 +278,16 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const buy = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const errs = { name: checkName(buyer.name), phone: parseBuyerPhone(buyer.phone).error ?? null, email: info.online && buyer.email.trim() ? checkEmail(buyer.email) : null };
+    const phoneFull = fullPhone(buyer.phone);
+    const errs = { name: checkName(buyer.name), phone: parseBuyerPhone(phoneFull).error ?? null, email: info.online && buyer.email.trim() ? checkEmail(buyer.email) : null };
     setFieldErr(errs);
     if (errs.name || errs.phone || errs.email) return;
-    pixelBuyer(buyer);
+    pixelBuyer({ ...buyer, phone: phoneFull });
     track('checkout_click');
     setBusy(true);
     try {
       if (info.online) {
-        const { data } = await post('/api/checkout', { ...buyer, ref: get(REF_KEY) || undefined });
+        const { data } = await post('/api/checkout', { ...buyer, phone: phoneFull, ref: get(REF_KEY) || undefined });
         const d = data as { ok?: boolean; error?: string; payUrl?: string; orderId?: string };
         if (d.ok && d.payUrl) {
           if (d.orderId) set(ORDER_KEY, d.orderId);
@@ -296,7 +301,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         if (!fe || (d as { contact?: boolean }).contact) setError(d.error || 'ما انفتحت صفحة الدفع — حاول مرة ثانية');
         setPayHelp(!!(d as { contact?: boolean }).contact);
       } else {
-        const { data } = await post('/api/order', { ...buyer, ref: get(REF_KEY) || undefined });
+        const { data } = await post('/api/order', { ...buyer, phone: phoneFull, ref: get(REF_KEY) || undefined });
         if (data.ok) setNotice('وصلنا طلبك ✓ بنرسل لك رابط الدفع على الواتساب خلال دقائق، وبعد الدفع يوصلك كود التفعيل.');
         else setError(data.error || 'ما انرسل الطلب — حاول مرة ثانية');
       }
@@ -468,12 +473,35 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             {(
               [
                 { k: 'name', ph: 'الاسم', label: 'الاسم', props: { autoComplete: 'name' } },
-                { k: 'phone', ph: 'رقم الجوال (8 أرقام)', label: 'رقم الجوال', props: { inputMode: 'tel', dir: 'ltr', autoComplete: 'tel' } },
+                { k: 'phone', ph: `رقم الجوال (${country.len} أرقام)`, label: 'رقم الجوال', props: { inputMode: 'tel', dir: 'ltr', autoComplete: 'tel' } },
                 ...(info.online ? [{ k: 'email', ph: 'الإيميل (اختياري — لإيصال الدفع)', label: 'الإيميل', props: { type: 'email', dir: 'ltr', autoComplete: 'email', inputMode: 'email' } }] : []),
               ] as { k: 'name' | 'phone' | 'email'; ph: string; label: string; props: React.InputHTMLAttributes<HTMLInputElement> }[]
             ).map((f) => (
               <div key={f.k} className="relative">
-                {f.k === 'phone' && <span className="pointer-events-none absolute top-0 left-3 flex h-10 items-center text-[13px] font-semibold text-sand-500" dir="ltr">🇶🇦 +974</span>}
+                {f.k === 'phone' && (
+                  <span className="pointer-events-none absolute top-1 left-1 z-10 flex h-8 items-center gap-1 rounded-md bg-sand-100 px-2 text-[13px] font-semibold text-dune" dir="ltr" aria-hidden>
+                    {country.flag} +{country.cc} <span className="text-[10px] text-sand-600">▾</span>
+                  </span>
+                )}
+                {f.k === 'phone' && (
+                  <select
+                    value={cc}
+                    onChange={(e) => {
+                      setCc(e.target.value);
+                      if (fieldErr.phone) setFieldErr((x) => ({ ...x, phone: null }));
+                    }}
+                    aria-label="الدولة"
+                    dir="ltr"
+                    className="absolute top-1 left-1 z-20 h-8 w-[5.6rem] cursor-pointer rounded-md opacity-0"
+                    data-testid="buyer-cc"
+                  >
+                    {GCC.map((g) => (
+                      <option key={g.cc} value={g.cc}>
+                        {g.flag} +{g.cc} {g.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <input
                   {...f.props}
                   value={buyer[f.k]}
@@ -485,7 +513,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
                   placeholder={f.ph}
                   aria-label={f.label}
                   aria-invalid={!!fieldErr[f.k]}
-                  className={`h-10 w-full rounded-lg border bg-white px-3 outline-none ${f.k === 'phone' ? 'pl-20' : ''} ${f.props.dir === 'ltr' ? 'text-right' : ''} ${fieldErr[f.k] ? 'border-red-400 focus:border-red-500' : 'border-sand-300 focus:border-gold-500'}`}
+                  className={`h-10 w-full rounded-lg border bg-white px-3 outline-none ${f.k === 'phone' ? 'pl-24' : ''} ${f.props.dir === 'ltr' ? 'text-right' : ''} ${fieldErr[f.k] ? 'border-red-400 focus:border-red-500' : 'border-sand-300 focus:border-gold-500'}`}
                   data-testid={`buyer-${f.k}`}
                 />
                 {fieldErr[f.k] && <div className="mt-1 px-1 text-[12px] text-red-700" data-testid={`err-${f.k}`}>{fieldErr[f.k]}</div>}
@@ -494,7 +522,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             {error && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</div>}
             {payHelp && info.content.support && (
               <a
-                href={waLink(info.content.support, `هلا، حاولت أشتري مخطط العنة وما انفتحت صفحة الدفع. اسمي ${buyer.name} ورقمي ${buyer.phone}`)}
+                href={waLink(info.content.support, `هلا، حاولت أشتري مخطط العنة وما انفتحت صفحة الدفع. اسمي ${buyer.name} ورقمي ${fullPhone(buyer.phone)}`)}
                 target="_blank"
                 rel="noreferrer"
                 className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#25D366] text-sm font-bold text-white"
