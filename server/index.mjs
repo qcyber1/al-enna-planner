@@ -286,6 +286,11 @@ async function readBody(req) {
 // إيميل يوصله إيصال سكيب كاش لما العميل ما يكتب إيميله (حط إيميلك في Railway: RECEIPT_EMAIL)
 const RECEIPT_FALLBACK = String(process.env.RECEIPT_EMAIL || 'receipts@i3enna.qa').trim();
 const ADMIN_USER = String(process.env.ADMIN_USER || 'admin').trim().toLowerCase();
+// رابط لوحة الإدارة: يتغير من Railway (ADMIN_PATH) عشان البوتات اللي تدوّر /admin ما تلقاها
+const ADMIN_PATH = (() => {
+  const v = String(process.env.ADMIN_PATH || '/admin').trim().replace(/[^a-zA-Z0-9_\-/]/g, '');
+  return v.startsWith('/') && v.length >= 2 ? v.replace(/\/+$/, '') : '/admin';
+})();
 const ADMIN_TOTP = String(process.env.ADMIN_TOTP_SECRET || '').replace(/[\s=-]/g, '').toUpperCase();
 const ADMIN_COOKIE = 'enna_admin';
 const ADMIN_TTL = 12 * 3600 * 1000;
@@ -654,11 +659,11 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ——— الإدارة ———
-    if (p === '/admin' || p.startsWith('/api/admin/')) {
+    if (p === ADMIN_PATH || p.startsWith('/api/admin/')) {
       if (!ADMIN_PASSWORD) return send(res, 503, '<h1 dir="rtl">لوحة الإدارة معطلة: اضبط ADMIN_PASSWORD في Railway</h1>');
       // تخمين كلمة مرور الإدارة: بعد 20 محاولة غلط يتقفل العنوان 10 دقائق (حتى لو الكلمة صح)
       const admTries = (attempts.get('adm:' + ip) || []).filter((t) => Date.now() - t < 10 * 60 * 1000).length;
-      if (admTries >= 20) return send(res, 429, p === '/admin' ? '<h1 dir="rtl" style="font-family:sans-serif;text-align:center;margin-top:20vh">محاولات كثيرة — حاول بعد عشر دقائق</h1>' : { error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
+      if (admTries >= 20) return send(res, 429, p === ADMIN_PATH ? '<h1 dir="rtl" style="font-family:sans-serif;text-align:center;margin-top:20vh">محاولات كثيرة — حاول بعد عشر دقائق</h1>' : { error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
       if (p === '/api/admin/login' && req.method === 'POST') {
         const { user, password, code } = await readBody(req);
         const okUser = eq(String(user || '').trim().toLowerCase(), ADMIN_USER);
@@ -674,12 +679,12 @@ const server = http.createServer(async (req, res) => {
       }
       if (p === '/api/admin/logout' && req.method === 'POST') return send(res, 200, { ok: true }, { 'set-cookie': `${ADMIN_COOKIE}=; ${cookieFlags(req)}; Max-Age=0` });
       if (!isAdmin(req)) {
-        if (p === '/admin') return send(res, 200, adminLoginPage({ totp: !!ADMIN_TOTP }), { 'x-robots-tag': 'noindex' });
+        if (p === ADMIN_PATH) return send(res, 200, adminLoginPage({ totp: !!ADMIN_TOTP }), { 'x-robots-tag': 'noindex, nofollow' });
         return send(res, 401, { error: 'سجّل دخول من جديد' });
       }
       // حماية CSRF: أوامر اللوحة لازم تجي من صفحة اللوحة نفسها
       if (req.method === 'POST' && req.headers['x-enna-admin'] !== '1') return send(res, 403, { error: 'طلب مرفوض' });
-      if (p === '/admin') return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }));
+      if (p === ADMIN_PATH) return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }), { 'x-robots-tag': 'noindex, nofollow' });
       if (p === '/api/admin/funnel') {
         const days = Math.min(90, Math.max(1, Number(url.searchParams.get('days')) || 7));
         return send(res, 200, funnelSummary(db, days));
