@@ -147,3 +147,18 @@ test('مسار البيع: يوم قطر يبدأ الساعة 12 بالليل �
   for (let i = 0; i < 95; i++) recordEvent(db, 'visit', 'cccccccccccccccc03', Date.UTC(2026, 0, 1) + i * 86400000);
   assert.equal(Object.keys(db.funnel).length, 90);
 });
+
+import { snapPayload, snapUser, snapCookies } from '../snap.mjs';
+test('سناب: شكل الحدث والتشفير والكوكيز', () => {
+  const u = snapUser({ email: 'A@B.com ', phone: '+974 5512 3456', ip: '1.2.3.4', ua: 'UA', scid: 'c1', sccid: 'k1' });
+  assert.equal(u.em[0].length, 64);
+  assert.equal(u.ph[0], snapUser({ phone: '97455123456' }).ph[0]);
+  assert.deepEqual([u.client_ip_address, u.user_agent, u.sc_cookie1, u.sc_click_id], ['1.2.3.4', 'UA', 'c1', 'k1']);
+  assert.equal(snapUser({ email: 'x@i3enna.qa' }).em, undefined);
+  const b = snapPayload({ name: 'PURCHASE', eventId: 'EN-1', value: 499, user: u, product: 'izba', now: 1_700_000_000_000 });
+  const e = b.data[0];
+  assert.equal(e.event_time, 1_700_000_000);
+  assert.equal(e.event_source_url, 'https://www.i3enna.qa/izba');
+  assert.deepEqual(e.custom_data, { event_id: 'EN-1', value: 499, currency: 'QAR', content_ids: ['izba'], content_category: ['izba-planner'], number_items: ['1'] });
+  assert.deepEqual(snapCookies({ headers: { cookie: '_fbp=x; _scid=abc-1; _sccid=click%2D9' } }), { scid: 'abc-1', sccid: 'click-9' });
+});

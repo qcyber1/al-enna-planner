@@ -36,12 +36,12 @@ ul{padding-inline-start:22px;margin:6px 0}li{margin:4px 0}a{color:#8a6420}
 <li><b>تصاميمك:</b> تنحفظ في <b>جهازك ومتصفحك فقط</b>، وما توصل خوادمنا إلا إذا صدّرتها أو شاركت رابطها بنفسك.</li>
 </ul>
 
-<h2>الإعلانات وقياسها (بكسل ميتا)</h2>
-<p>نستخدم «بكسل ميتا» وواجهة التحويلات (Conversions API) من شركة Meta لقياس أداء إعلاناتنا على فيسبوك وإنستقرام وتحسينها. نجمع بهالطريقة معلومات عن زيارتك للموقع: الصفحات اللي فتحتها، وبدء التجربة، وبدء الدفع، وإتمام الشراء، وعنوان الجهاز ونوع المتصفح. ولما تشتري، نرسل رقم جوالك وإيميلك واسمك الأول <b>مشفّرة (SHA-256)</b> لميتا عشان تربط الشراء بالإعلان، و<b>ما نبيع بياناتك لأي جهة</b>. تقدر توقف هالتتبع من إعدادات الإعلانات في حسابك على فيسبوك أو إنستقرام، أو من إعدادات الخصوصية في جوالك أو متصفحك.</p>
+<h2>الإعلانات وقياسها (بكسل ميتا وسناب شات)</h2>
+<p>نستخدم «بكسل ميتا» و«بكسل سناب شات» وواجهات التحويلات (Conversions API) من شركتي Meta وSnap لقياس أداء إعلاناتنا على فيسبوك وإنستقرام وسناب شات وتحسينها. نجمع بهالطريقة معلومات عن زيارتك للموقع: الصفحات اللي فتحتها، وبدء التجربة، وبدء الدفع، وإتمام الشراء، وعنوان الجهاز ونوع المتصفح. ولما تشتري، نرسل رقم جوالك وإيميلك واسمك الأول <b>مشفّرة (SHA-256)</b> لميتا وسناب عشان تربط الشراء بالإعلان، و<b>ما نبيع بياناتك لأي جهة</b>. تقدر توقف هالتتبع من إعدادات الإعلانات في حسابك على فيسبوك أو إنستقرام أو سناب شات، أو من إعدادات الخصوصية في جوالك أو متصفحك.</p>
 <p><b>إحصائيات داخلية مجهولة:</b> نعدّ كم شخص زار صفحة الشراء أو جرّب أو بدأ الدفع، باستخدام رقم عشوائي في متصفحك (مو اسمك ولا جوالك ولا عنوان جهازك) — عشان نعرف وين نحسّن الموقع. هالأرقام ما تطلع برا موقعنا، وتنمسح بعد 90 يوم.</p>
 
 <h2>الكوكيز والتخزين في المتصفح</h2>
-<p>نحفظ في متصفحك: تصاميمك، وحالة تسجيل الدخول، واللغة. وبكسل ميتا يحط كوكيز خاصة فيه (<span dir="ltr">_fbp / _fbc</span>) للقياس.</p>
+<p>نحفظ في متصفحك: تصاميمك، وحالة تسجيل الدخول، واللغة. وبكسل ميتا وسناب يحطون كوكيز خاصة فيهم (<span dir="ltr">_fbp / _fbc / _scid / _sccid</span>) للقياس.</p>
 
 <h2>ليش نستخدم بياناتك</h2>
 <ul>
@@ -52,7 +52,7 @@ ul{padding-inline-start:22px;margin:6px 0}li{margin:4px 0}a{color:#8a6420}
 </ul>
 
 <h2>مين يشوفها</h2>
-<p>بس الجهات اللي نحتاجها للخدمة: <b>سكيب كاش</b> (الدفع)، و<b>Meta</b> (قياس الإعلانات)، و<b>Railway</b> (استضافة الخادم). ما نعطي بياناتك لأي أحد ثاني إلا لو طلب القانون.</p>
+<p>بس الجهات اللي نحتاجها للخدمة: <b>سكيب كاش</b> (الدفع)، و<b>Meta</b> و<b>Snap</b> (قياس الإعلانات)، و<b>Railway</b> (استضافة الخادم). ما نعطي بياناتك لأي أحد ثاني إلا لو طلب القانون.</p>
 
 <h2>كم نحتفظ فيها</h2>
 <p>نحتفظ ببيانات الشراء والترخيص طول ما الترخيص فعّال (مدى الحياة) وحسب ما يطلبه القانون للسجلات المالية. والنسخ الاحتياطية اليومية تنحذف تلقائياً بعد 14 يوم.</p>
@@ -75,13 +75,13 @@ ul{padding-inline-start:22px;margin:6px 0}li{margin:4px 0}a{color:#8a6420}
 <li><b>Feedback</b> you send from inside the app.</li>
 <li><b>Your designs</b> are stored <b>only on your device/browser</b> unless you export or share them yourself.</li>
 </ul>
-<h2>Advertising measurement (Meta Pixel)</h2>
-<p>We use the Meta Pixel and Conversions API to measure and improve our ads on Facebook and Instagram. This collects information about your visit (pages viewed, trial started, checkout started, purchase completed, device IP address and browser type). When you purchase, your phone number, email and first name are sent to Meta in <b>hashed form (SHA-256)</b> to match the purchase to an ad; we never sell your data. You can opt out via your Facebook/Instagram ad settings or your device/browser privacy settings.</p>
+<h2>Advertising measurement (Meta &amp; Snap Pixels)</h2>
+<p>We use the Meta and Snap pixels and Conversions APIs to measure and improve our ads on Facebook, Instagram and Snapchat. This collects information about your visit (pages viewed, trial started, checkout started, purchase completed, device IP address and browser type). When you purchase, your phone number, email and first name are sent to Meta and Snap in <b>hashed form (SHA-256)</b> to match the purchase to an ad; we never sell your data. You can opt out via your Facebook/Instagram ad settings or your device/browser privacy settings.</p>
 <p><b>Anonymous internal stats:</b> we count how many people visit the purchase page, start the trial or begin checkout using a random ID in your browser (not your name, phone or IP address) to improve the site. These numbers stay on our server and are deleted after 90 days.</p>
 <h2>Cookies &amp; local storage</h2>
-<p>We store your designs, sign-in state and language in your browser. The Meta Pixel sets its own cookies (_fbp / _fbc).</p>
+<p>We store your designs, sign-in state and language in your browser. The Meta and Snap pixels set their own cookies (_fbp / _fbc / _scid / _sccid).</p>
 <h2>Sharing</h2>
-<p>Only with service providers we need: <b>SkipCash</b> (payments), <b>Meta</b> (ad measurement) and <b>Railway</b> (server hosting), or when required by law.</p>
+<p>Only with service providers we need: <b>SkipCash</b> (payments), <b>Meta</b> and <b>Snap</b> (ad measurement) and <b>Railway</b> (server hosting), or when required by law.</p>
 <h2>Retention</h2>
 <p>Purchase and license data are kept while the license is active (lifetime) and as required for financial records. Daily backups are deleted automatically after 14 days.</p>
 <h2>Your rights</h2>
