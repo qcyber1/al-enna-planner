@@ -422,7 +422,39 @@ const MIME = {
   '.json': 'application/json',
   '.webmanifest': 'application/manifest+json',
 };
+/** صفحة العزبة (/izba): نفس التطبيق، بعنوان ووسوم معاينة خاصة (للإعلانات والواتساب) */
+function izbaPage() {
+  const file = path.join(DIST, 'index.html');
+  let html = readSiteFile(file).toString('utf8');
+  const origin = SITE_DOMAIN ? `https://${SITE_DOMAIN}` : 'https://www.i3enna.qa';
+  const T = 'i3enna للعزب — خطط عزبتك قبل البناء';
+  const D = 'الحلال والمباني والزراعة بمقاسات حقيقية، رندر واقعي ومخطط A3 للمقاول. دفعة وحدة — مدى الحياة.';
+  const swap = (re, v) => (html = html.replace(re, v));
+  swap(/<title>[^<]*<\/title>/, `<title>i3enna للعزب | Izba Planner</title>`);
+  swap(/(<meta name="description" content=")[^"]*/, `$1${D}`);
+  swap(/(<meta property="og:title" content=")[^"]*/, `$1${T}`);
+  swap(/(<meta name="twitter:title" content=")[^"]*/, `$1${T}`);
+  swap(/(<meta property="og:description" content=")[^"]*/, `$1${D}`);
+  swap(/(<meta name="twitter:description" content=")[^"]*/, `$1${D}`);
+  swap(/(<meta property="og:image" content=")[^"]*/, `$1${origin}/og-izba.jpg?v=1`);
+  swap(/(<meta name="twitter:image" content=")[^"]*/, `$1${origin}/og-izba.jpg?v=1`);
+  swap(/(<meta property="og:image:alt" content=")[^"]*/, `$1مجسم ثلاثي الأبعاد لعزبة قطرية`);
+  swap(/(<meta property="og:url" content=")[^"]*/, `$1${origin}/izba`);
+  swap(/(<link rel="canonical" href=")[^"]*/, `$1${origin}/izba`);
+  return Buffer.from(html);
+}
+
 function serveStatic(req, res, urlPath) {
+  if (urlPath === '/izba/') {
+    // المسارات النسبية للملفات تنكسر مع الشرطة الأخيرة
+    res.writeHead(301, { location: '/izba' });
+    return res.end();
+  }
+  if (urlPath === '/izba') {
+    const body = izbaPage();
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'content-length': body.length });
+    return res.end(req.method === 'HEAD' ? undefined : body);
+  }
   let file = safeJoin(DIST, urlPath);
   if (!file) return send(res, 403, { error: 'forbidden' });
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, 'index.html');

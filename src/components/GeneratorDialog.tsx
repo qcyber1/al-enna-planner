@@ -3,7 +3,8 @@ import { Minus, Plus, Sparkles, Check, Layers } from 'lucide-react';
 import { useEditor, usePlan } from '../store/editorStore';
 import { Button, Modal, Toggle, cx } from './ui';
 import { DEFAULT_GEN, generateDesigns, type GenInput, type GenResult } from '../lib/generator';
-import { izbaIdeas } from '../lib/izba';
+import { izbaEnabled, izbaIdeas } from '../lib/izba';
+import { IzbaLockedCard } from './UpgradeIzba';
 import { planThumbnail } from '../render2d/exportImage';
 import { landBounds } from '../lib/geometry';
 import { useViewport } from '../editor2d/viewport';
@@ -85,7 +86,11 @@ export function GeneratorDialog() {
         )
       }
     >
-      {!results && izba ? (
+      {!results && izba && !izbaEnabled() ? (
+        <div className="p-5">
+          <IzbaLockedCard />
+        </div>
+      ) : !results && izba ? (
         <div className="space-y-3 p-5">
           <p className="text-sm text-sand-700">
             بنوزّع لك العزبة بأربع طرق على أرضك ({Math.round(b.maxX - b.minX)} × {Math.round(b.maxY - b.minY)} م): متكاملة، حلال، استراحة، وزراعة — والحلال دايم تحت الريح عن المجلس.

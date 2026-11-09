@@ -5,6 +5,7 @@ import { createElement } from './catalog';
 import { defaultLand, emptyPlan } from './sample';
 import { circlePath } from './angleAssist';
 import { validatePlan } from './validation';
+import { izbaAccess } from './license';
 
 export type IzbaUse = 'livestock' | 'rest' | 'farm' | 'mixed';
 export type IzbaPlots = 1 | 2 | 4;
@@ -205,21 +206,9 @@ function perimeterLayout(use: IzbaUse, W: number, D: number): [Spec[], PlanEleme
   return [s, ground];
 }
 
-/**
- * العزبة تحت التطوير: تطلع بس لما تفتح الموقع مرة بـ ?izba=1 (وتنحفظ في المتصفح).
- * ?izba=0 يخفيها. لما نطلقها للكل نخلي IZBA_PUBLIC = true.
- */
-export const IZBA_PUBLIC = false;
+/** العزبة منتج مستقل: مفتوحة لصاحب ترخيصها (أو تجربتها المجانية) — انظر lib/license.ts */
 export function izbaEnabled(): boolean {
-  if (IZBA_PUBLIC) return true;
-  try {
-    const q = new URLSearchParams(window.location.search).get('izba');
-    if (q === '1') localStorage.setItem('enna.izba', '1');
-    if (q === '0') localStorage.removeItem('enna.izba');
-    return localStorage.getItem('enna.izba') === '1';
-  } catch {
-    return false;
-  }
+  return izbaAccess() === 'full';
 }
 
 /** أفكار «ولّد» للعزبة: الاستخدامات الأربعة على أرض المستخدم */

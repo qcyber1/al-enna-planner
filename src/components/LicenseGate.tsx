@@ -18,6 +18,8 @@ import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
 import { track } from '../lib/stats';
 import { claimOffer, getOffer, leftLabel, type TrialOffer } from '../lib/offer';
+import { getProducts, landingSite, markDemoSite, saveProducts } from '../lib/license';
+import { useUpgrade } from './UpgradeIzba';
 import { setBuyer as pixelBuyer, trackCheckout, trackDemoBuyClick, trackPurchase, trackTrial, trackTrialEnded } from '../lib/pixel';
 import { demoLeft, demoUsed, isDemo, setDemoActive, startDemo } from '../lib/demo';
 
@@ -116,6 +118,13 @@ function ReceiptCard({ r }: { r: Receipt }) {
 type SiteContent = Partial<Record<'banner' | 'title' | 'tagline' | 'f1' | 'f2' | 'f3' | 'f4' | 'buyNote' | 'support', string>>;
 const waLink = (phone: string, text: string) => `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
 const DEFAULT_TEXT = { title: 'مخطط العنة ⛺', tagline: 'صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون' };
+const IZBA_TEXT = { title: 'i3enna للعزب 🏡', tagline: 'خطط عزبتك قبل البناء: الحلال والمباني والزراعة بمقاسات حقيقية، وشوفها كأنها صورة' };
+const IZBA_FEATURES = [
+  ['🐑', 'قوالب حلال واستراحة وزراعة'],
+  ['🏠', 'مباني وتصميم داخلي'],
+  ['📸', 'رندر واقعي كأنه صورة'],
+  ['📐', 'مخطط A3 للمقاول'],
+];
 const localPhone = (ph?: string) => (ph && ph.startsWith('974') && ph.length === 11 ? ph.slice(3) : ph || '');
 const ORDER_KEY = 'enna.order';
 const REF_KEY = 'enna.ref';
@@ -131,7 +140,10 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [login, setLogin] = useState({ phone: '', password: '' });
   const [loginErr, setLoginErr] = useState<{ phone?: string; password?: string }>({});
   const [acctPhone, setAcctPhone] = useState('');
-  const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean; sale?: boolean; content: SiteContent }>({ price: 299, online: false, basePrice: 299, refValid: false, content: {} });
+  const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean; sale?: boolean; content: SiteContent; izba?: { price: number; basePrice: number; upgrade: number } }>({ price: 299, online: false, basePrice: 299, refValid: false, content: {} });
+  // صفحة البيع: /izba = منتج العزبة (نص وصورة وسعر خاص)
+  const site = useMemo(() => landingSite(), []);
+  const izbaSite = site === 'izba';
   const [buyer, setBuyer] = useState({ name: '', phone: '', email: '' });
   // دولة الجوال (خليجي): الافتراضي من المنطقة الزمنية لجهازه
   const [cc, setCc] = useState(guessGcc);
@@ -147,6 +159,16 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   };
   const [paidCode, setPaidCode] = useState('');
   const [demoOver, setDemoOver] = useState(false);
+  const startTrial = () => {
+    if (demoLeft() === 0) trackTrial();
+    markDemoSite(site);
+    startDemo();
+    skipIntro();
+    setDemoActive(true);
+    setState('open');
+    // تجربة العزبة: نفتح قوالب العزبة على طول
+    if (izbaSite) setTimeout(() => useEditor.getState().openDialog('welcome'), 400);
+  };
   // عرض «خلصت التجربة» (سعر خاص لوقت محدود من السيرفر)
   const [offer, setOffer] = useState<TrialOffer | null>(() => getOffer());
   const [, tick] = useState(0);
@@ -159,7 +181,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     return () => clearInterval(t);
   }, [offer]);
   // الأقل بين السعر الحالي (أو الإحالة) وسعر العرض
-  const payPrice = offer ? Math.min(info.price, offer.price) : info.price;
+  const basePrice = izbaSite && info.izba ? info.izba.price : info.price;
+  const listPrice = izbaSite && info.izba ? info.izba.basePrice : info.basePrice;
+  const payPrice = offer && !izbaSite ? Math.min(basePrice, offer.price) : basePrice;
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [notice, setNotice] = useState('');
   const [payHelp, setPayHelp] = useState(false);
@@ -173,7 +197,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         const r = await fetch('/api/status' + (ref ? `?ref=${encodeURIComponent(ref)}` : ''));
         const s = (await r.json()) as { licensing?: boolean; price?: number; basePrice?: number; refValid?: boolean; online?: boolean };
         if (!s.licensing) return setState('open');
-        setInfo({ price: s.price ?? 299, online: !!s.online, basePrice: s.basePrice ?? s.price ?? 299, refValid: !!s.refValid, sale: !!(s as { sale?: boolean }).sale, content: (s as { content?: SiteContent }).content || {} });
+        setInfo({ price: s.price ?? 299, online: !!s.online, basePrice: s.basePrice ?? s.price ?? 299, refValid: !!s.refValid, sale: !!(s as { sale?: boolean }).sale, content: (s as { content?: SiteContent }).content || {}, izba: (s as { izba?: { price: number; basePrice: number; upgrade: number } }).izba });
       } catch {
         // بيئة التطوير بدون خادم: لا يوجد نظام أكواد
         if (import.meta.env.DEV) return setState('open');
@@ -200,6 +224,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             if (v.data.ok && code) {
               const a = await post('/api/activate', { code, device: deviceId() });
               if (a.data.ok && a.data.token) set(TOKEN_KEY, a.data.token);
+              if (a.data.ok) saveProducts((a.data as { products?: unknown }).products);
               setAcctPhone(localPhone(a.data.phone));
               set(ORDER_KEY, null);
               setPaidCode(code);
@@ -231,6 +256,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       try {
         const { status, data } = await post('/api/check', { token });
         if (data.ok) {
+          if ((data as { products?: unknown }).products) saveProducts((data as { products?: unknown }).products);
+          // عميل عنة فتح صفحة العزبة: نعرض عليه الترقية
+          if (izbaSite && !getProducts().includes('izba')) setTimeout(() => useUpgrade.getState().show(), 700);
           if (data.hasPw === false && !pwSkippedRecently()) {
             setAcctPhone(localPhone(data.phone));
             return setState('setpw');
@@ -258,6 +286,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       const { data } = await post('/api/activate', { code, device: deviceId() });
       if (data.ok && data.token) {
         set(TOKEN_KEY, data.token);
+        saveProducts((data as { products?: unknown }).products);
         setAcctPhone(localPhone(data.phone));
         setState(data.hasPw ? 'open' : 'setpw');
       } else setError(data.error || 'ما تفعّل الكود — حاول مرة ثانية');
@@ -279,6 +308,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       const { data } = await post('/api/login', { ...login, device: deviceId() });
       if (data.ok && data.token) {
         set(TOKEN_KEY, data.token);
+        saveProducts((data as { products?: unknown }).products);
         setState('open');
       } else if (data.errors) setLoginErr(data.errors);
       else setError(data.error || 'ما قدرنا ندخلك — حاول مرة ثانية');
@@ -301,11 +331,11 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     setBusy(true);
     try {
       if (info.online) {
-        const { data } = await post('/api/checkout', { ...buyer, phone: phoneFull, ref: get(REF_KEY) || undefined, offer: offer?.token });
+        const { data } = await post('/api/checkout', { ...buyer, phone: phoneFull, ref: izbaSite ? undefined : get(REF_KEY) || undefined, offer: izbaSite ? undefined : offer?.token, product: site });
         const d = data as { ok?: boolean; error?: string; payUrl?: string; orderId?: string };
         if (d.ok && d.payUrl) {
           if (d.orderId) set(ORDER_KEY, d.orderId);
-          trackCheckout(payPrice, d.orderId);
+          trackCheckout(payPrice, d.orderId, site);
           window.location.href = d.payUrl;
           return;
         }
@@ -315,7 +345,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         if (!fe || (d as { contact?: boolean }).contact) setError(d.error || 'ما انفتحت صفحة الدفع — حاول مرة ثانية');
         setPayHelp(!!(d as { contact?: boolean }).contact);
       } else {
-        const { data } = await post('/api/order', { ...buyer, phone: phoneFull, ref: get(REF_KEY) || undefined, offer: offer?.token });
+        const { data } = await post('/api/order', { ...buyer, phone: phoneFull, ref: izbaSite ? undefined : get(REF_KEY) || undefined, offer: izbaSite ? undefined : offer?.token, product: site });
         if (data.ok) setNotice('وصلنا طلبك ✓ بنرسل لك رابط الدفع على الواتساب خلال دقائق، وبعد الدفع يوصلك كود التفعيل.');
         else setError(data.error || 'ما انرسل الطلب — حاول مرة ثانية');
       }
@@ -339,7 +369,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             }}
             onEnd={() => {
               trackTrialEnded();
-              void claimOffer().then(setOffer);
+              if (!izbaSite) void claimOffer().then(setOffer);
               setDemoActive(false);
               setMode('buy');
               setNotice('');
@@ -383,9 +413,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       </div>
     );
 
-  const title = info.content.title || DEFAULT_TEXT.title;
-  const tagline = info.content.tagline || DEFAULT_TEXT.tagline;
-  const feats = [info.content.f1, info.content.f2, info.content.f3, info.content.f4];
+  const title = izbaSite ? IZBA_TEXT.title : info.content.title || DEFAULT_TEXT.title;
+  const tagline = izbaSite ? IZBA_TEXT.tagline : info.content.tagline || DEFAULT_TEXT.tagline;
+  const feats = izbaSite ? IZBA_FEATURES.map((f) => f.join(' ')) : [info.content.f1, info.content.f2, info.content.f3, info.content.f4];
   const tabs: [typeof mode, string][] = [
     ['buy', 'شراء'],
     ['login', 'دخول'],
@@ -395,7 +425,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     <div className="flex min-h-full items-center justify-center p-4 lg:p-8">
       <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-sand-50 shadow-2xl md:max-w-xl lg:grid lg:max-w-5xl lg:grid-cols-[1.15fr_1fr]" data-testid="license-gate">
         <div className="relative lg:flex lg:flex-col lg:bg-dune">
-          <img src={getLang() === 'en' ? './og-en.jpg' : './og.jpg'} alt="مجسم عنة قطرية في الليل" className="aspect-[1200/630] w-full object-cover object-left lg:aspect-auto lg:min-h-0 lg:flex-1" />
+          <img src={izbaSite ? '/og-izba.jpg' : getLang() === 'en' ? '/og-en.jpg' : '/og.jpg'} alt={izbaSite ? 'مجسم عزبة قطرية' : 'مجسم عنة قطرية في الليل'} className="aspect-[1200/630] w-full object-cover object-left lg:aspect-auto lg:min-h-0 lg:flex-1" />
           <div className="sadu-band absolute inset-x-0 bottom-0 h-1.5 lg:hidden" />
           <LangToggle className="absolute top-3 left-3 shadow" />
           <div className="hidden space-y-4 p-8 text-sand-50 lg:block">
@@ -418,17 +448,13 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => {
-                if (demoLeft() === 0) trackTrial();
-                startDemo();
-                skipIntro();
-                setDemoActive(true);
-                setState('open');
+                startTrial();
               }}
               className="flex w-full flex-col items-center justify-center rounded-xl bg-turf-600 px-3 py-2.5 text-white shadow-md transition hover:bg-turf-700 active:scale-[0.99]"
               data-testid="try-demo-top"
             >
               <span className="text-base font-bold">{demoLeft() > 0 ? '▶️ كمّل تجربتك المجانية' : '▶️ جرّب مجاناً الحين — بدون تسجيل'}</span>
-              <span className="text-[12px] text-white/85">صمّم عنتك وشوفها مجسّمة 3D قبل لا تشتري</span>
+              <span className="text-[12px] text-white/85">{izbaSite ? 'صمّم عزبتك وشوفها مجسّمة 3D قبل لا تشتري' : 'صمّم عنتك وشوفها مجسّمة 3D قبل لا تشتري'}</span>
             </button>
           )}
           <div className="lg:hidden"><Features items={feats} /></div>
@@ -480,24 +506,24 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <div className="rounded-lg bg-turf-500/10 p-3 text-sm text-turf-700">{notice}</div>
           ) : (
           <form onSubmit={buy} className="space-y-2.5">
-            {(demoOver || demoUsed()) && <TrialOverCard offer={offer && offer.price < info.price ? offer : null} was={info.price} list={info.basePrice} />}
+            {(demoOver || demoUsed()) && <TrialOverCard offer={!izbaSite && offer && offer.price < info.price ? offer : null} was={info.price} list={info.basePrice} />}
             <div className="rounded-lg bg-white p-3 text-center">
-              {info.basePrice > payPrice && (
-                <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700" data-testid="price-badge">{payPrice < info.price ? `🎁 عرضك الخاص — ينتهي بعد ${leftLabel(offer!.exp)}` : info.refValid ? '🎁 وصلك خصم من صديقك' : '🔥 عرض لفترة محدودة'}</div>
+              {listPrice > payPrice && (
+                <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700" data-testid="price-badge">{payPrice < basePrice ? `🎁 عرضك الخاص — ينتهي بعد ${leftLabel(offer!.exp)}` : !izbaSite && info.refValid ? '🎁 وصلك خصم من صديقك' : '🔥 عرض لفترة محدودة'}</div>
               )}
               <div className="flex items-baseline justify-center gap-3" data-testid="price">
                 <span className="text-3xl font-bold text-dune">
                   <span className="tabular-nums">{payPrice}</span> <span className="text-lg">ر.ق</span>
                 </span>
-                {info.basePrice > payPrice && (
+                {listPrice > payPrice && (
                   <span className="text-base text-sand-500 line-through decoration-red-400/70" data-testid="price-old">
-                    <span className="tabular-nums">{info.basePrice}</span> ر.ق
+                    <span className="tabular-nums">{listPrice}</span> ر.ق
                   </span>
                 )}
               </div>
-              {info.basePrice > payPrice && (
+              {listPrice > payPrice && (
                 <div className="mt-0.5 text-[12px] font-semibold text-turf-700" data-testid="price-save">
-                  {`توفّر ${info.basePrice - payPrice} ر.ق`}
+                  {`توفّر ${listPrice - payPrice} ر.ق`}
                 </div>
               )}
               <div className="mt-0.5 text-xs text-sand-600">دفعة واحدة • استخدام مدى الحياة</div>
@@ -570,11 +596,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => {
-                  if (demoLeft() === 0) trackTrial();
-                  startDemo();
-                  skipIntro();
-                  setDemoActive(true);
-                  setState('open');
+                  startTrial();
                 }}
                 disabled={demoUsed()}
                 className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border-2 border-gold-500/60 bg-white font-semibold text-dune disabled:opacity-50"

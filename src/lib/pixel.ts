@@ -8,9 +8,11 @@ const fbq = (): Fbq | null => {
 };
 
 /** ضغط «ادفع الآن» */
-export function trackCheckout(value: number, orderId?: string) {
+const NAME = { enna: 'Al Enna Planner — lifetime', izba: 'i3enna Izba — lifetime' } as const;
+
+export function trackCheckout(value: number, orderId?: string, product: 'enna' | 'izba' = 'enna') {
   // نفس رقم الحدث اللي يرسله السيرفر (Conversions API) عشان ميتا تحسبه مرة وحدة
-  fbq()?.('track', 'InitiateCheckout', { value, currency: 'QAR', content_name: 'Al Enna Planner — lifetime' }, orderId ? { eventID: 'chk-' + orderId } : undefined);
+  fbq()?.('track', 'InitiateCheckout', { value, currency: 'QAR', content_name: NAME[product], content_ids: [product] }, orderId ? { eventID: 'chk-' + orderId } : undefined);
 }
 
 /** بدأ التجربة المجانية */
@@ -20,7 +22,7 @@ export function trackTrial() {
 }
 
 /** اشترى فعلاً — مرة وحدة لكل طلب حتى لو حدّث الصفحة (eventID يمنع التكرار عند ميتا بعد) */
-export function trackPurchase(orderRef: string, value: number) {
+export function trackPurchase(orderRef: string, value: number, product: 'enna' | 'izba' = 'enna') {
   const key = `enna.px.purchase.${orderRef}`;
   try {
     if (localStorage.getItem(key)) return;
@@ -28,7 +30,7 @@ export function trackPurchase(orderRef: string, value: number) {
   } catch {
     /* تجاهل */
   }
-  fbq()?.('track', 'Purchase', { value, currency: 'QAR', content_name: 'Al Enna Planner — lifetime', content_type: 'product' }, { eventID: orderRef });
+  fbq()?.('track', 'Purchase', { value, currency: 'QAR', content_name: NAME[product], content_type: 'product', content_ids: [product] }, { eventID: orderRef });
 }
 
 /**

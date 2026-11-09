@@ -8,6 +8,8 @@ import { useViewport } from '../editor2d/viewport';
 import { cx } from './ui';
 import type { PlanElement } from '../types/plan';
 import { BUILDING_PRESETS, buildPreset, type BuildingPreset } from '../lib/buildings';
+import { izbaEnabled } from '../lib/izba';
+import { IzbaLockedCard } from './UpgradeIzba';
 import { circlePath } from '../lib/angleAssist';
 
 type Box = { minX: number; minY: number; maxX: number; maxY: number };
@@ -111,7 +113,9 @@ export function addCircleGrass(center?: { x: number; y: number }, r = 3) {
 export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: boolean }) {
   const [q, setQ] = useState('');
   const izba = usePlan().land.site === 'izba';
-  const items = CATALOG.filter((c) => (izba || !c.izbaOnly) && (!q || c.label.includes(q) || c.description.includes(q)));
+  // مخطط عزبة مفتوح عند واحد ما عنده العزبة (رابط مشاركة مثلاً): يشوفه بس عناصرها مقفلة
+  const izbaOk = izba && izbaEnabled();
+  const items = CATALOG.filter((c) => (izbaOk || !c.izbaOnly) && (!q || c.label.includes(q) || c.description.includes(q)));
   const order = izba ? IZBA_CATEGORY_ORDER : CATEGORY_ORDER;
   return (
     <div className="flex h-full flex-col">
@@ -129,13 +133,18 @@ export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: bo
         {!sheet && <p className="mt-2 text-[11px] leading-relaxed text-sand-600">اسحب العنصر إلى المخطط أو انقر عليه لإضافته في منتصف العرض.</p>}
       </div>
       <div className="scroll-thin flex-1 overflow-y-auto p-2">
+        {izba && !izbaOk && (
+          <div className="mb-3">
+            <IzbaLockedCard compact />
+          </div>
+        )}
         {order.map((cat) => {
           const list = items.filter((i) => i.category === cat);
           if (!list.length) return null;
           return (
             <div key={cat} className="mb-3">
               <div className="mb-1.5 px-1 text-[11px] font-bold tracking-wide text-sand-600">{CATEGORY_LABELS[cat]}</div>
-              {cat === 'building' && !q && (
+              {cat === 'building' && !q && izbaOk && (
                 <div className="mb-1.5 grid gap-1.5">
                   {BUILDING_PRESETS.map((bp) => (
                     <button
