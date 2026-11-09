@@ -504,7 +504,15 @@ const server = http.createServer(async (req, res) => {
         order.status = 'cancelled';
         order.lastError = String(e.message).slice(0, 200);
         saveDb();
-        return send(res, 502, { ok: false, error: 'ما قدرنا نفتح صفحة الدفع الحين — حاول بعد شوي' });
+        // «Invalid details»: سكيب كاش رفض بيانات العميل (غالباً رقم الجوال) — نقوله وش يصلح بدل «حاول بعد شوي»
+        if (/invalid/i.test(String(e.message)))
+          return send(res, 400, {
+            ok: false,
+            contact: true,
+            error: 'نظام الدفع ما قبل بياناتك — تأكد من رقم جوالك، أو كلّمنا واتساب ونكمل لك الطلب',
+            errors: { phone: 'تأكد من الرقم: القطري 8 أرقام (مثل 55123456)' },
+          });
+        return send(res, 502, { ok: false, contact: true, error: 'ما قدرنا نفتح صفحة الدفع الحين — حاول بعد شوي أو كلّمنا واتساب' });
       }
     }
 

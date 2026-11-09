@@ -26,6 +26,7 @@ before(async () => {
     req.on('end', () => {
       const json = (code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
       if (req.method === 'POST' && req.url === '/api/v1/payments') {
+        if (failCreate === 'invalid') return json(400, { errorMessage: 'Invalid details!', returnCode: 400 });
         if (failCreate) return json(500, { errorMessage: 'gateway down' });
         const b = JSON.parse(raw);
         lastBody = b;
@@ -174,6 +175,30 @@ test('الطلب ينحفظ قبل الاتصال بسكيب كاش، ولو ف�
   assert.ok(o, 'الطلب محفوظ');
   assert.equal(o.status, 'cancelled');
   assert.match(o.lastError, /gateway down/);
+});
+
+test('رقم جوال غلط ما يوصل لسكيب كاش، و«Invalid details» تطلع رسالة واضحة وزر تواصل', async () => {
+  // عنوان خاص بهالاختبار عشان حد المحاولات ما يأثر على باقي الاختبارات
+  let n = 0;
+  const post = async (p, b) => { const r = await fetch(BASE + p, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': `10.77.0.${++n}` }, body: JSON.stringify(b) }); return { status: r.status, json: await r.json() }; };
+  for (const bad of ['8897796495', '555188699', '0501234567']) {
+    const r = await post('/api/checkout', { name: 'عبدالله', phone: bad });
+    assert.equal(r.status, 400, bad);
+    assert.ok(r.json.errors?.phone, bad);
+  }
+  for (const good of ['55123456', '+96550001234', '+966501234567', '+919876543210']) {
+    const r = await post('/api/checkout', { name: 'عبدالله', phone: good });
+    assert.equal(r.status, 200, good);
+  }
+  failCreate = 'invalid';
+  try {
+    const r = await post('/api/checkout', { name: 'عبدالله', phone: '55123457' });
+    assert.equal(r.status, 400);
+    assert.equal(r.json.contact, true);
+    assert.ok(r.json.errors.phone);
+  } finally {
+    failCreate = false;
+  }
 });
 
 test('طلب يدوي ما ينفتح برقم دفع يرسله العميل', async () => {

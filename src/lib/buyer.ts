@@ -31,6 +31,31 @@ export function parsePhone(raw: string): { phone?: string; error?: string } {
   return { error: 'رقم الجوال لازم 8 أرقام (مثل 55123456)' };
 }
 
+/**
+ * رقم الشراء (صارم): لازم يكون رقم يقبله نظام الدفع، وإلا سكيب كاش يرفض بـ «Invalid details».
+ * قطري 8 أرقام، أو خليجي برمز دولته وطوله الصحيح، أو أي رقم دولي مكتوب بـ + أو 00 في أوله.
+ */
+export function parseBuyerPhone(raw: string): { phone?: string; error?: string } {
+  const s = normalizeDigits(raw).replace(/[\s\-().]/g, '');
+  if (!s) return { error: 'اكتب رقم جوالك' };
+  const intl = s.startsWith('+') || s.startsWith('00');
+  const p = s.startsWith('+') ? s.slice(1) : s.startsWith('00') ? s.slice(2) : s;
+  if (!/^\d+$/.test(p)) return { error: 'رقم الجوال أرقام بس (مثل 55123456)' };
+  if (p.length === 8 || (p.length === 11 && p.startsWith('974'))) return parsePhone(p);
+  const gcc = [
+    ['965', 8, /^[569]/],
+    ['973', 8, /^3/],
+    ['968', 8, /^[79]/],
+    ['966', 9, /^5/],
+    ['971', 9, /^5/],
+  ] as const;
+  for (const [cc, len, re] of gcc as unknown as [string, number, RegExp][]) {
+    if (p.startsWith(cc) && p.length === cc.length + len) return re.test(p.slice(cc.length)) ? { phone: p } : { error: 'رقم الجوال مو صحيح — تأكد منه' };
+  }
+  if (intl && p.length >= 10 && p.length <= 15 && !p.startsWith('0')) return { phone: p };
+  return { error: 'رقم الجوال القطري 8 أرقام (مثل 55123456) — ولو رقمك من دولة ثانية اكتبه مع رمز الدولة مثل +965' };
+}
+
 const TYPOS: Record<string, string> = {
   'gmial.com': 'gmail.com',
   'gmai.com': 'gmail.com',

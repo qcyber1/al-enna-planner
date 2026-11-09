@@ -12,7 +12,7 @@ function skipIntro() {
 }
 import { renderPlanCanvas } from '../render2d/exportImage';
 import { OWNER_AR, OWNER_LINE } from '../lib/brand';
-import { checkEmail, checkName, parsePhone } from '../lib/buyer';
+import { checkEmail, checkName, parseBuyerPhone, parsePhone } from '../lib/buyer';
 import { KeyRound, Loader2, LogIn } from 'lucide-react';
 import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
@@ -134,7 +134,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [buyer, setBuyer] = useState({ name: '', phone: '', email: '' });
   const [fieldErr, setFieldErr] = useState<{ name?: string | null; phone?: string | null; email?: string | null }>({});
   const checkField = (k: 'name' | 'phone' | 'email', v: string) =>
-    k === 'name' ? checkName(v) : k === 'phone' ? parsePhone(v).error ?? null : checkEmail(v);
+    k === 'name' ? checkName(v) : k === 'phone' ? parseBuyerPhone(v).error ?? null : checkEmail(v);
   // الخطأ يطلع بعد ما يطلع من الخانة، ويختفي أول ما يصلّحه
   const onField = (k: 'name' | 'phone' | 'email', v: string) => {
     setBuyer((b) => ({ ...b, [k]: v }));
@@ -144,6 +144,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [demoOver, setDemoOver] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [notice, setNotice] = useState('');
+  const [payHelp, setPayHelp] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -273,7 +274,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const buy = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const errs = { name: checkName(buyer.name), phone: parsePhone(buyer.phone).error ?? null, email: info.online && buyer.email.trim() ? checkEmail(buyer.email) : null };
+    const errs = { name: checkName(buyer.name), phone: parseBuyerPhone(buyer.phone).error ?? null, email: info.online && buyer.email.trim() ? checkEmail(buyer.email) : null };
     setFieldErr(errs);
     if (errs.name || errs.phone || errs.email) return;
     pixelBuyer(buyer);
@@ -291,7 +292,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         }
         const fe = (d as { errors?: typeof fieldErr }).errors;
         if (fe) setFieldErr(fe);
-        else setError(d.error || 'ما انفتحت صفحة الدفع — حاول مرة ثانية');
+        // لو نظام الدفع رفض: نوري رسالة واضحة وزر واتساب للدعم (ما نخليه يكرر ويطلع)
+        if (!fe || (d as { contact?: boolean }).contact) setError(d.error || 'ما انفتحت صفحة الدفع — حاول مرة ثانية');
+        setPayHelp(!!(d as { contact?: boolean }).contact);
       } else {
         const { data } = await post('/api/order', { ...buyer, ref: get(REF_KEY) || undefined });
         if (data.ok) setNotice('وصلنا طلبك ✓ بنرسل لك رابط الدفع على الواتساب خلال دقائق، وبعد الدفع يوصلك كود التفعيل.');
@@ -489,6 +492,17 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               </div>
             ))}
             {error && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</div>}
+            {payHelp && info.content.support && (
+              <a
+                href={waLink(info.content.support, `هلا، حاولت أشتري مخطط العنة وما انفتحت صفحة الدفع. اسمي ${buyer.name} ورقمي ${buyer.phone}`)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#25D366] text-sm font-bold text-white"
+                data-testid="pay-help"
+              >
+                💬 كلّمنا واتساب ونكمل لك الطلب
+              </a>
+            )}
             <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gold-500 font-bold text-dune disabled:opacity-50" data-testid="buy">
               {busy && <Loader2 size={18} className="animate-spin" />} {info.online ? 'ادفع الآن (سكيب كاش)' : 'اطلب الآن'}
             </button>
