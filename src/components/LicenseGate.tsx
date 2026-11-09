@@ -458,6 +458,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             </button>
           )}
           <div className="lg:hidden"><Features items={feats} /></div>
+          <a href={izbaSite ? '/' : '/izba'} className="block rounded-lg border border-dashed border-gold-500 px-3 py-1.5 text-center text-[12px] font-semibold text-gold-700 hover:bg-gold-50" data-testid="cross-link">
+            {izbaSite ? '⛺ تبي تصمم عنة (مخيم بر)؟ شوف i3enna للعنن ←' : '🏡 جديد: عندك عزبة؟ خططها في i3enna للعزب ←'}
+          </a>
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-sand-200 p-1 text-sm font-semibold">
             {tabs.map(([m, label]) => {
               const on = m === 'buy' ? mode === 'buy' : mode !== 'buy';
@@ -506,7 +509,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <div className="rounded-lg bg-turf-500/10 p-3 text-sm text-turf-700">{notice}</div>
           ) : (
           <form onSubmit={buy} className="space-y-2.5">
-            {(demoOver || demoUsed()) && <TrialOverCard offer={!izbaSite && offer && offer.price < info.price ? offer : null} was={info.price} list={info.basePrice} />}
+            {(demoOver || demoUsed()) && <TrialOverCard offer={!izbaSite && offer && offer.price < info.price ? offer : null} was={basePrice} list={listPrice} />}
             <div className="rounded-lg bg-white p-3 text-center">
               {listPrice > payPrice && (
                 <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700" data-testid="price-badge">{payPrice < basePrice ? `🎁 عرضك الخاص — ينتهي بعد ${leftLabel(offer!.exp)}` : !izbaSite && info.refValid ? '🎁 وصلك خصم من صديقك' : '🔥 عرض لفترة محدودة'}</div>

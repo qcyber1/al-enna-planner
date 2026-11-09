@@ -12,7 +12,7 @@ import { WorldContext, type WorldInfo } from './world';
 import { Ground3D, Fence3D, SceneLighting } from './Environment3D';
 import { lazy, Suspense } from 'react';
 import { renderScene, usePhoto } from './photoStore';
-// المؤثرات والرندر الواقعي مكتبات ثقيلة: تنحمّل بس للي عنده التجربة (?izba=1)
+// المؤثرات والرندر الواقعي مكتبات ثقيلة: تنحمّل بس لصاحب العزبة
 const SceneEffects = lazy(() => import('./Effects3D').then((m) => ({ default: m.SceneEffects })));
 const SkyReflections = lazy(() => import('./Effects3D').then((m) => ({ default: m.SkyReflections })));
 const PhotoTracer = lazy(() => import('./PhotoRender').then((m) => ({ default: m.PhotoTracer })));
@@ -45,7 +45,7 @@ import { withWatermark } from '../render2d/watermark';
 import { safeFileName, shareOrDownload, stamp } from '../lib/files';
 import { saveThumbs } from '../lib/storage';
 
-/** الرندر الجديد (المؤثرات والرندر الواقعي) تحت التجربة: يطلع مع رابط ?izba=1 بس */
+/** الرندر الجديد (المؤثرات والرندر الواقعي) تحت التجربة: يطلع لصاحب العزبة بس */
 const PROMO_Q = new URLSearchParams(window.location.search).has('promo');
 const BUDGET = { low: 8, medium: 20, high: 40 };
 const MOBILE_BUDGET = { low: 6, medium: 12, high: 24 };

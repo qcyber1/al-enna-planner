@@ -59,25 +59,15 @@ export function demoSite(): Product {
   return ls.get(DEMO_SITE) === 'izba' ? 'izba' : 'enna';
 }
 
-/** رابط معاينة للفريق: ?izba=1 يفتح العزبة في هالمتصفح (و ?izba=0 يقفلها) */
-function devFlag(): boolean {
-  try {
-    const q = new URLSearchParams(window.location.search).get('izba');
-    if (q === '1') ls.set(DEV, '1');
-    if (q === '0') ls.set(DEV, null);
-  } catch {
-    /* تجاهل */
-  }
-  return ls.get(DEV) === '1';
-}
+// رابط المعاينة القديم (?izba=1) انشال: العزبة صارت مدفوعة — الفريق ياخذ كود عزبة مجاني من الأدمن
+ls.set(DEV, null);
 
 /**
  * وصول العزبة:
- * - full: اشترى العزبة، أو في التجربة المجانية من صفحة العزبة، أو معاينة الفريق، أو الموقع بدون تراخيص
+ * - full: اشترى العزبة، أو في التجربة المجانية من صفحة العزبة، أو الموقع بدون تراخيص
  * - locked: يقدر يشوفها ويرقّي، بس ما يستخدمها
  */
 export function izbaAccess(): 'full' | 'locked' {
-  if (devFlag()) return 'full';
   if (ls.get(TOKEN) === 'open') return 'full';
   if (getProducts().includes('izba')) return 'full';
   if (isDemo() && demoSite() === 'izba') return 'full';
