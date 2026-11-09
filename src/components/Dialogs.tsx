@@ -14,6 +14,8 @@ import { ImportError, parseImport } from '../lib/sanitize';
 import { createSamplePlan, defaultLand, emptyPlan } from '../lib/sample';
 import { renderPlanSheet } from '../render2d/planSheet';
 import { usePhoto } from '../scene3d/photoStore';
+import { IzbaLockedCard, useUpgrade } from './UpgradeIzba';
+import { demoSite, getProducts, landingSite } from '../lib/license';
 import { buildIzba, izbaEnabled, izbaLand, IZBA_PLOT_OPTIONS, IZBA_USES, type IzbaPlots, type IzbaUse } from '../lib/izba';
 import { loadThumbs } from '../lib/storage';
 import { validatePlan } from '../lib/validation';
@@ -40,7 +42,12 @@ export function WelcomeDialog() {
   const openDialog = useEditor((s) => s.openDialog);
   const [site, setSite] = useState<'enna' | 'izba'>('enna');
   const [plots, setPlots] = useState<IzbaPlots>(1);
-  const showIzba = useMemo(() => izbaEnabled(), []);
+  // العزبة منتج مستقل: التبويب يطلع للكل، بس قوالبها مفتوحة لصاحب ترخيصها (أو تجربتها)
+  const showIzba = true;
+  const izbaOk = useMemo(() => izbaEnabled(), [open]);
+  useEffect(() => {
+    if (open && izbaEnabled() && (demoSite() === 'izba' || landingSite() === 'izba' || getProducts().includes('izba'))) setSite('izba');
+  }, [open]);
   const applyIzba = (use: IzbaUse) => {
     const st = useEditor.getState();
     const u = IZBA_USES.find((x) => x.id === use)!;
@@ -79,7 +86,7 @@ export function WelcomeDialog() {
     st.toast(`أرض ${size}×${size} جاهزة — ابدأ من مكتبة العناصر`, 'success');
   };
   return (
-    <Modal open={open} onClose={() => openDialog(null)} title="أهلاً بك في مخطط العنة ⛺">
+    <Modal open={open} onClose={() => openDialog(null)} title={site === 'izba' ? 'أهلاً بك في i3enna 🏡' : 'أهلاً بك في مخطط العنة ⛺'}>
       <div className="space-y-4 p-5">
         <div className="sadu-band h-2 rounded" />
         {showIzba && (
@@ -100,6 +107,9 @@ export function WelcomeDialog() {
           </div>
         )}
         {site === 'izba' ? (
+          !izbaOk ? (
+            <IzbaLockedCard />
+          ) : (
           <div className="space-y-4">
             <p className="text-sm leading-relaxed text-sand-800">
               خطط عزبتك قبل البناء: الحلال والمجلس والزراعة بمقاسات حقيقية، والنظام ينبهك إذا الحلال فوق الريح عن المجلس.
@@ -145,6 +155,7 @@ export function WelcomeDialog() {
               أو ابدأ من أرض فاضية ({IZBA_PLOT_OPTIONS.find((x) => x.n === plots)!.size} م)
             </button>
           </div>
+          )
         ) : (
         <>
         <p className="text-sm leading-relaxed text-sand-800">
@@ -203,7 +214,8 @@ export function LandDialog() {
   const openDialog = useEditor((s) => s.openDialog);
   const plan = usePlan();
   const [land, setLand] = useState<Land>(plan.land);
-  const izbaOn = useMemo(() => izbaEnabled(), []);
+  const izbaOn = true;
+  const izbaOk = useMemo(() => izbaEnabled(), [open]);
   useEffect(() => {
     if (open) setLand(plan.land);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -213,6 +225,12 @@ export function LandDialog() {
   const sideNames = ['الخلفي (أعلى المخطط)', 'الأيمن', 'الأمامي (أسفل المخطط)', 'الأيسر'];
   const apply = () => {
     const st = useEditor.getState();
+    // العزبة منتج مستقل: ما تتحول الأرض لعزبة إلا لصاحب ترخيصها
+    if (land.site === 'izba' && plan.land.site !== 'izba' && !izbaOk) {
+      openDialog(null);
+      useUpgrade.getState().show();
+      return;
+    }
     const l = { ...land, depth: land.shape === 'square' ? land.width : land.depth };
     l.entrance = { ...l.entrance, offset: Math.min(Math.max(l.entrance.offset, l.entrance.width / 2), (landEdges(l)[l.entrance.edge]?.length ?? 10) - l.entrance.width / 2) };
     st.updateLand(l);
@@ -245,6 +263,7 @@ export function LandDialog() {
             />
           </Field>
         )}
+        {land.site === 'izba' && !izbaOk && plan.land.site !== 'izba' && <IzbaLockedCard compact />}
         {land.site === 'izba' ? (
           <div>
             <span className="mb-1 block text-[12px] font-medium text-sand-700">الأرض 50 × 50 — كم أرض عندك؟</span>

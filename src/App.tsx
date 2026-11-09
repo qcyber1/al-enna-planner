@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
+import { UpgradeIzbaDialog } from './components/UpgradeIzba';
 import { PanelRight, PanelLeft, X } from 'lucide-react';
 import { TopBar } from './components/TopBar';
 import { MobileTopBar } from './components/MobileTopBar';
@@ -153,6 +154,7 @@ export default function App() {
       <SharedLinkDialog />
       <HelpDialog />
       <GeneratorDialog />
+      <UpgradeIzbaDialog />
       <InviteDialog />
       <FeedbackDialog />
       <Toasts />

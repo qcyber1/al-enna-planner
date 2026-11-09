@@ -1,11 +1,10 @@
-import type { MutableRefObject } from 'react';
+import { useMemo, type MutableRefObject } from 'react';
 import { Camera, Home, Sparkles, Eye, Footprints, DoorOpen, Tent, Plane, Box, ArrowUp, ArrowDown, RotateCcw, RotateCw, X } from 'lucide-react';
 import { useEditor, usePlan } from '../store/editorStore';
 import { useView3D } from './viewStore';
 import { startPhoto, usePhoto } from './photoStore';
 import { izbaEnabled } from '../lib/izba';
 
-const BETA = izbaEnabled();
 import type { CameraPreset } from '../types/plan';
 import { IconButton, Segmented } from '../components/ui';
 import { HOUR_MAX, HOUR_MIN, SUNSET, formatHour } from '../lib/sunclock';
@@ -31,6 +30,7 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
   const setHour = useEditor((s) => s.setHour);
   const capture = useEditor((s) => s.requestCapture3d);
   const walking = preset === 'walk';
+  const BETA = useMemo(() => izbaEnabled(), []);
   const photoBusy = usePhoto((s) => s.status !== 'idle');
   const interior = useView3D((s) => s.interior);
   const toggleInterior = useView3D((s) => s.toggleInterior);

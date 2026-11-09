@@ -112,7 +112,7 @@ ${persistent ? '' : '<div class="alert warn">⚠ لم يتم ربط Volume عل�
 
 <section class="card" data-p="funnel" hidden>
   <div class="card-h"><div><h3>مسار البيع</h3><p class="sub">كم شخص وصل لكل خطوة — كل شخص ينحسب مرة وحدة في اليوم. أرقامنا من موقعنا مباشرة (بدون حظر إعلانات)، وما فيها التجارب ولا أصحاب الأكواد.</p></div>
-  <select id="fd" style="max-width:150px"><option value="1">اليوم</option><option value="7" selected>آخر ٧ أيام</option><option value="30">آخر ٣٠ يوم</option><option value="90">آخر ٩٠ يوم</option></select></div>
+  <div class="row"><select id="fprod" style="max-width:150px"><option value="enna">⛺ العنة</option><option value="izba">🏡 العزبة</option></select><select id="fd" style="max-width:150px"><option value="1">اليوم</option><option value="7" selected>آخر ٧ أيام</option><option value="30">آخر ٣٠ يوم</option><option value="90">آخر ٩٠ يوم</option></select></div></div>
   <div id="fl" style="display:grid;gap:10px"></div>
   <div id="fi" class="alert warn" style="margin-top:14px" hidden></div>
   <h3 style="margin:22px 0 10px">يوم بيوم</h3>
@@ -157,6 +157,13 @@ ${persistent ? '' : '<div class="alert warn">⚠ لم يتم ربط Volume عل�
     <div><label for="st_offer">سعر العرض (ر.ق)</label><input id="st_offer" type="number" min="0" dir="ltr"></div>
     <div><label for="st_offer_min">مدة العرض (دقائق)</label><input id="st_offer_min" type="number" min="5" max="1440" dir="ltr"></div>
   </div>
+  <h3 style="margin:18px 0 6px">🏡 العزبة (منتج مستقل — www.i3enna.qa/izba)</h3>
+  <p class="sub" style="margin:0 0 10px">بدون إحالة ولا عرض تجربة. «الترقية» سعر خاص لعميل العنة: تنضاف العزبة لنفس كوده.</p>
+  <div class="grid">
+    <div><label for="st_izba">سعر العزبة (ر.ق)</label><input id="st_izba" type="number" min="1" dir="ltr"></div>
+    <div><label for="st_izba_list">قبل الخصم — 0 = بدون</label><input id="st_izba_list" type="number" min="0" dir="ltr"></div>
+    <div><label for="st_izba_up">ترقية لعميل العنة (ر.ق)</label><input id="st_izba_up" type="number" min="1" dir="ltr"></div>
+  </div>
   <div class="row" style="margin-top:14px;justify-content:space-between"><div class="preview" id="st_hint"></div><button id="st_save" class="ok" type="button">حفظ الأسعار</button></div>
 </section>
 
@@ -196,6 +203,7 @@ ${persistent ? '' : '<div class="alert warn">⚠ لم يتم ربط Volume عل�
     <div><label for="price">المبلغ (ر.ق) — 0 للهدية/التجربة</label><input id="price" type="number" value="299" dir="ltr"></div>
     <div><label for="cnt">عدد الأكواد</label><input id="cnt" type="number" value="1" min="1" max="50" dir="ltr"></div>
     <div><label for="note">ملاحظة</label><input id="note"></div>
+    <div><label for="cprod">المنتج</label><select id="cprod"><option value="enna">⛺ العنة فقط</option><option value="izba">🏡 العنة + العزبة</option></select></div>
     <div style="align-self:end"><button class="gold" style="width:100%;height:40px">توليد</button></div>
   </form><div id="out"></div>
 </section>
@@ -208,7 +216,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=n=>(Math.round((n||0)*100)/100).toLocaleString('en-US')+' ر.ق';
 const day=t=>t?new Date(t).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'';
 async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json','x-enna-admin':'1'},body:JSON.stringify(b)}:{});if(r.status===401){location.reload();throw new Error('انتهت الجلسة')}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'خطأ');return j}
-const msg=r=>'هلا '+(r.name||'')+' 👋\\nشكراً لاشتراكك في I3enna ⛺\\n\\nالرابط: '+location.origin+'\\nكود التفعيل: '+r.code+'\\n\\nالكود لك مدى الحياة ويعمل على '+MAX+' أجهزة.\\nوداخل التطبيق زر «ادعُ أصحابك» — كل واحد يشتري من رابطك تاخذ '+REWARD+' ريال 🎁';
+const msg=r=>'هلا '+(r.name||'')+' 👋\\nشكراً لاشتراكك في I3enna ⛺\\n\\nالرابط: '+location.origin+(hasIzba(r)?'/izba':'')+'\\nكود التفعيل: '+r.code+'\\n\\nالكود لك مدى الحياة ويعمل على '+MAX+' أجهزة.\\nوداخل التطبيق زر «ادعُ أصحابك» — كل واحد يشتري من رابطك تاخذ '+REWARD+' ريال 🎁';
 const wa=(phone,text)=>'https://wa.me/'+waNum(phone)+'?text='+encodeURIComponent(text);
 // رقم الواتساب: 8 أرقام = قطري (نضيف 974)
 const waNum=phone=>{const d=String(phone||'').replace(/\\D/g,'').replace(/^00/,'');return d.length===8?'974'+d:d};
@@ -224,13 +232,17 @@ const WA_UNPAID=WA_HI+'وصلنا طلب شراء من هالرقم وما اك�
 const ph=(phone,unpaid)=>{if(!phone)return '';return '<a class="wa" href="'+wa(phone,unpaid?WA_UNPAID:WA_HI)+'" target="_blank" rel="noopener" dir="ltr" title="افتح محادثة واتساب">💬 '+esc(fmtPhone(phone))+'</a>'+(okPhone(phone)?'':'<br><small class="wa-bad">⚠ الرقم شكله غلط — تأكد منه</small>')};
 const payMsg=o=>'هلا '+o.name+' 👋\\nشكراً لطلبك من I3enna ⛺\\nالمبلغ: '+(o.amount??PRICE)+' ر.ق — مدى الحياة\\n\\nرابط الدفع:\\n'+(pl.value||'[ضع رابط الدفع]')+'\\n\\nبعد الدفع يوصلك كود التفعيل هنا.';
 const byId=id=>list.find(r=>r.id===id);
+const isIzbaO=o=>o.product==='izba';
+const prodPill=o=>isIzbaO(o)?'<span class="pill p-ref">🏡 '+(o.upgradeOf?'ترقية عزبة':'عزبة')+'</span> ':'';
+const hasIzba=r=>Array.isArray(r.products)&&r.products.includes('izba');
 function stats(){
   const paid=orders.filter(o=>o.status==='paid'&&!o.test);
   const manual=list.filter(r=>!r.test&&!orders.some(o=>o.codeId===r.id));
   const rev=paid.reduce((s,o)=>s+(o.amount??PRICE),0)+manual.reduce((s,r)=>s+(r.price||0),0);
   const owed=refs.filter(r=>!r.paidOut).reduce((s,r)=>s+r.reward,0);
   const today=new Date().toDateString();
-  s_rev.textContent=money(rev);s_rev2.textContent='منها يدوي: '+money(manual.reduce((s,r)=>s+(r.price||0),0));
+  const izRev=paid.filter(isIzbaO).reduce((s,o)=>s+(o.amount??0),0);
+  s_rev.textContent=money(rev);s_rev2.textContent='منها يدوي: '+money(manual.reduce((s,r)=>s+(r.price||0),0))+' • العزبة: '+money(izRev)+' ('+paid.filter(isIzbaO).length+')';
   s_paid.textContent=paid.length+manual.length;s_today.textContent='اليوم: '+paid.filter(o=>new Date(o.paidAt||o.createdAt).toDateString()===today).length;
   s_wait.textContent=orders.filter(o=>['pending','new','sent'].includes(o.status)).length;
   s_owed.textContent=money(owed);s_refs.textContent=refs.length+' عملية إحالة';
@@ -239,7 +251,7 @@ function stats(){
   n_refs.textContent=refGroups().filter(x=>x.owed>0).length||'';
   n_fb.textContent=fbs.filter(f=>!f.done).length||'';
   renderLost();
-  ov_orders.innerHTML=orders.slice(0,6).map(o=>'<tr><td><b>'+esc(o.name)+'</b><br>'+ph(o.phone,o.status!=='paid')+'</td><td>'+day(o.createdAt)+'</td><td>'+money(o.amount??PRICE)+'</td><td><span class="pill '+(o.status==='paid'?'p-paid':o.status==='cancelled'?'p-bad':'p-wait')+'">'+ST[o.status]+'</span></td></tr>').join('')||'<tr><td colspan="4" class="empty">لا توجد طلبات بعد</td></tr>';
+  ov_orders.innerHTML=orders.slice(0,6).map(o=>'<tr><td>'+prodPill(o)+'<b>'+esc(o.name)+'</b><br>'+ph(o.phone,o.status!=='paid')+'</td><td>'+day(o.createdAt)+'</td><td>'+money(o.amount??PRICE)+'</td><td><span class="pill '+(o.status==='paid'?'p-paid':o.status==='cancelled'?'p-bad':'p-wait')+'">'+ST[o.status]+'</span></td></tr>').join('')||'<tr><td colspan="4" class="empty">لا توجد طلبات بعد</td></tr>';
   ov_fb.innerHTML=fbs.filter(f=>!f.done).slice(0,3).map(fbCard).join('')||'<div class="empty">ما في ملاحظات جديدة</div>';
 }
 function fbCard(f){return '<div class="fb'+(f.done?' done':'')+'"><div class="row" style="justify-content:space-between"><div><b>'+esc(f.name||'مستخدم')+'</b> '+ph(f.phone)+' <small>• '+day(f.at)+(f.where?' • '+esc(f.where):'')+'</small></div><div class="row">'+(f.phone?'<a href="'+wa(f.phone,'هلا '+(f.name||'')+' 👋 شكراً على ملاحظتك في مخطط العنة: ')+'" target="_blank"><button class="ghost" type="button">رد واتساب</button></a>':'')+'<button class="'+(f.done?'ghost':'ok')+'" type="button" data-fb="'+f.id+'" data-done="'+(f.done?0:1)+'">'+(f.done?'إرجاع':'تم ✓')+'</button><button class="bad" type="button" data-fb="'+f.id+'" data-rm="1">حذف</button></div></div><p>'+esc(f.text)+'</p></div>'}
@@ -254,7 +266,7 @@ function renderLost(){const since=Date.now()-3*864e5,paid=new Set(orders.filter(
   const rows=[...g.values()].sort((a,b)=>(a.done-b.done)||b.last-a.last);lost_card.hidden=!rows.length;
   ov_lost.innerHTML=rows.map(x=>'<tr'+(x.done?' style="opacity:.55"':'')+'><td><b>'+esc(x.o.name)+'</b><br>'+ph(x.o.phone,true)+'</td><td><b>'+x.n+'</b></td><td>'+day(x.last)+'</td><td><small>'+(x.err?'<span style="color:#b42318">رفضه نظام الدفع: '+esc(x.err)+'</span>':x.o.status==='pending'?'فتح صفحة الدفع وما كمّل':x.o.status==='new'?'طلب ينتظر رابط الدفع':'ما اكتمل')+'</small></td><td>'+(x.done?'<small>تم التواصل ✓</small>':'<button class="ghost" type="button" data-contacted="'+x.ids.join(',')+'">تم التواصل</button>')+'</td></tr>').join('')}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-contacted]');if(!b)return;try{await api('/api/admin/contacted',{ids:b.dataset.contacted.split(',')});await load()}catch(err){alert(err.message)}});
-function renderOrders(){const q=oq.value.trim(),fs=of.value;const rows=orders.filter(o=>(!fs||o.status===fs)&&(!q||[o.name,o.phone,o.paymentId,o.no?'EN-'+o.no:''].join(' ').includes(q)));oc.textContent=rows.length+' من '+orders.length;ob.innerHTML=rows.map(o=>{const c=o.codeId&&byId(o.codeId);const ref=(o.test?'<span class="pill p-wait">🧪 تجربة</span> ':'')+(o.ref?'<span class="pill p-ref">بإحالة من '+esc(byId(o.ref)?.name||o.ref)+'</span>':'');
+function renderOrders(){const q=oq.value.trim(),fs=of.value;const rows=orders.filter(o=>(!fs||o.status===fs)&&(!q||[o.name,o.phone,o.paymentId,o.no?'EN-'+o.no:''].join(' ').includes(q)));oc.textContent=rows.length+' من '+orders.length;ob.innerHTML=rows.map(o=>{const c=o.codeId&&byId(o.codeId);const ref=prodPill(o)+(o.test?'<span class="pill p-wait">🧪 تجربة</span> ':'')+(o.ref?'<span class="pill p-ref">بإحالة من '+esc(byId(o.ref)?.name||o.ref)+'</span>':'');
   const st='<span class="pill '+(o.status==='paid'?'p-paid':o.status==='cancelled'?'p-bad':'p-wait')+'">'+ST[o.status]+'</span>';
   const acts=o.status==='paid'?(c?'<a href="'+wa(c.phone,msg(c))+'" target="_blank"><button class="gold" type="button">إرسال الكود واتساب</button></a>':''):o.status==='cancelled'?'':
    (o.online?'<button class="ghost" type="button" data-o="'+o.id+'" data-s="check">تحقق من الدفع</button>':'<a href="'+wa(o.phone,payMsg(o))+'" target="_blank" data-o="'+o.id+'" data-s="sent"><button class="ghost" type="button">إرسال رابط الدفع</button></a>')+
@@ -265,12 +277,12 @@ function refMsg(c,x){return 'هلا '+(c?.name||'')+' 👋\\nشكراً إنك �
 function renderRefs(){
   rb.innerHTML=refGroups().sort((a,b)=>b.owed-a.owed).map(x=>{const c=byId(x.id);return '<tr><td><b>'+esc(c?.name||x.id)+'</b><br>'+ph(c?.phone)+'</td><td>'+x.n+'<br><small>'+esc(x.buyers.join('، '))+'</small></td><td><b>'+money(x.owed)+'</b></td><td>'+money(x.paid)+'</td><td><div class="row">'+(x.owed&&c?.phone?'<a href="'+wa(c.phone,refMsg(c,x))+'" target="_blank"><button class="gold" type="button">واتساب</button></a>':'')+(x.owed?'<button class="ok" type="button" data-r="'+x.id+'">تم الدفع له</button>':'✓')+'</div></td></tr>'}).join('')||'<tr><td colspan="5">لا توجد إحالات بعد</td></tr>'}
 function renderCodes(){const q=document.getElementById('q').value.trim();const rows=list.filter(r=>!q||[r.name,r.phone,r.code,r.note].join(' ').includes(q));
-  tb.innerHTML=rows.map(r=>'<tr><td><b>'+esc(r.name||'—')+'</b><br>'+ph(r.phone)+' <small>'+esc(r.note)+'</small></td><td><span class="code">'+esc(r.code||r.id)+'</span>'+(r.hasPw?' <small title="يدخل برقم الجوال وكلمة المرور">🔑</small>':'')+'</td><td>'+day(r.createdAt)+'</td><td>'+money(r.price)+'</td><td>'+r.devices.length+' / '+MAX+'</td><td>'+(r.revoked?'<span class="pill p-bad">موقوف</span>':r.devices.length?'<span class="pill p-paid">مفعّل</span>':'<span class="pill p-wait">لم يُفعّل</span>')+'</td><td><div class="row">'+(r.code&&r.phone?'<a href="'+wa(r.phone,msg(r))+'" target="_blank"><button class="gold" type="button">واتساب</button></a>':'')+'<button class="ghost" type="button" data-a="reset" data-id="'+r.id+'">تصفير الأجهزة</button>'+(r.hasPw?'<button class="ghost" type="button" data-a="resetpw" data-id="'+r.id+'">مسح كلمة المرور</button>':'')+(r.revoked?'<button class="ghost" type="button" data-a="restore" data-id="'+r.id+'">إعادة تفعيل</button>':'<button class="bad" type="button" data-a="revoke" data-id="'+r.id+'">إيقاف</button>')+'</div></td></tr>').join('')||'<tr><td colspan="7">لا يوجد عملاء بعد</td></tr>'}
-function stHint(){const p=+st_price.value||0,l=+st_list.value||0,d=+st_rd.value||0,o=+st_offer.value||0;st_hint.textContent='العميل يشوف: '+(l>p?l+' ← ':'')+p+' ر.ق • بالإحالة: '+Math.max(0,p-d)+' ر.ق'+(o>0&&o<p?' • بعد التجربة: '+o+' ر.ق لمدة '+(+st_offer_min.value||60)+' دقيقة':'')}
-for(const el of [st_price,st_list,st_rd,st_rr,st_offer,st_offer_min])el.oninput=stHint;
-st_save.onclick=async()=>{try{await api('/api/admin/settings',{price:st_price.value,listPrice:st_list.value||0,refDiscount:st_rd.value,refReward:st_rr.value,offerPrice:st_offer.value||0,offerMinutes:st_offer_min.value||60});st_save.textContent='تم الحفظ ✓';setTimeout(()=>st_save.textContent='حفظ الأسعار',1800);await load()}catch(err){alert(err.message)}};
+  tb.innerHTML=rows.map(r=>'<tr><td><b>'+esc(r.name||'—')+'</b><br>'+ph(r.phone)+' <small>'+esc(r.note)+'</small></td><td><span class="code">'+esc(r.code||r.id)+'</span>'+(r.hasPw?' <small title="يدخل برقم الجوال وكلمة المرور">🔑</small>':'')+'<br><span class="pill p-paid">⛺ عنة</span>'+(hasIzba(r)?' <span class="pill p-ref">🏡 عزبة</span>':'')+'</td><td>'+day(r.createdAt)+'</td><td>'+money(r.price)+'</td><td>'+r.devices.length+' / '+MAX+'</td><td>'+(r.revoked?'<span class="pill p-bad">موقوف</span>':r.devices.length?'<span class="pill p-paid">مفعّل</span>':'<span class="pill p-wait">لم يُفعّل</span>')+'</td><td><div class="row">'+(r.code&&r.phone?'<a href="'+wa(r.phone,msg(r))+'" target="_blank"><button class="gold" type="button">واتساب</button></a>':'')+'<button class="ghost" type="button" data-a="reset" data-id="'+r.id+'">تصفير الأجهزة</button>'+(hasIzba(r)?'<button class="ghost" type="button" data-a="remove-izba" data-id="'+r.id+'">شيل العزبة</button>':'<button class="ghost" type="button" data-a="add-izba" data-id="'+r.id+'">+ فعّل العزبة</button>')+(r.hasPw?'<button class="ghost" type="button" data-a="resetpw" data-id="'+r.id+'">مسح كلمة المرور</button>':'')+(r.revoked?'<button class="ghost" type="button" data-a="restore" data-id="'+r.id+'">إعادة تفعيل</button>':'<button class="bad" type="button" data-a="revoke" data-id="'+r.id+'">إيقاف</button>')+'</div></td></tr>').join('')||'<tr><td colspan="7">لا يوجد عملاء بعد</td></tr>'}
+function stHint(){const p=+st_price.value||0,l=+st_list.value||0,d=+st_rd.value||0,o=+st_offer.value||0;st_hint.textContent='العميل يشوف: '+(l>p?l+' ← ':'')+p+' ر.ق • بالإحالة: '+Math.max(0,p-d)+' ر.ق'+(o>0&&o<p?' • بعد التجربة: '+o+' ر.ق لمدة '+(+st_offer_min.value||60)+' دقيقة':'')+' • العزبة: '+((+st_izba_list.value||0)>(+st_izba.value||0)?st_izba_list.value+' ← ':'')+(st_izba.value||'—')+' ر.ق (ترقية '+(st_izba_up.value||'—')+')'}
+for(const el of [st_price,st_list,st_rd,st_rr,st_offer,st_offer_min,st_izba,st_izba_list,st_izba_up])el.oninput=stHint;
+st_save.onclick=async()=>{try{await api('/api/admin/settings',{price:st_price.value,listPrice:st_list.value||0,refDiscount:st_rd.value,refReward:st_rr.value,offerPrice:st_offer.value||0,offerMinutes:st_offer_min.value||60,izbaPrice:st_izba.value,izbaListPrice:st_izba_list.value||0,izbaUpgrade:st_izba_up.value});st_save.textContent='تم الحفظ ✓';setTimeout(()=>st_save.textContent='حفظ الأسعار',1800);await load()}catch(err){alert(err.message)}};
 let stLoaded=false;
-async function load(){const j=await api('/api/admin/list');if(j.settings&&!stLoaded){stLoaded=true;st_price.value=j.settings.price;st_list.value=j.settings.listPrice||0;st_rd.value=j.settings.refDiscount;st_rr.value=j.settings.refReward;st_offer.value=j.settings.offerPrice??249;st_offer_min.value=j.settings.offerMinutes??60;stHint()}list=j.list;orders=j.orders||[];refs=j.referrals||[];fbs=j.feedback||[];if(j.content&&!cLoaded){cLoaded=true;for(const k of CK)document.getElementById('c_'+k).value=j.content[k]||''}PRICE=j.price||299;REWARD=j.refReward??50;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';stats();renderOrders();renderRefs();renderCodes();renderFb()}
+async function load(){const j=await api('/api/admin/list');if(j.settings&&!stLoaded){stLoaded=true;st_price.value=j.settings.price;st_list.value=j.settings.listPrice||0;st_rd.value=j.settings.refDiscount;st_rr.value=j.settings.refReward;st_offer.value=j.settings.offerPrice??249;st_offer_min.value=j.settings.offerMinutes??60;st_izba.value=j.settings.izbaPrice??499;st_izba_list.value=j.settings.izbaListPrice||0;st_izba_up.value=j.settings.izbaUpgrade??299;stHint()}list=j.list;orders=j.orders||[];refs=j.referrals||[];fbs=j.feedback||[];if(j.content&&!cLoaded){cLoaded=true;for(const k of CK)document.getElementById('c_'+k).value=j.content[k]||''}PRICE=j.price||299;REWARD=j.refReward??50;if(!pl.value)pl.value=localStorage.getItem('pl')||j.paymentLink||'';stats();renderOrders();renderRefs();renderCodes();renderFb()}
 pl.onchange=()=>localStorage.setItem('pl',pl.value);
 q.oninput=renderCodes;
 oq.oninput=renderOrders;of.onchange=renderOrders;
@@ -283,25 +295,26 @@ const TT={overview:['نظرة عامة','ملخص المبيعات والعمل�
 function go(t){if(!TT[t])t='overview';for(const x of tabs.querySelectorAll('button[data-t]'))x.classList.toggle('on',x.dataset.t===t);for(const s of document.querySelectorAll('[data-p]'))s.hidden=s.dataset.p!==t;pt.textContent=TT[t][0];ps.textContent=TT[t][1];if(t==='funnel')loadFunnel().catch(()=>{});if(location.hash!=='#'+t)history.replaceState(null,'','#'+t);window.scrollTo(0,0)}
 const FST=[['visit','👀 زار صفحة الشراء'],['trial_start','▶️ بدأ التجربة المجانية'],['trial_end','⏱ خلّص التجربة'],['demo_buy_click','🛒 ضغط «اشترِ» من التجربة'],['checkout_click','📝 عبّى بياناته وضغط ادفع'],['checkout','💳 وصل صفحة الدفع'],['purchase','✅ اشترى']];
 const pct=(a,b)=>b?Math.round(a/b*1000)/10+'%':'—';
-async function loadFunnel(){const d=await api('/api/admin/funnel?days='+fd.value);const t=d.total,top=Math.max(1,t.visit);
+async function loadFunnel(){const d=await api('/api/admin/funnel?days='+fd.value+'&product='+fprod.value);const t=d.total,top=Math.max(1,t.visit);
 fl.innerHTML=FST.map(([k,l],i)=>{const v=t[k],prev=i?t[FST[i-1][0]]:0;return '<div class="fs'+(k==='purchase'?' last':'')+'"><span>'+l+'</span><div class="bar"><i style="width:'+Math.min(100,v/top*100)+'%"></i></div><span class="v"><b>'+v+'</b><small>'+(i?pct(v,prev)+' من اللي قبله':'100%')+'</small></span></div>'}).join('')+'<div class="fs"><span>🚫 حاول يصدّر وهو بالتجربة</span><div class="bar"><i style="width:'+Math.min(100,t.export_blocked/top*100)+'%"></i></div><span class="v"><b>'+t.export_blocked+'</b><small>'+pct(t.export_blocked,t.trial_start)+' من المجرّبين</small></span></div><p class="sub" style="margin:6px 0 0">الإيراد في الفترة: <b>'+t.revenue+' ر.ق</b> — تحويل الزوار لمشترين: <b>'+pct(t.purchase,t.visit)+'</b></p>';
 let worst=null;for(let i=1;i<FST.length;i++){const a=t[FST[i-1][0]],b=t[FST[i][0]];if(a>=10){const r=b/a;if(!worst||r<worst.r)worst={r,a,from:FST[i-1][1],to:FST[i][1],lost:Math.max(0,a-b)}}}
 fi.hidden=!worst;if(worst)fi.innerHTML='💡 أكبر تسرّب: بين «'+esc(worst.from)+'» و«'+esc(worst.to)+'» — راح <b>'+worst.lost+'</b> شخص ('+pct(worst.lost,worst.a)+'). هذي الخطوة اللي لو حسّنتها تفرق أكثر شي.';
 fb.innerHTML=d.days.slice().reverse().map(r=>'<tr><td>'+r.day+'</td><td>'+r.visit+'</td><td>'+r.trial_start+'</td><td>'+r.trial_end+'</td><td>'+r.export_blocked+'</td><td>'+r.demo_buy_click+'</td><td>'+r.checkout_click+'</td><td>'+r.checkout+'</td><td><b>'+r.purchase+'</b></td><td>'+r.revenue+'</td></tr>').join('')}
-fd.onchange=()=>loadFunnel().catch(e=>alert(e.message));
+cprod.onchange=()=>{price.value=cprod.value==='izba'?(+st_izba.value||499):PRICE};
+fd.onchange=fprod.onchange=()=>loadFunnel().catch(e=>alert(e.message));
 tabs.onclick=e=>{const b=e.target.closest('button[data-t]');if(b)go(b.dataset.t)};
 go(location.hash.slice(1));
 ob.onclick=async e=>{const t=e.target.closest('[data-o]');if(!t)return;
   if(t.dataset.s==='paid'&&!confirm('متأكد إن المبلغ وصلك؟ بيتولّد كود للعميل.'))return;
   try{const r=await api('/api/admin/order',{id:t.dataset.o,status:t.dataset.s});await load();if(t.dataset.s==='paid'&&r.code&&r.code.phone)window.open(wa(r.code.phone,msg(r.code)),'_blank');if(t.dataset.s==='check')alert(r.order.status==='paid'?'تم التأكد: مدفوع ✓':'الدفع ما اكتمل للحين')}catch(err){alert(err.message)}};
 rb.onclick=async e=>{const b=e.target.closest('button[data-r]');if(!b)return;if(!confirm('تأكيد إنك حوّلت المكافأة؟'))return;try{await api('/api/admin/referral',{refId:b.dataset.r,paidOut:true});await load()}catch(err){alert(err.message)}};
-tb.onclick=async e=>{const b=e.target.closest('button[data-a]');if(!b)return;if(b.dataset.a==='revoke'&&!confirm('إيقاف الكود؟ العميل ما بيقدر يدخل.'))return;if(b.dataset.a==='resetpw'&&!confirm('مسح كلمة المرور؟ العميل يدخل بالكود ويحط كلمة مرور جديدة.'))return;try{await api('/api/admin/update',{id:b.dataset.id,action:b.dataset.a});await load()}catch(err){alert(err.message)}};
-f.onsubmit=async e=>{e.preventDefault();try{const{created}=await api('/api/admin/create',{name:cname.value,phone:phone.value,price:price.value,note:note.value,count:cnt.value});const r=created[0];if(created.length>1){const txt=created.map((c,i)=>(i+1)+') '+c.code).join('\\n');out.innerHTML='<div class="new"><div><b>'+created.length+' أكواد لـ '+esc(r.name)+'</b> — كل واحد يكفي '+MAX+' أجهزة:</div><div style="display:grid;gap:4px">'+created.map(c=>'<span class="code">'+esc(c.code)+'</span>').join('')+'</div><div class="row"><button class="ghost" type="button" id="cp">نسخ كل الأكواد</button></div></div>';cp.onclick=()=>navigator.clipboard.writeText('مخطط العنة ⛺\\n'+location.origin+'\\n\\n'+txt).then(()=>cp.textContent='تم النسخ ✓');f.reset();price.value=PRICE;cnt.value=1;await load();return}
+tb.onclick=async e=>{const b=e.target.closest('button[data-a]');if(!b)return;if(b.dataset.a==='revoke'&&!confirm('إيقاف الكود؟ العميل ما بيقدر يدخل.'))return;if(b.dataset.a==='remove-izba'&&!confirm('شيل العزبة من هذا الكود؟'))return;if(b.dataset.a==='resetpw'&&!confirm('مسح كلمة المرور؟ العميل يدخل بالكود ويحط كلمة مرور جديدة.'))return;try{await api('/api/admin/update',{id:b.dataset.id,action:b.dataset.a});await load()}catch(err){alert(err.message)}};
+f.onsubmit=async e=>{e.preventDefault();try{const{created}=await api('/api/admin/create',{name:cname.value,phone:phone.value,price:price.value,note:note.value,count:cnt.value,product:cprod.value});const r=created[0];if(created.length>1){const txt=created.map((c,i)=>(i+1)+') '+c.code).join('\\n');out.innerHTML='<div class="new"><div><b>'+created.length+' أكواد لـ '+esc(r.name)+'</b> — كل واحد يكفي '+MAX+' أجهزة:</div><div style="display:grid;gap:4px">'+created.map(c=>'<span class="code">'+esc(c.code)+'</span>').join('')+'</div><div class="row"><button class="ghost" type="button" id="cp">نسخ كل الأكواد</button></div></div>';cp.onclick=()=>navigator.clipboard.writeText('مخطط العنة ⛺\\n'+location.origin+'\\n\\n'+txt).then(()=>cp.textContent='تم النسخ ✓');f.reset();price.value=PRICE;cnt.value=1;await load();return}
   out.innerHTML='<div class="new"><div>كود <b>'+esc(r.name)+'</b>: <span class="code">'+esc(r.code)+'</span></div><div class="row">'+(r.phone?'<a href="'+wa(r.phone,msg(r))+'" target="_blank"><button class="gold" type="button">إرسال واتساب</button></a>':'')+'<button class="ghost" type="button" id="cp">نسخ الرسالة</button></div></div>';
   cp.onclick=()=>navigator.clipboard.writeText(msg(r)).then(()=>cp.textContent='تم النسخ ✓');f.reset();price.value=PRICE;await load()}catch(err){alert(err.message)}};
-csv.onclick=()=>{const rows=[['رقم الطلب','التاريخ','العميل','الجوال','المبلغ','الحالة','الطريقة','بإحالة من','مرجع الدفع','الكود']];
-  for(const o of orders.filter(o=>!o.test))rows.push([o.no?'EN-'+o.no:'',day(o.paidAt||o.createdAt),o.name,o.phone,o.amount??PRICE,ST[o.status],o.online?'سكيب كاش':'يدوي',o.ref?(byId(o.ref)?.name||o.ref):'',o.paymentId||'',o.codeId?(byId(o.codeId)?.code||''):'']);
-  for(const r of list)if(!orders.some(o=>o.codeId===r.id))rows.push(['',day(r.createdAt),r.name,r.phone,r.price||0,'مدفوع ✓','كود يدوي','','',r.code||'']);
+csv.onclick=()=>{const rows=[['رقم الطلب','التاريخ','العميل','الجوال','المنتج','المبلغ','الحالة','الطريقة','بإحالة من','مرجع الدفع','الكود']];
+  for(const o of orders.filter(o=>!o.test))rows.push([o.no?'EN-'+o.no:'',day(o.paidAt||o.createdAt),o.name,o.phone,isIzbaO(o)?(o.upgradeOf?'ترقية عزبة':'عزبة'):'عنة',o.amount??PRICE,ST[o.status],o.online?'سكيب كاش':'يدوي',o.ref?(byId(o.ref)?.name||o.ref):'',o.paymentId||'',o.codeId?(byId(o.codeId)?.code||''):'']);
+  for(const r of list)if(!orders.some(o=>o.codeId===r.id))rows.push(['',day(r.createdAt),r.name,r.phone,hasIzba(r)?'عنة+عزبة':'عنة',r.price||0,'مدفوع ✓','كود يدوي','','',r.code||'']);
   const s='\\ufeff'+rows.map(r=>r.map(c=>'"'+String(c??'').replace(/"/g,'""')+'"').join(',')).join('\\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='al-enna-sales-'+new Date().toISOString().slice(0,10)+'.csv';a.click()};
 testbuy.onclick=async()=>{try{const r=await api('/api/admin/test-order',{});window.open(r.url,'_blank');await load()}catch(err){alert(err.message)}};

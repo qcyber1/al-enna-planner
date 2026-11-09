@@ -28,7 +28,7 @@ export function userData({ email, phone, name, ip, ua, fbp, fbc }) {
  * يرسل حدث لميتا. ما يوقف أي شي لو فشل (ما يأثر على الدفع أبداً) — بس يسجل الخطأ.
  * eventId لازم يكون نفس eventID في البكسل عشان ميتا تحسبه مرة وحدة.
  */
-export async function sendEvent({ name, eventId, value, url, user }) {
+export async function sendEvent({ name, eventId, value, url, user, product }) {
   if (!TOKEN) return { skipped: true };
   const body = {
     data: [
@@ -37,9 +37,9 @@ export async function sendEvent({ name, eventId, value, url, user }) {
         event_time: Math.floor(Date.now() / 1000),
         event_id: eventId,
         action_source: 'website',
-        event_source_url: url || 'https://www.i3enna.qa/',
+        event_source_url: url || (product === 'izba' ? 'https://www.i3enna.qa/izba' : 'https://www.i3enna.qa/'),
         user_data: user,
-        custom_data: { currency: 'QAR', value: Number(value) || 0, content_name: 'Al Enna Planner — lifetime', content_type: 'product' },
+        custom_data: { currency: 'QAR', value: Number(value) || 0, content_name: product === 'izba' ? 'i3enna Izba — lifetime' : 'Al Enna Planner — lifetime', content_type: 'product', content_ids: [product === 'izba' ? 'izba' : 'enna'] },
       },
     ],
   };

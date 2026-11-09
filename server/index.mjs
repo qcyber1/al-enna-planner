@@ -53,6 +53,14 @@ const listPrice = () => setNum('listPrice', 0);
 const offerPrice = () => setNum('offerPrice', 249);
 const offerMinutes = () => setNum('offerMinutes', 60);
 const offerOn = () => offerPrice() > 0 && offerPrice() < price();
+/** منتج العزبة: سعره، وسعره قبل الخصم، وسعر ترقية شاري العنة */
+const izbaPrice = () => setNum('izbaPrice', 499);
+const izbaListPrice = () => setNum('izbaListPrice', 999);
+const izbaUpgrade = () => setNum('izbaUpgrade', 299);
+const PRODUCTS = ['enna', 'izba'];
+const productOf = (v) => (v === 'izba' ? 'izba' : 'enna');
+/** منتجات الكود: القديم بدون قائمة = عنة. العزبة تشمل العنة */
+const prodsOf = (rec) => (Array.isArray(rec?.products) && rec.products.length ? rec.products.filter((x) => PRODUCTS.includes(x)) : ['enna']);
 if (!db.referrals) db.referrals = [];
 // أرقام طلبات متسلسلة وواضحة للعميل (EN-1001، EN-1002…)
 if (!Number.isFinite(db.orderSeq)) db.orderSeq = 1000;
@@ -225,10 +233,18 @@ function offerFor(token) {
   if (Number(exp) + 2 * 60 * 1000 < Date.now()) return null;
   return Math.max(1, Number(p));
 }
-/** السعر النهائي للطلب: الأقل بين سعر الإحالة وسعر العرض */
-function amountFor(refId, offer) {
+/** السعر النهائي للطلب: الأقل بين سعر الإحالة وسعر العرض (العرض والإحالة للعنة بس) */
+function amountFor(refId, offer, product = 'enna') {
+  if (product === 'izba') return izbaPrice();
   const o = offerFor(offer);
   return o ? Math.min(priceFor(refId), o) : priceFor(refId);
+}
+/** ترقية للعزبة: لازم توكن صحيح لكود فيه العنة وما فيه العزبة */
+function upgradeTarget(token) {
+  const t = token ? readToken(token) : null;
+  const rec = t && db.codes[t.c];
+  if (!rec || rec.revoked || prodsOf(rec).includes('izba')) return null;
+  return rec;
 }
 
 /**
@@ -261,14 +277,26 @@ function markPaid(o) {
     o.status = 'paid';
     return;
   }
+  // ترقية: نضيف العزبة لنفس الكود (ما نطلع كود جديد)
+  const up = o.upgradeOf && db.codes[o.upgradeOf];
+  if (up) {
+    up.products = [...new Set([...prodsOf(up), 'izba'])];
+    up.upgradedAt = Date.now();
+    o.codeId = up.id;
+    o.status = 'paid';
+    o.paidAt = Date.now();
+    if (capiEnabled && !o.test && o.online) void sendEvent({ name: 'Purchase', eventId: orderRef(o), value: o.amount, user: userData({ ...o, ...(o.meta || {}) }), product: 'izba' });
+    saveDb();
+    return;
+  }
   const { id: cid, code } = makeCode();
   const amount = o.amount ?? price();
-  db.codes[cid] = { id: cid, code, name: o.name, phone: o.phone, note: (o.online ? 'دفع إلكتروني (سكيب كاش)' : 'طلب من الموقع') + (o.ref ? ' • بإحالة' : ''), price: amount, createdAt: Date.now(), devices: [], revoked: false, ref: o.ref };
+  db.codes[cid] = { id: cid, code, name: o.name, phone: o.phone, note: (o.online ? 'دفع إلكتروني (سكيب كاش)' : 'طلب من الموقع') + (o.ref ? ' • بإحالة' : ''), price: amount, createdAt: Date.now(), devices: [], revoked: false, ref: o.ref, products: productOf(o.product) === 'izba' ? ['enna', 'izba'] : ['enna'] };
   o.codeId = cid;
   o.status = 'paid';
   o.paidAt = Date.now();
   // ميتا: نفس رقم الحدث حق البكسل (رقم الطلب) عشان ينحسب مرة وحدة. التجربة من اللوحة ما تنرسل
-  if (capiEnabled && !o.test && o.online) void sendEvent({ name: 'Purchase', eventId: orderRef(o), value: amount, user: userData({ ...o, ...(o.meta || {}) }) });
+  if (capiEnabled && !o.test && o.online) void sendEvent({ name: 'Purchase', eventId: orderRef(o), value: amount, user: userData({ ...o, ...(o.meta || {}) }), product: productOf(o.product) });
   if (o.ref && o.ref !== cid && !db.referrals.some((r) => r.orderId === o.id)) {
     db.referrals.push({ refId: o.ref, orderId: o.id, buyer: o.name, at: Date.now(), reward: refReward(), paidOut: false });
   }
@@ -394,7 +422,39 @@ const MIME = {
   '.json': 'application/json',
   '.webmanifest': 'application/manifest+json',
 };
+/** صفحة العزبة (/izba): نفس التطبيق، بعنوان ووسوم معاينة خاصة (للإعلانات والواتساب) */
+function izbaPage() {
+  const file = path.join(DIST, 'index.html');
+  let html = readSiteFile(file).toString('utf8');
+  const origin = SITE_DOMAIN ? `https://${SITE_DOMAIN}` : 'https://www.i3enna.qa';
+  const T = 'i3enna للعزب — خطط عزبتك قبل البناء';
+  const D = 'الحلال والمباني والزراعة بمقاسات حقيقية، رندر واقعي ومخطط A3 للمقاول. دفعة وحدة — مدى الحياة.';
+  const swap = (re, v) => (html = html.replace(re, v));
+  swap(/<title>[^<]*<\/title>/, `<title>i3enna للعزب | Izba Planner</title>`);
+  swap(/(<meta name="description" content=")[^"]*/, `$1${D}`);
+  swap(/(<meta property="og:title" content=")[^"]*/, `$1${T}`);
+  swap(/(<meta name="twitter:title" content=")[^"]*/, `$1${T}`);
+  swap(/(<meta property="og:description" content=")[^"]*/, `$1${D}`);
+  swap(/(<meta name="twitter:description" content=")[^"]*/, `$1${D}`);
+  swap(/(<meta property="og:image" content=")[^"]*/, `$1${origin}/og-izba.jpg?v=1`);
+  swap(/(<meta name="twitter:image" content=")[^"]*/, `$1${origin}/og-izba.jpg?v=1`);
+  swap(/(<meta property="og:image:alt" content=")[^"]*/, `$1مجسم ثلاثي الأبعاد لعزبة قطرية`);
+  swap(/(<meta property="og:url" content=")[^"]*/, `$1${origin}/izba`);
+  swap(/(<link rel="canonical" href=")[^"]*/, `$1${origin}/izba`);
+  return Buffer.from(html);
+}
+
 function serveStatic(req, res, urlPath) {
+  if (urlPath === '/izba/') {
+    // المسارات النسبية للملفات تنكسر مع الشرطة الأخيرة
+    res.writeHead(301, { location: '/izba' });
+    return res.end();
+  }
+  if (urlPath === '/izba') {
+    const body = izbaPage();
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'content-length': body.length });
+    return res.end(req.method === 'HEAD' ? undefined : body);
+  }
   let file = safeJoin(DIST, urlPath);
   if (!file) return send(res, 403, { error: 'forbidden' });
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, 'index.html');
@@ -479,7 +539,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === '/api/status') {
       const refId = parseRef(url.searchParams.get('ref'));
-      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null });
+      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null, izba: { price: izbaPrice(), basePrice: Math.max(izbaPrice(), izbaListPrice()), upgrade: izbaUpgrade() } });
     }
 
     // عرض «خلصت التجربة»: نعطي المتصفح عرض موقّع بوقت محدود
@@ -502,8 +562,11 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/checkout' && req.method === 'POST') {
       if (!skipcashEnabled || !LICENSING) return send(res, 400, { ok: false, error: 'الدفع الإلكتروني غير مفعّل' });
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
-      const { name, phone, email, ref, offer } = await readBody(req);
-      const refId = parseRef(ref);
+      const { name, phone, email, ref, offer, product: prodIn, upgradeToken } = await readBody(req);
+      const product = productOf(prodIn);
+      const upRec = product === 'izba' ? upgradeTarget(upgradeToken) : null;
+      if (product === 'izba' && upgradeToken && !upRec) return send(res, 400, { ok: false, error: 'حسابك فيه العزبة من قبل، أو لازم تسجّل دخول من جديد' });
+      const refId = product === 'izba' ? null : parseRef(ref);
       // الإيميل اختياري: إذا كتبه نتحقق منه، وإذا لا نرسل إيميل التاجر (سكيب كاش يطلبه) عشان الإيصال يوصلنا نحن
       const hasEmail = !!String(email || '').trim();
       const v = validateBuyer({ name, phone, email }, hasEmail);
@@ -512,7 +575,7 @@ const server = http.createServer(async (req, res) => {
       const full = v.phone;
       const em = hasEmail ? v.email : RECEIPT_FALLBACK;
       const parts = nm.split(/\s+/);
-      const order = { id: crypto.randomBytes(8).toString('hex'), no: nextOrderNo(), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'creating', online: true, ref: refId || undefined, amount: amountFor(refId, offer), offer: offerFor(offer) ? true : undefined };
+      const order = { id: crypto.randomBytes(8).toString('hex'), no: nextOrderNo(), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'creating', online: true, ref: refId || undefined, amount: upRec ? izbaUpgrade() : amountFor(refId, offer, product), offer: product === 'enna' && offerFor(offer) ? true : undefined, product, upgradeOf: upRec ? upRec.id : undefined };
       // لميتا (Conversions API): عنوان الجهاز والمتصفح وكوكيز البكسل — تنحفظ مع الطلب عشان نرسل الشراء من السيرفر
       const mc = metaCookies(req);
       order.meta = { ip, ua: String(req.headers['user-agent'] || '').slice(0, 400), fbp: mc.fbp, fbc: mc.fbc };
@@ -533,7 +596,7 @@ const server = http.createServer(async (req, res) => {
         order.paymentId = pay.paymentId;
         order.status = 'pending';
         saveDb();
-        if (capiEnabled) void sendEvent({ name: 'InitiateCheckout', eventId: 'chk-' + order.id, value: order.amount, user: userData({ ...order, ...order.meta }) });
+        if (capiEnabled) void sendEvent({ name: 'InitiateCheckout', eventId: 'chk-' + order.id, value: order.amount, user: userData({ ...order, ...order.meta }), product });
         return send(res, 200, { ok: true, payUrl: pay.payUrl, orderId: order.id });
       } catch (e) {
         console.error('[skipcash]', e.message);
@@ -577,7 +640,7 @@ const server = http.createServer(async (req, res) => {
       if (failed) return send(res, 200, { ok: false, failed: true, error: 'الدفع ما تم (انلغى أو انرفضت البطاقة) — ما انخصم شي، جرّب مرة ثانية' });
       if (o.review) return send(res, 200, { ok: false, pending: true, review: true, error: 'وصلنا دفعك بس يحتاج مراجعة سريعة — تواصل معنا ونرسل لك الكود خلال دقائق' });
       if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'الدفع ما اكتمل للحين' });
-      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: orderRef(o), paymentId: o.paymentId ? '…' + String(o.paymentId).replace(/-/g, '').slice(-8).toUpperCase() : '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)', sellerAddress: db.content.sellerAddress || '', sellerCR: db.content.sellerCR || '', sellerPhone: db.content.support || '', test: !!o.test } });
+      return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: orderRef(o), paymentId: o.paymentId ? '…' + String(o.paymentId).replace(/-/g, '').slice(-8).toUpperCase() : '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)', sellerAddress: db.content.sellerAddress || '', sellerCR: db.content.sellerCR || '', sellerPhone: db.content.support || '', test: !!o.test, product: productOf(o.product), upgrade: !!o.upgradeOf }, products: prodsOf(db.codes[o.codeId]) });
     }
 
     if (p === '/api/skipcash/webhook' && req.method === 'POST') {
@@ -593,12 +656,14 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/api/order' && req.method === 'POST') {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
-      const { name, phone, ref, offer } = await readBody(req);
-      const refId = parseRef(ref);
+      const { name, phone, ref, offer, product: prodIn, upgradeToken } = await readBody(req);
+      const product = productOf(prodIn);
+      const upRec = product === 'izba' ? upgradeTarget(upgradeToken) : null;
+      const refId = product === 'izba' ? null : parseRef(ref);
       const v = validateBuyer({ name, phone }, false);
       if (v.errors) return send(res, 400, { ok: false, error: Object.values(v.errors)[0], errors: v.errors });
       const full = v.phone;
-      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), no: nextOrderNo(), name: v.name, phone: full.slice(0, 20), createdAt: Date.now(), status: 'new', ref: refId || undefined, amount: amountFor(refId, offer), offer: offerFor(offer) ? true : undefined });
+      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), no: nextOrderNo(), name: v.name, phone: full.slice(0, 20), createdAt: Date.now(), status: 'new', ref: refId || undefined, amount: upRec ? izbaUpgrade() : amountFor(refId, offer, product), offer: product === 'enna' && offerFor(offer) ? true : undefined, product, upgradeOf: upRec ? upRec.id : undefined });
       db.orders = db.orders.slice(0, 2000);
       saveDb();
       return send(res, 200, { ok: true });
@@ -613,7 +678,7 @@ const server = http.createServer(async (req, res) => {
       if (!device || String(device).length > 80) return send(res, 400, { ok: false, error: 'الطلب ناقص — حدّث الصفحة وحاول مرة ثانية' });
       const r = bindDevice(id, String(device));
       if (!r.ok) return send(res, 403, r);
-      return send(res, 200, { ok: true, token: makeToken(id, String(device)), name: r.rec.name || '', hasPw: !!r.rec.pw, phone: r.rec.phone || '' });
+      return send(res, 200, { ok: true, token: makeToken(id, String(device)), name: r.rec.name || '', hasPw: !!r.rec.pw, phone: r.rec.phone || '', products: prodsOf(r.rec) });
     }
 
     if (p === '/api/login' && req.method === 'POST') {
@@ -629,7 +694,7 @@ const server = http.createServer(async (req, res) => {
       if (!rec) return send(res, 401, { ok: false, errors: { password: 'الرقم أو كلمة المرور غلط — إذا أول مرة ادخل بالكود' } });
       const r = bindDevice(rec.id, String(device));
       if (!r.ok) return send(res, 403, r);
-      return send(res, 200, { ok: true, token: makeToken(rec.id, String(device)), name: rec.name || '' });
+      return send(res, 200, { ok: true, token: makeToken(rec.id, String(device)), name: rec.name || '', products: prodsOf(rec) });
     }
 
     if (p === '/api/account/password' && req.method === 'POST') {
@@ -673,14 +738,14 @@ const server = http.createServer(async (req, res) => {
       if (!t) return send(res, 401, { ok: false, error: 'انتهت صلاحية الدخول — أدخل الكود مرة أخرى' });
       const r = bindDevice(t.c, t.d);
       if (!r.ok) return send(res, 403, r);
-      return send(res, 200, { ok: true, name: r.rec.name || '', hasPw: !!r.rec.pw, phone: r.rec.phone || '' });
+      return send(res, 200, { ok: true, name: r.rec.name || '', hasPw: !!r.rec.pw, phone: r.rec.phone || '', products: prodsOf(r.rec) });
     }
 
     // ——— مسار البيع: حدث مجهول من المتصفح (زيارة، تجربة…) ———
     if (p === '/api/track' && req.method === 'POST') {
       if (limited('tr:' + ip, 120)) return send(res, 429, { ok: false });
-      const { e, sid } = await readBody(req);
-      if (recordEvent(db, String(e || ''), sid)) saveDbSoon();
+      const { e, sid, p: prod } = await readBody(req);
+      if (recordEvent(db, String(e || ''), sid, Date.now(), productOf(prod))) saveDbSoon();
       return send(res, 204, '');
     }
 
@@ -718,11 +783,11 @@ const server = http.createServer(async (req, res) => {
       if (p === ADMIN_PATH) return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }), { 'x-robots-tag': 'noindex, nofollow' });
       if (p === '/api/admin/funnel') {
         const days = Math.min(90, Math.max(1, Number(url.searchParams.get('days')) || 7));
-        return send(res, 200, funnelSummary(db, days));
+        return send(res, 200, funnelSummary(db, days, Date.now(), productOf(url.searchParams.get('product'))));
       }
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
-        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes() } });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade() } });
       }
       // تجربة شاشة ما بعد الدفع بدون سكيب كاش ولا فلوس (ما تنحسب في المبيعات)
       if (p === '/api/admin/test-order' && req.method === 'POST') {
@@ -779,6 +844,17 @@ const server = http.createServer(async (req, res) => {
         if (next.price === null || next.listPrice === null || next.refDiscount === null || next.refReward === null)
           return send(res, 400, { error: 'تأكد من الأرقام (السعر 1 أو أكثر)' });
         if (next.refDiscount >= next.price) return send(res, 400, { error: 'خصم الإحالة لازم يكون أقل من السعر' });
+        // أسعار العزبة (اختياري في الطلب)
+        if (b.izbaPrice !== undefined) {
+          const ip2 = num(b.izbaPrice, 1, 100000);
+          const il = num(b.izbaListPrice ?? 0, 0, 100000);
+          const iu = num(b.izbaUpgrade, 1, 100000);
+          if (ip2 === null || il === null || iu === null) return send(res, 400, { error: 'تأكد من أسعار العزبة' });
+          if (iu > ip2) return send(res, 400, { error: 'سعر الترقية لازم يكون أقل من سعر العزبة أو يساويه' });
+          next.izbaPrice = ip2;
+          next.izbaListPrice = il;
+          next.izbaUpgrade = iu;
+        }
         // العرض الخاص (اختياري في الطلب — لو ما انرسل نخلي القديم)
         if (b.offerPrice !== undefined) {
           const op = num(b.offerPrice, 0, 100000);
@@ -843,6 +919,7 @@ const server = http.createServer(async (req, res) => {
             createdAt: Date.now(),
             devices: [],
             revoked: false,
+            products: productOf(body.product) === 'izba' ? ['enna', 'izba'] : ['enna'],
           };
           out.push(db.codes[id]);
         }
@@ -860,6 +937,8 @@ const server = http.createServer(async (req, res) => {
           rec.epoch = (rec.epoch || 0) + 1; // الأجهزة القديمة تطلع فعلاً، مو بس تنمسح من القائمة
         }
         if (action === 'resetpw') delete rec.pw;
+        if (action === 'add-izba') rec.products = [...new Set([...prodsOf(rec), 'izba'])];
+        if (action === 'remove-izba') rec.products = prodsOf(rec).filter((x) => x !== 'izba');
         saveDb();
         return send(res, 200, { ok: true, rec: publicRec(rec) });
       }

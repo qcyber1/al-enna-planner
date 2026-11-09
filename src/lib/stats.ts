@@ -1,4 +1,6 @@
 /** إحصائيات مسار البيع الداخلية — مجهولة: رقم عشوائي للمتصفح بس، بدون اسم أو جوال */
+import { landingSite } from './license';
+
 export type FunnelEvent = 'visit' | 'trial_start' | 'trial_end' | 'export_blocked' | 'demo_buy_click' | 'checkout_click';
 
 export function statsSid(): string {
@@ -18,7 +20,8 @@ export function track(e: FunnelEvent): void {
   if (import.meta.env.DEV && !import.meta.env.VITEST) return;
   const sid = statsSid();
   if (!sid) return;
-  const body = JSON.stringify({ e, sid });
+  // المنتج حسب صفحة البيع اللي جا منها (/izba = عزبة)
+  const body = JSON.stringify({ e, sid, p: landingSite() });
   try {
     const blob = new Blob([body], { type: 'application/json' });
     if (navigator.sendBeacon?.('/api/track', blob)) return;
