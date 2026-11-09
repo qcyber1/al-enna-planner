@@ -2,7 +2,7 @@
 // الإعداد في Railway: SNAP_CAPI_TOKEN (إلزامي للتشغيل)، SNAP_PIXEL_ID (افتراضي بكسل i3enna)، SNAP_TEST=1 للتجربة (يرسل لرابط التحقق بس)
 import crypto from 'node:crypto';
 
-const PIXEL_ID = process.env.SNAP_PIXEL_ID || '93a05422-2f32-4445-9757-9f9ef923cb73'; // رقم البكسل عام (يطلع في الصفحة)، التوكن هو السري
+const PIXEL_ID = process.env.SNAP_PIXEL_ID || '63105547-dd58-4b4d-ab27-10e2f401b043'; // رقم البكسل عام (يطلع في الصفحة)، التوكن هو السري
 const TOKEN = process.env.SNAP_CAPI_TOKEN || '';
 const TEST = process.env.SNAP_TEST === '1';
 const BASE = (process.env.SNAP_API_URL || 'https://tr.snapchat.com').replace(/\/$/, '');
