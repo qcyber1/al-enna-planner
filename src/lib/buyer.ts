@@ -43,7 +43,7 @@ export interface GccCountry {
 export const GCC: GccCountry[] = [
   { cc: '974', flag: '🇶🇦', name: 'قطر', len: 8, re: /^[3567]/, ex: '55123456' },
   { cc: '966', flag: '🇸🇦', name: 'السعودية', len: 9, re: /^5/, ex: '501234567' },
-  { cc: '965', flag: '🇰🇼', name: 'الكويت', len: 8, re: /^[569]/, ex: '50012345' },
+  { cc: '965', flag: '🇰🇼', name: 'الكويت', len: 8, re: /^[4569]/, ex: '50012345' },
   { cc: '971', flag: '🇦🇪', name: 'الإمارات', len: 9, re: /^5/, ex: '501234567' },
   { cc: '973', flag: '🇧🇭', name: 'البحرين', len: 8, re: /^3/, ex: '36123456' },
   { cc: '968', flag: '🇴🇲', name: 'عُمان', len: 8, re: /^[79]/, ex: '92123456' },

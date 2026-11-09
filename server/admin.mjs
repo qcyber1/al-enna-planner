@@ -208,7 +208,7 @@ const waNum=phone=>{const d=String(phone||'').replace(/\\D/g,'').replace(/^00/,'
 // عرض الرقم واضح: +974 5512 3456
 const fmtPhone=phone=>{const d=waNum(phone);if(!d)return '';if(d.length===11&&d.startsWith('974'))return '+974 '+d.slice(3,7)+' '+d.slice(7);return '+'+d.replace(/(\\d{3})(?=\\d)/g,'$1 ').trim()};
 // الرقم «مشكوك فيه»: مب قطري 8 أرقام ولا برمز دولة خليجي بطوله الصح
-const okPhone=phone=>{const d=waNum(phone);return /^974[3567]\\d{7}$/.test(d)||/^(965|973|968)\\d{8}$/.test(d)||/^(966|971)5\\d{8}$/.test(d)};
+const okPhone=phone=>{const d=waNum(phone);return /^974[3567]\\d{7}$/.test(d)||/^965[4569]\\d{7}$/.test(d)||/^(973|968)\\d{8}$/.test(d)||/^(966|971)5\\d{8}$/.test(d)};
 // زر واتساب واضح للرقم + تنبيه لو الرقم شكله غلط
 const ph=(phone,name)=>{if(!phone)return '';const hi='السلام عليكم'+(name?' '+String(name).split(' ')[0]:'')+'، معك فريق مخطط العنة 🌴 بخصوص طلبك في الموقع';return '<a class="wa" href="'+wa(phone,hi)+'" target="_blank" rel="noopener" dir="ltr" title="افتح محادثة واتساب">💬 '+esc(fmtPhone(phone))+'</a>'+(okPhone(phone)?'':'<br><small class="wa-bad">⚠ الرقم شكله غلط — تأكد منه</small>')};
 const payMsg=o=>'هلا '+o.name+' 👋\\nشكراً لطلبك مخطط العنة ⛺\\nالمبلغ: '+(o.amount??PRICE)+' ر.ق — مدى الحياة\\n\\nرابط الدفع:\\n'+(pl.value||'[ضع رابط الدفع]')+'\\n\\nبعد الدفع يوصلك كود التفعيل هنا.';
