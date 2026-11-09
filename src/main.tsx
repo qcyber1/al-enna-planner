@@ -11,10 +11,10 @@ import { useEditor } from './store/editorStore';
 import { useViewport } from './editor2d/viewport';
 import { usePhoto } from './scene3d/photoStore';
 import { getLang, initI18n } from './lib/i18n';
-import { initSnap } from './lib/snap';
+import { saveSnapClick } from './lib/snap';
 
-// بكسل سناب (إذا مفعّل في السيرفر) — بعد ما تحمّل الصفحة عشان ما يبطّئها
-window.addEventListener('load', () => void initSnap(), { once: true });
+// إعلانات سناب: نحفظ رقم الضغطة على الإعلان (ScCid) للشراء
+saveSnapClick();
 
 // وضع تصوير الفيديو التسويقي (?promo)
 if (new URLSearchParams(window.location.search).has('promo')) {

@@ -159,6 +159,6 @@ test('سناب: شكل الحدث والتشفير والكوكيز', () => {
   const e = b.data[0];
   assert.equal(e.event_time, 1_700_000_000);
   assert.equal(e.event_source_url, 'https://www.i3enna.qa/izba');
-  assert.deepEqual(e.custom_data, { event_id: 'EN-1', value: 499, currency: 'QAR', content_ids: ['izba'], content_category: ['izba-planner'], number_items: ['1'] });
+  assert.deepEqual(e.custom_data, { event_id: 'EN-1', value: 499, currency: 'QAR', content_ids: ['i3enna-izba-lifetime'], content_category: ['izba-planner'], number_items: ['1'], order_id: 'EN-1' });
   assert.deepEqual(snapCookies({ headers: { cookie: '_fbp=x; _scid=abc-1; _sccid=click%2D9' } }), { scid: 'abc-1', sccid: 'click-9' });
 });

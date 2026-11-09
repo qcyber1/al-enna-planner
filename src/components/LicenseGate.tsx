@@ -71,6 +71,8 @@ interface Receipt {
   sellerCR?: string;
   sellerPhone?: string;
   test?: boolean;
+  product?: 'enna' | 'izba';
+  upgrade?: boolean;
 }
 
 /** إيصال مختصر بعد الدفع (حتى لو العميل ما كتب إيميل) — ينحفظ صورة أو PDF من زر الطباعة */
@@ -231,7 +233,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               const rc = (v.data as { receipt?: Receipt }).receipt ?? null;
               setReceipt(rc);
               // تجربة الشراء من اللوحة ما تنحسب بيعة عند ميتا
-              if (rc && !rc.test) trackPurchase(rc.ref, rc.amount);
+              if (rc && !rc.test) trackPurchase(rc.ref, rc.amount, rc.product === 'izba' ? 'izba' : 'enna');
               return setState('paid');
             }
           } catch {
