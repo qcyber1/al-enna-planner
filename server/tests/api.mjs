@@ -506,3 +506,34 @@ test('مسار البيع: /api/track يسجّل، واللوحة بس للأد�
   assert.equal(f.json.total.visit, 1);
   assert.equal(f.json.days.length, 1);
 });
+
+test('عرض «خلصت التجربة»: سعر خاص بتوقيع، والمزوّر والمنتهي ما ينقبلون', async () => {
+  const st = await api('/api/status');
+  const base = st.json.price;
+  assert.equal(st.json.offer.price, 249);
+  const o = await api('/api/offer', {});
+  assert.equal(o.json.ok, true);
+  assert.equal(o.json.price, 249);
+  const order = async (offer, name) => {
+    await api('/api/order', { name, phone: '55667788', offer });
+    const l = await admin('/api/admin/list');
+    return l.json.orders.find((x) => x.name === name);
+  };
+  const good = await order(o.json.token, 'عرض صحيح');
+  assert.equal(good.amount, 249);
+  assert.equal(good.offer, true);
+  // تزوير السعر في التوكن
+  const [exp, , sig] = o.json.token.split('.');
+  assert.equal((await order(`${exp}.1.${sig}`, 'عرض مزور')).amount, base);
+  // عرض منتهي من زمان
+  const old = `${Date.now() - 3600_000}.249.${sig}`;
+  assert.equal((await order(old, 'عرض منتهي')).amount, base);
+  // الأدمن يوقف العرض
+  const s = await admin('/api/admin/settings', { price: base, listPrice: 0, refDiscount: 50, refReward: 50, offerPrice: 0, offerMinutes: 60 });
+  assert.equal(s.status, 200);
+  assert.equal((await api('/api/status')).json.offer, null);
+  assert.equal((await order(o.json.token, 'بعد الإيقاف')).amount, base);
+  // سعر عرض أعلى من السعر ما ينقبل
+  assert.equal((await admin('/api/admin/settings', { price: base, listPrice: 0, refDiscount: 50, refReward: 50, offerPrice: 400 })).status, 400);
+  await admin('/api/admin/settings', { price: base, listPrice: 0, refDiscount: 50, refReward: 50, offerPrice: 249, offerMinutes: 60 });
+});

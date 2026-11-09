@@ -49,6 +49,10 @@ const refDiscount = () => setNum('refDiscount', envNum('REF_DISCOUNT', 50));
 const refReward = () => setNum('refReward', envNum('REF_REWARD', 50));
 /** «السعر قبل الخصم» للعروض العامة (يطلع مشطوب) — 0 يعني ما في عرض */
 const listPrice = () => setNum('listPrice', 0);
+/** عرض «خلصت التجربة»: سعر خاص لمدة محدودة (0 = بدون عرض) */
+const offerPrice = () => setNum('offerPrice', 249);
+const offerMinutes = () => setNum('offerMinutes', 60);
+const offerOn = () => offerPrice() > 0 && offerPrice() < price();
 if (!db.referrals) db.referrals = [];
 // أرقام طلبات متسلسلة وواضحة للعميل (EN-1001، EN-1002…)
 if (!Number.isFinite(db.orderSeq)) db.orderSeq = 1000;
@@ -205,6 +209,26 @@ function parseRef(ref) {
 }
 function priceFor(refId) {
   return refId ? Math.max(0, price() - refDiscount()) : price();
+}
+/** توقيع العرض: «انتهاء.سعر.توقيع» — السيرفر هو اللي يحدد السعر، والعميل ما يقدر يغيّره */
+function makeOffer() {
+  const exp = Date.now() + offerMinutes() * 60 * 1000;
+  const p = offerPrice();
+  return { token: `${exp}.${p}.${hmac(`offer:${exp}:${p}`).toString('base64url').slice(0, 22)}`, price: p, exp };
+}
+/** يرجع سعر العرض لو التوقيع صحيح وما انتهى (مع دقيقتين سماح لصفحة الدفع) */
+function offerFor(token) {
+  const m = /^(\d{10,15})\.(\d{1,6})\.([\w-]{22})$/.exec(String(token || ''));
+  if (!m || !offerOn()) return null;
+  const [, exp, p, sig] = m;
+  if (hmac(`offer:${exp}:${p}`).toString('base64url').slice(0, 22) !== sig) return null;
+  if (Number(exp) + 2 * 60 * 1000 < Date.now()) return null;
+  return Math.max(1, Number(p));
+}
+/** السعر النهائي للطلب: الأقل بين سعر الإحالة وسعر العرض */
+function amountFor(refId, offer) {
+  const o = offerFor(offer);
+  return o ? Math.min(priceFor(refId), o) : priceFor(refId);
 }
 
 /**
@@ -455,7 +479,14 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === '/api/status') {
       const refId = parseRef(url.searchParams.get('ref'));
-      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content });
+      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null });
+    }
+
+    // عرض «خلصت التجربة»: نعطي المتصفح عرض موقّع بوقت محدود
+    if (p === '/api/offer' && req.method === 'POST') {
+      if (!LICENSING || !offerOn()) return send(res, 200, { ok: false });
+      if (limited('of:' + ip, 30)) return send(res, 429, { ok: false });
+      return send(res, 200, { ok: true, ...makeOffer() });
     }
 
     // رابط الإحالة الخاص بالعميل وإحصائياته
@@ -471,7 +502,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/checkout' && req.method === 'POST') {
       if (!skipcashEnabled || !LICENSING) return send(res, 400, { ok: false, error: 'الدفع الإلكتروني غير مفعّل' });
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
-      const { name, phone, email, ref } = await readBody(req);
+      const { name, phone, email, ref, offer } = await readBody(req);
       const refId = parseRef(ref);
       // الإيميل اختياري: إذا كتبه نتحقق منه، وإذا لا نرسل إيميل التاجر (سكيب كاش يطلبه) عشان الإيصال يوصلنا نحن
       const hasEmail = !!String(email || '').trim();
@@ -481,7 +512,7 @@ const server = http.createServer(async (req, res) => {
       const full = v.phone;
       const em = hasEmail ? v.email : RECEIPT_FALLBACK;
       const parts = nm.split(/\s+/);
-      const order = { id: crypto.randomBytes(8).toString('hex'), no: nextOrderNo(), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'creating', online: true, ref: refId || undefined, amount: priceFor(refId) };
+      const order = { id: crypto.randomBytes(8).toString('hex'), no: nextOrderNo(), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'creating', online: true, ref: refId || undefined, amount: amountFor(refId, offer), offer: offerFor(offer) ? true : undefined };
       // لميتا (Conversions API): عنوان الجهاز والمتصفح وكوكيز البكسل — تنحفظ مع الطلب عشان نرسل الشراء من السيرفر
       const mc = metaCookies(req);
       order.meta = { ip, ua: String(req.headers['user-agent'] || '').slice(0, 400), fbp: mc.fbp, fbc: mc.fbc };
@@ -562,12 +593,12 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/api/order' && req.method === 'POST') {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
-      const { name, phone, ref } = await readBody(req);
+      const { name, phone, ref, offer } = await readBody(req);
       const refId = parseRef(ref);
       const v = validateBuyer({ name, phone }, false);
       if (v.errors) return send(res, 400, { ok: false, error: Object.values(v.errors)[0], errors: v.errors });
       const full = v.phone;
-      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), no: nextOrderNo(), name: v.name, phone: full.slice(0, 20), createdAt: Date.now(), status: 'new', ref: refId || undefined, amount: priceFor(refId) });
+      db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), no: nextOrderNo(), name: v.name, phone: full.slice(0, 20), createdAt: Date.now(), status: 'new', ref: refId || undefined, amount: amountFor(refId, offer), offer: offerFor(offer) ? true : undefined });
       db.orders = db.orders.slice(0, 2000);
       saveDb();
       return send(res, 200, { ok: true });
@@ -691,7 +722,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
-        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward() } });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes() } });
       }
       // تجربة شاشة ما بعد الدفع بدون سكيب كاش ولا فلوس (ما تنحسب في المبيعات)
       if (p === '/api/admin/test-order' && req.method === 'POST') {
@@ -748,6 +779,15 @@ const server = http.createServer(async (req, res) => {
         if (next.price === null || next.listPrice === null || next.refDiscount === null || next.refReward === null)
           return send(res, 400, { error: 'تأكد من الأرقام (السعر 1 أو أكثر)' });
         if (next.refDiscount >= next.price) return send(res, 400, { error: 'خصم الإحالة لازم يكون أقل من السعر' });
+        // العرض الخاص (اختياري في الطلب — لو ما انرسل نخلي القديم)
+        if (b.offerPrice !== undefined) {
+          const op = num(b.offerPrice, 0, 100000);
+          const om = num(b.offerMinutes ?? offerMinutes(), 5, 1440);
+          if (op === null || om === null) return send(res, 400, { error: 'تأكد من سعر العرض ومدته (5 دقائق إلى يوم)' });
+          if (op > 0 && op >= next.price) return send(res, 400, { error: 'سعر العرض لازم يكون أقل من السعر الحالي (أو 0 لإيقافه)' });
+          next.offerPrice = op;
+          next.offerMinutes = om;
+        }
         db.settings = { ...db.settings, ...next };
         saveDb();
         return send(res, 200, { ok: true, settings: next });
@@ -755,6 +795,13 @@ const server = http.createServer(async (req, res) => {
       if (p === '/api/admin/referral' && req.method === 'POST') {
         const { refId, paidOut } = await readBody(req);
         for (const r of db.referrals) if (r.refId === refId && !r.paidOut && paidOut) r.paidOut = true, r.paidOutAt = Date.now();
+        saveDb();
+        return send(res, 200, { ok: true });
+      }
+      if (p === '/api/admin/contacted' && req.method === 'POST') {
+        const { ids } = await readBody(req);
+        const set = new Set(Array.isArray(ids) ? ids.slice(0, 50).map(String) : []);
+        for (const o of db.orders) if (set.has(o.id)) o.contactedAt = Date.now();
         saveDb();
         return send(res, 200, { ok: true });
       }

@@ -17,6 +17,7 @@ import { KeyRound, Loader2, LogIn } from 'lucide-react';
 import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
 import { track } from '../lib/stats';
+import { claimOffer, getOffer, leftLabel, type TrialOffer } from '../lib/offer';
 import { setBuyer as pixelBuyer, trackCheckout, trackDemoBuyClick, trackPurchase, trackTrial, trackTrialEnded } from '../lib/pixel';
 import { demoLeft, demoUsed, isDemo, setDemoActive, startDemo } from '../lib/demo';
 
@@ -146,6 +147,19 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   };
   const [paidCode, setPaidCode] = useState('');
   const [demoOver, setDemoOver] = useState(false);
+  // عرض «خلصت التجربة» (سعر خاص لوقت محدود من السيرفر)
+  const [offer, setOffer] = useState<TrialOffer | null>(() => getOffer());
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!offer) return;
+    const t = setInterval(() => {
+      if (!getOffer()) setOffer(null);
+      tick((n) => n + 1);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [offer]);
+  // الأقل بين السعر الحالي (أو الإحالة) وسعر العرض
+  const payPrice = offer ? Math.min(info.price, offer.price) : info.price;
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [notice, setNotice] = useState('');
   const [payHelp, setPayHelp] = useState(false);
@@ -287,11 +301,11 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     setBusy(true);
     try {
       if (info.online) {
-        const { data } = await post('/api/checkout', { ...buyer, phone: phoneFull, ref: get(REF_KEY) || undefined });
+        const { data } = await post('/api/checkout', { ...buyer, phone: phoneFull, ref: get(REF_KEY) || undefined, offer: offer?.token });
         const d = data as { ok?: boolean; error?: string; payUrl?: string; orderId?: string };
         if (d.ok && d.payUrl) {
           if (d.orderId) set(ORDER_KEY, d.orderId);
-          trackCheckout(info.price, d.orderId);
+          trackCheckout(payPrice, d.orderId);
           window.location.href = d.payUrl;
           return;
         }
@@ -301,7 +315,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         if (!fe || (d as { contact?: boolean }).contact) setError(d.error || 'ما انفتحت صفحة الدفع — حاول مرة ثانية');
         setPayHelp(!!(d as { contact?: boolean }).contact);
       } else {
-        const { data } = await post('/api/order', { ...buyer, phone: phoneFull, ref: get(REF_KEY) || undefined });
+        const { data } = await post('/api/order', { ...buyer, phone: phoneFull, ref: get(REF_KEY) || undefined, offer: offer?.token });
         if (data.ok) setNotice('وصلنا طلبك ✓ بنرسل لك رابط الدفع على الواتساب خلال دقائق، وبعد الدفع يوصلك كود التفعيل.');
         else setError(data.error || 'ما انرسل الطلب — حاول مرة ثانية');
       }
@@ -325,6 +339,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             }}
             onEnd={() => {
               trackTrialEnded();
+              void claimOffer().then(setOffer);
               setDemoActive(false);
               setMode('buy');
               setNotice('');
@@ -399,6 +414,23 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <p className="mt-1 text-sm text-sand-700">{tagline}</p>
           </div>
           <h1 className="hidden text-center text-xl font-bold text-dune lg:block">{mode === 'buy' ? 'اشترِ مرة وحدة واستخدمه مدى الحياة' : 'أهلاً فيك من جديد 👋'}</h1>
+          {mode === 'buy' && info.online && !demoUsed() && !demoOver && (
+            <button
+              type="button"
+              onClick={() => {
+                if (demoLeft() === 0) trackTrial();
+                startDemo();
+                skipIntro();
+                setDemoActive(true);
+                setState('open');
+              }}
+              className="flex w-full flex-col items-center justify-center rounded-xl bg-turf-600 px-3 py-2.5 text-white shadow-md transition hover:bg-turf-700 active:scale-[0.99]"
+              data-testid="try-demo-top"
+            >
+              <span className="text-base font-bold">{demoLeft() > 0 ? '▶️ كمّل تجربتك المجانية' : '▶️ جرّب مجاناً الحين — بدون تسجيل'}</span>
+              <span className="text-[12px] text-white/85">صمّم عنتك وشوفها مجسّمة 3D قبل لا تشتري</span>
+            </button>
+          )}
           <div className="lg:hidden"><Features items={feats} /></div>
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-sand-200 p-1 text-sm font-semibold">
             {tabs.map(([m, label]) => {
@@ -448,24 +480,24 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             <div className="rounded-lg bg-turf-500/10 p-3 text-sm text-turf-700">{notice}</div>
           ) : (
           <form onSubmit={buy} className="space-y-2.5">
-            {(demoOver || demoUsed()) && <TrialOverCard />}
+            {(demoOver || demoUsed()) && <TrialOverCard offer={offer && offer.price < info.price ? offer : null} was={info.price} list={info.basePrice} />}
             <div className="rounded-lg bg-white p-3 text-center">
-              {info.basePrice > info.price && (
-                <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700" data-testid="price-badge">{info.refValid ? '🎁 وصلك خصم من صديقك' : '🔥 عرض لفترة محدودة'}</div>
+              {info.basePrice > payPrice && (
+                <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700" data-testid="price-badge">{payPrice < info.price ? `🎁 عرضك الخاص — ينتهي بعد ${leftLabel(offer!.exp)}` : info.refValid ? '🎁 وصلك خصم من صديقك' : '🔥 عرض لفترة محدودة'}</div>
               )}
               <div className="flex items-baseline justify-center gap-3" data-testid="price">
                 <span className="text-3xl font-bold text-dune">
-                  <span className="tabular-nums">{info.price}</span> <span className="text-lg">ر.ق</span>
+                  <span className="tabular-nums">{payPrice}</span> <span className="text-lg">ر.ق</span>
                 </span>
-                {info.basePrice > info.price && (
+                {info.basePrice > payPrice && (
                   <span className="text-base text-sand-500 line-through decoration-red-400/70" data-testid="price-old">
                     <span className="tabular-nums">{info.basePrice}</span> ر.ق
                   </span>
                 )}
               </div>
-              {info.basePrice > info.price && (
+              {info.basePrice > payPrice && (
                 <div className="mt-0.5 text-[12px] font-semibold text-turf-700" data-testid="price-save">
-                  {`توفّر ${info.basePrice - info.price} ر.ق`}
+                  {`توفّر ${info.basePrice - payPrice} ر.ق`}
                 </div>
               )}
               <div className="mt-0.5 text-xs text-sand-600">دفعة واحدة • استخدام مدى الحياة</div>
@@ -712,7 +744,7 @@ function DemoBar({ onBuy, onEnd }: { onBuy: () => void; onEnd: () => void }) {
 }
 
 /** نهاية التجربة: نعرض للعميل تصميمه هو (الناس تشتري لما تشوف شغلها محفوظ) */
-function TrialOverCard() {
+function TrialOverCard({ offer, was, list }: { offer: TrialOffer | null; was: number; list: number }) {
   const thumb = useMemo(() => {
     try {
       const plan = getPlan();
@@ -735,6 +767,20 @@ function TrialOverCard() {
       <div className="px-3 py-2 text-center text-[12px] leading-relaxed text-dune">
         <b>محفوظ ويرجع لك أول ما تشتري</b> — كمّل عليه، شوفه 3D بالإنارة، وصدّره للمقاول.
       </div>
+      {offer && (
+        <div className="border-t border-dashed border-gold-500 bg-gold-50 px-3 py-2.5 text-center" data-testid="trial-offer">
+          <div className="text-[13px] font-bold text-dune">🎁 عرض خاص لك لأنك جرّبت</div>
+          <div className="mt-0.5 flex items-baseline justify-center gap-2">
+            <span className="text-2xl font-extrabold text-dune tabular-nums">{offer.price}</span>
+            <span className="text-sm font-bold text-dune">ر.ق</span>
+            <span className="text-sm text-sand-500 line-through tabular-nums">{Math.max(was, list)}</span>
+          </div>
+          <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-0.5 text-[12px] font-bold text-white tabular-nums" data-testid="offer-timer">
+            ⏳ ينتهي بعد {leftLabel(offer.exp)}
+          </div>
+          <div className="mt-1 text-[11px] text-sand-700">اكتب اسمك ورقمك تحت وادفع — تصميمك يرجع لك على طول</div>
+        </div>
+      )}
     </div>
   );
 }
