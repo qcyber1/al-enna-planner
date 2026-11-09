@@ -12,6 +12,7 @@ import { recordEvent, funnelSummary } from './funnel.mjs';
 import { validateBuyer, parsePhone } from './buyer.mjs';
 import { safeJoin, readBody as readBodyRaw } from './http-utils.mjs';
 import { sendEvent, userData, metaCookies, capiEnabled } from './meta.mjs';
+import { sendSnap, snapUser, snapCookies, snapEnabled, snapPixelId } from './snap.mjs';
 import { loadDbFile, latestBackup, writeDbFile, dailyBackup } from './datastore.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
 
@@ -286,6 +287,7 @@ function markPaid(o) {
     o.status = 'paid';
     o.paidAt = Date.now();
     if (capiEnabled && !o.test && o.online) void sendEvent({ name: 'Purchase', eventId: orderRef(o), value: o.amount, user: userData({ ...o, ...(o.meta || {}) }), product: 'izba' });
+    if (snapEnabled && !o.test && o.online) void sendSnap({ name: 'PURCHASE', eventId: orderRef(o), value: o.amount, user: snapUser({ ...o, ...(o.meta || {}) }), product: 'izba' });
     saveDb();
     return;
   }
@@ -297,6 +299,7 @@ function markPaid(o) {
   o.paidAt = Date.now();
   // ميتا: نفس رقم الحدث حق البكسل (رقم الطلب) عشان ينحسب مرة وحدة. التجربة من اللوحة ما تنرسل
   if (capiEnabled && !o.test && o.online) void sendEvent({ name: 'Purchase', eventId: orderRef(o), value: amount, user: userData({ ...o, ...(o.meta || {}) }), product: productOf(o.product) });
+  if (snapEnabled && !o.test && o.online) void sendSnap({ name: 'PURCHASE', eventId: orderRef(o), value: amount, user: snapUser({ ...o, ...(o.meta || {}) }), product: productOf(o.product) });
   if (o.ref && o.ref !== cid && !db.referrals.some((r) => r.orderId === o.id)) {
     db.referrals.push({ refId: o.ref, orderId: o.id, buyer: o.name, at: Date.now(), reward: refReward(), paidOut: false });
   }
@@ -539,7 +542,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === '/api/status') {
       const refId = parseRef(url.searchParams.get('ref'));
-      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null, izba: { price: izbaPrice(), basePrice: Math.max(izbaPrice(), izbaListPrice()), upgrade: izbaUpgrade() } });
+      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null, izba: { price: izbaPrice(), basePrice: Math.max(izbaPrice(), izbaListPrice()), upgrade: izbaUpgrade() }, snapPixel: snapPixelId || undefined });
     }
 
     // عرض «خلصت التجربة»: نعطي المتصفح عرض موقّع بوقت محدود
@@ -578,7 +581,8 @@ const server = http.createServer(async (req, res) => {
       const order = { id: crypto.randomBytes(8).toString('hex'), no: nextOrderNo(), name: nm, phone: full, email: em, createdAt: Date.now(), status: 'creating', online: true, ref: refId || undefined, amount: upRec ? izbaUpgrade() : amountFor(refId, offer, product), offer: product === 'enna' && offerFor(offer) ? true : undefined, product, upgradeOf: upRec ? upRec.id : undefined };
       // لميتا (Conversions API): عنوان الجهاز والمتصفح وكوكيز البكسل — تنحفظ مع الطلب عشان نرسل الشراء من السيرفر
       const mc = metaCookies(req);
-      order.meta = { ip, ua: String(req.headers['user-agent'] || '').slice(0, 400), fbp: mc.fbp, fbc: mc.fbc };
+      const sc = snapCookies(req);
+      order.meta = { ip, ua: String(req.headers['user-agent'] || '').slice(0, 400), fbp: mc.fbp, fbc: mc.fbc, scid: sc.scid, sccid: sc.sccid };
       // نحفظ الطلب قبل ما نكلم سكيب كاش: لو صار شي بعد الدفع ما يضيع الطلب
       db.orders.unshift(order);
       db.orders = db.orders.slice(0, 5000);
@@ -597,6 +601,7 @@ const server = http.createServer(async (req, res) => {
         order.status = 'pending';
         saveDb();
         if (capiEnabled) void sendEvent({ name: 'InitiateCheckout', eventId: 'chk-' + order.id, value: order.amount, user: userData({ ...order, ...order.meta }), product });
+        if (snapEnabled) void sendSnap({ name: 'START_CHECKOUT', eventId: 'chk-' + order.id, value: order.amount, user: snapUser({ ...order, ...order.meta }), product });
         return send(res, 200, { ok: true, payUrl: pay.payUrl, orderId: order.id });
       } catch (e) {
         console.error('[skipcash]', e.message);

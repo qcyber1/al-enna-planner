@@ -1,5 +1,6 @@
 /** Meta Pixel (إعلانات فيسبوك/إنستقرام): أحداث البيع الأساسية — وكل حدث ينحسب بعد في «مسار البيع» باللوحة */
 import { track } from './stats';
+import { snapCheckout, snapPurchase, snapTrial } from './snap';
 type Fbq = (cmd: 'track' | 'trackCustom' | 'init', event: string, params?: Record<string, unknown>, opts?: { eventID?: string }) => void;
 export const PIXEL_ID = '29329924966644106';
 const fbq = (): Fbq | null => {
@@ -12,12 +13,14 @@ const NAME = { enna: 'Al Enna Planner — lifetime', izba: 'i3enna Izba — life
 
 export function trackCheckout(value: number, orderId?: string, product: 'enna' | 'izba' = 'enna') {
   // نفس رقم الحدث اللي يرسله السيرفر (Conversions API) عشان ميتا تحسبه مرة وحدة
+  snapCheckout(value, orderId, product);
   fbq()?.('track', 'InitiateCheckout', { value, currency: 'QAR', content_name: NAME[product], content_ids: [product] }, orderId ? { eventID: 'chk-' + orderId } : undefined);
 }
 
 /** بدأ التجربة المجانية */
 export function trackTrial() {
   track('trial_start');
+  snapTrial();
   fbq()?.('track', 'StartTrial', { value: 0, currency: 'QAR', predicted_ltv: 0 });
 }
 
@@ -30,6 +33,7 @@ export function trackPurchase(orderRef: string, value: number, product: 'enna' |
   } catch {
     /* تجاهل */
   }
+  snapPurchase(orderRef, value, product);
   fbq()?.('track', 'Purchase', { value, currency: 'QAR', content_name: NAME[product], content_type: 'product', content_ids: [product] }, { eventID: orderRef });
 }
 
