@@ -537,3 +537,52 @@ test('عرض «خلصت التجربة»: سعر خاص بتوقيع، والم�
   assert.equal((await admin('/api/admin/settings', { price: base, listPrice: 0, refDiscount: 50, refReward: 50, offerPrice: 400 })).status, 400);
   await admin('/api/admin/settings', { price: base, listPrice: 0, refDiscount: 50, refReward: 50, offerPrice: 249, offerMinutes: 60 });
 });
+
+test('منتج العزبة: الشراء يعطي عنة+عزبة، والترقية تضيف العزبة لنفس الكود', async () => {
+  const st = await api('/api/status');
+  assert.equal(st.json.izba.price, 499);
+  assert.equal(st.json.izba.basePrice, 999);
+  assert.equal(st.json.izba.upgrade, 299);
+  const findOrder = async (name) => (await admin('/api/admin/list')).json.orders.find((x) => x.name === name);
+  // شراء عزبة جديد
+  await api('/api/order', { name: 'مشتري عزبة', phone: '55443322', product: 'izba', offer: 'x' });
+  const o = await findOrder('مشتري عزبة');
+  assert.equal(o.amount, 499);
+  assert.equal(o.product, 'izba');
+  const paid = await admin('/api/admin/order', { id: o.id, status: 'paid' });
+  assert.equal(paid.status, 200);
+  const rec = (await admin('/api/admin/list')).json.list.find((x) => x.name === 'مشتري عزبة');
+  assert.deepEqual(rec.products, ['enna', 'izba']);
+  const act = await api('/api/activate', { code: rec.code, device: 'dev-izba-1' });
+  assert.deepEqual(act.json.products, ['enna', 'izba']);
+
+  // كود عنة قديم يرقّي
+  const created = await admin('/api/admin/create', { name: 'صاحب عنة', phone: '55443311', price: 299 });
+  const enna = created.json.created[0];
+  const a2 = await api('/api/activate', { code: enna.code, device: 'dev-enna-1' });
+  assert.deepEqual(a2.json.products, ['enna']);
+  await api('/api/order', { name: 'صاحب عنة', phone: '55443311', product: 'izba', upgradeToken: a2.json.token });
+  const up = await findOrder('صاحب عنة');
+  assert.equal(up.amount, 299, 'سعر الترقية');
+  assert.equal(up.upgradeOf, enna.id);
+  await admin('/api/admin/order', { id: up.id, status: 'paid' });
+  const after = (await admin('/api/admin/list')).json.list.filter((x) => x.name === 'صاحب عنة');
+  assert.equal(after.length, 1, 'ما انولّد كود جديد');
+  assert.deepEqual(after[0].products, ['enna', 'izba']);
+  const chk = await api('/api/check', { token: a2.json.token });
+  assert.deepEqual(chk.json.products, ['enna', 'izba']);
+
+  // الأدمن يشيل العزبة ويرجعها
+  await admin('/api/admin/update', { id: enna.id, action: 'remove-izba' });
+  assert.deepEqual((await api('/api/check', { token: a2.json.token })).json.products, ['enna']);
+  await admin('/api/admin/update', { id: enna.id, action: 'add-izba' });
+  assert.deepEqual((await api('/api/check', { token: a2.json.token })).json.products, ['enna', 'izba']);
+
+  // مسار البيع لكل منتج لحاله
+  await api('/api/track', { e: 'visit', sid: 'a1b2c3d4e5f6a7b8c9', p: 'izba' });
+  const fi = await admin('/api/admin/funnel?days=1&product=izba');
+  assert.equal(fi.json.total.visit, 1);
+  assert.equal(fi.json.total.purchase, 0, 'الطلبات اليدوية ما تنحسب أونلاين');
+  const fe = await admin('/api/admin/funnel?days=1');
+  assert.equal(fe.json.total.visit, 1, 'زيارة العنة من الاختبار السابق بس');
+});

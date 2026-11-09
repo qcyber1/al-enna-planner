@@ -9,15 +9,17 @@ export const qaDay = (t = Date.now()) => new Date(t + 3 * 3600 * 1000).toISOStri
 const hashSid = (sid) => crypto.createHash('sha256').update('funnel:' + sid).digest('base64url').slice(0, 12);
 
 /** يسجّل حدث مرة وحدة لكل متصفح في اليوم (عدد أشخاص، مو عدد ضغطات) */
-export function recordEvent(db, event, sid, now = Date.now()) {
+export function recordEvent(db, event, sid, now = Date.now(), product = 'enna') {
   if (!FUNNEL_EVENTS.includes(event)) return false;
+  // أحداث العزبة تنحفظ بمفتاح خاص (izba:visit…) عشان كل منتج له مساره
+  const key = product === 'izba' ? `izba:${event}` : event;
   // المعرّف لازم نص hex عشوائي من المتصفح (مب أي شي)
   if (typeof sid !== 'string' || !/^[0-9a-f]{16,64}$/i.test(sid)) return false;
   const s = sid;
   if (!db.funnel) db.funnel = {};
   const day = qaDay(now);
   const d = (db.funnel[day] ??= {});
-  const seen = (d[event] ??= []);
+  const seen = (d[key] ??= []);
   // سقف يومي لكل حدث (حماية من الإغراق) — أكبر بوايد من أي يوم طبيعي
   if (seen.length >= MAX_PER_DAY) return false;
   const h = hashSid(s);
@@ -30,14 +32,16 @@ export function recordEvent(db, event, sid, now = Date.now()) {
 }
 
 /** ملخص لعدد أيام: عدد كل خطوة + بدء الدفع والمبيعات والإيراد من الطلبات الحقيقية (بدون التجارب) */
-export function funnelSummary(db, days = 7, now = Date.now()) {
+export function funnelSummary(db, days = 7, now = Date.now(), product = 'enna') {
+  const izba = product === 'izba';
+  const keyOf = (e) => (izba ? `izba:${e}` : e);
   const list = [];
   for (let i = days - 1; i >= 0; i--) list.push(qaDay(now - i * 86400000));
   const set = new Set(list);
   const rows = list.map((day) => {
     const f = db.funnel?.[day] || {};
     const r = { day };
-    for (const e of FUNNEL_EVENTS) r[e] = (f[e] || []).length;
+    for (const e of FUNNEL_EVENTS) r[e] = (f[keyOf(e)] || []).length;
     r.checkout = 0;
     r.purchase = 0;
     r.revenue = 0;
@@ -46,6 +50,7 @@ export function funnelSummary(db, days = 7, now = Date.now()) {
   const byDay = Object.fromEntries(rows.map((r) => [r.day, r]));
   for (const o of db.orders || []) {
     if (o.test || !o.online) continue;
+    if ((o.product === 'izba') !== izba) continue;
     const cd = qaDay(o.createdAt || 0);
     if (set.has(cd) && o.paymentId) byDay[cd].checkout++;
     if (o.status === 'paid' && o.paidAt) {
