@@ -16,6 +16,7 @@ import { renderPlanSheet } from '../render2d/planSheet';
 import { usePhoto } from '../scene3d/photoStore';
 import { IzbaLockedCard, loadIzbaPrices, useUpgrade } from './UpgradeIzba';
 import { IzbaCostPanel } from './IzbaCostPanel';
+import { IzbaInsightsPanel } from './IzbaInsightsPanel';
 import { izbaEstimate } from '../lib/izbaCost';
 import { demoSite, getProducts, landingSite, izbaVisible } from '../lib/license';
 import { buildIzba, isIzba, izbaEnabled, izbaLand, IZBA_PLOT_OPTIONS, IZBA_USES, type IzbaPlots, type IzbaUse } from '../lib/izba';
@@ -444,6 +445,7 @@ export function SummaryDialog() {
       }
     >
       <div className="space-y-5 p-5" data-testid="summary">
+        {izbaPlan && <IzbaInsightsPanel plan={design.plan} summary={s} />}
         {izbaPlan && <IzbaCostPanel plan={design.plan} summary={s} />}
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <Stat label="مساحة الأرض" value={formatArea(s.landArea, 0)} sub={`المحيط ${formatMeters(s.landPerimeter, 1)}`} />
