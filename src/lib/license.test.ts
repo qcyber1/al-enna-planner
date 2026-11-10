@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { getProducts, izbaAccess, landingSite, markDemoSite, saveProducts } from './license';
+import { getProducts, izbaAccess, landingSite, markDemoSite, saveProducts, setIzbaLive } from './license';
 
 // بيئة node: localStorage ورابط الصفحة بسيطين
 const store = new Map<string, string>();
@@ -25,12 +25,13 @@ Object.assign(globalThis, { localStorage, window });
 describe('ترخيص العزبة', () => {
   beforeEach(() => {
     localStorage.clear();
+    setIzbaLive(false);
     window.history.replaceState(null, '', '/');
   });
   it('عميل قديم بدون منتجات = عنة', () => {
     localStorage.setItem('enna.license.token', 'x.y');
     expect(getProducts()).toEqual(['enna']);
-    expect(izbaAccess()).toBe('locked');
+    expect(izbaAccess()).toBe('hidden');
   });
   it('صاحب العزبة تنفتح له', () => {
     localStorage.setItem('enna.license.token', 'x.y');
@@ -40,7 +41,7 @@ describe('ترخيص العزبة', () => {
   });
   it('رابط ?izba=1 ما يفتح العزبة', () => {
     window.history.replaceState(null, '', '/?izba=1');
-    expect(izbaAccess()).toBe('locked');
+    expect(izbaAccess()).toBe('hidden');
   });
   it('صفحة /izba', () => {
     window.history.replaceState(null, '', '/izba/');
@@ -50,6 +51,18 @@ describe('ترخيص العزبة', () => {
   });
   it('التجربة من صفحة العنة ما تفتح العزبة', () => {
     markDemoSite('enna');
+    expect(izbaAccess()).toBe('hidden');
+  });
+  it('بعد الإطلاق: تطلع مقفلة مع زر الترقية، وصاحبها تنفتح له', () => {
+    setIzbaLive(true);
+    localStorage.setItem('enna.license.token', 'x.y');
     expect(izbaAccess()).toBe('locked');
+    saveProducts(['enna', 'izba']);
+    expect(izbaAccess()).toBe('full');
+  });
+  it('قبل الإطلاق: صاحب كود العزبة (الفريق) تنفتح له', () => {
+    localStorage.setItem('enna.license.token', 'x.y');
+    saveProducts(['enna', 'izba']);
+    expect(izbaAccess()).toBe('full');
   });
 });

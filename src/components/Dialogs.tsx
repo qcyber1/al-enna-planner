@@ -14,8 +14,8 @@ import { ImportError, parseImport } from '../lib/sanitize';
 import { createSamplePlan, defaultLand, emptyPlan } from '../lib/sample';
 import { renderPlanSheet } from '../render2d/planSheet';
 import { usePhoto } from '../scene3d/photoStore';
-import { IzbaLockedCard, useUpgrade } from './UpgradeIzba';
-import { demoSite, getProducts, landingSite } from '../lib/license';
+import { IzbaLockedCard, loadIzbaPrices, useUpgrade } from './UpgradeIzba';
+import { demoSite, getProducts, landingSite, izbaVisible } from '../lib/license';
 import { buildIzba, izbaEnabled, izbaLand, IZBA_PLOT_OPTIONS, IZBA_USES, type IzbaPlots, type IzbaUse } from '../lib/izba';
 import { loadThumbs } from '../lib/storage';
 import { validatePlan } from '../lib/validation';
@@ -42,8 +42,11 @@ export function WelcomeDialog() {
   const openDialog = useEditor((s) => s.openDialog);
   const [site, setSite] = useState<'enna' | 'izba'>('enna');
   const [plots, setPlots] = useState<IzbaPlots>(1);
-  // العزبة منتج مستقل: التبويب يطلع للكل، بس قوالبها مفتوحة لصاحب ترخيصها (أو تجربتها)
-  const showIzba = true;
+  // العزبة منتج مستقل: قبل الإطلاق ما تطلع إلا لصاحب كود عزبة، وبعده التبويب للكل (قوالبها لصاحب ترخيصها أو تجربتها)
+  const [showIzba, setShowIzba] = useState(izbaVisible);
+  useEffect(() => {
+    if (open) void loadIzbaPrices().then(() => setShowIzba(izbaVisible()));
+  }, [open]);
   const izbaOk = useMemo(() => izbaEnabled(), [open]);
   useEffect(() => {
     if (open && izbaEnabled() && (demoSite() === 'izba' || landingSite() === 'izba' || getProducts().includes('izba'))) setSite('izba');
@@ -214,7 +217,10 @@ export function LandDialog() {
   const openDialog = useEditor((s) => s.openDialog);
   const plan = usePlan();
   const [land, setLand] = useState<Land>(plan.land);
-  const izbaOn = true;
+  const [izbaOn, setIzbaOn] = useState(izbaVisible);
+  useEffect(() => {
+    if (open) void loadIzbaPrices().then(() => setIzbaOn(izbaVisible()));
+  }, [open]);
   const izbaOk = useMemo(() => izbaEnabled(), [open]);
   useEffect(() => {
     if (open) setLand(plan.land);

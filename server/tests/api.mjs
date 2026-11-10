@@ -543,6 +543,21 @@ test('منتج العزبة: الشراء يعطي عنة+عزبة، والتر�
   assert.equal(st.json.izba.price, 499);
   assert.equal(st.json.izba.basePrice, 999);
   assert.equal(st.json.izba.upgrade, 299);
+  // قبل الإطلاق: مخفية — الصفحة تتحول للرئيسية والبيع مرفوض، بس الأدمن يقدر يعطي كود عزبة
+  assert.equal(st.json.izba.live, false);
+  const pg = await fetch(BASE + '/izba', { redirect: 'manual' });
+  assert.equal(pg.status, 302);
+  assert.equal(pg.headers.get('location'), '/');
+  const no = await api('/api/order', { name: 'قبل الإطلاق', phone: '55443300', product: 'izba' });
+  assert.equal(no.status, 403);
+  const team = await admin('/api/admin/create', { name: 'فريق العزبة', price: 0, product: 'izba' });
+  assert.deepEqual(team.json.created[0].products, ['enna', 'izba']);
+  // الإطلاق من الأدمن
+  const cur = (await admin('/api/admin/list')).json.settings;
+  const go = await admin('/api/admin/settings', { ...cur, izbaLive: true });
+  assert.equal(go.status, 200);
+  assert.equal((await api('/api/status')).json.izba.live, true);
+  assert.equal((await fetch(BASE + '/izba', { redirect: 'manual' })).status, 200);
   const findOrder = async (name) => (await admin('/api/admin/list')).json.orders.find((x) => x.name === name);
   // شراء عزبة جديد
   await api('/api/order', { name: 'مشتري عزبة', phone: '55443322', product: 'izba', offer: 'x' });
