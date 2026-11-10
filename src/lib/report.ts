@@ -5,6 +5,8 @@ import { renderPlanCanvas, dateLabel } from '../render2d/exportImage';
 import { loadThumbs } from './storage';
 import { DEV_LINE, OWNER_LINE } from './brand';
 import { formatArea, formatMeters, formatNumber, round } from './geometry';
+import { isIzba } from './izba';
+import { CONTINGENCY_PCT, izbaEstimate } from './izbaCost';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const money = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -12,11 +14,22 @@ const money = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 
 export function buildReportHtml(project: Project, design: Design): string {
   const est = project.estimate ?? DEFAULT_ESTIMATE;
   const s = computeSummary(design.plan, est);
+  const izba = isIzba(design.plan.land);
   const lines = costLines(s);
   const total = lines.reduce((sum, l) => sum + (project.prices[l.key] ?? 0) * l.qty, 0);
+  const ie = izba ? izbaEstimate(design.plan, s, project.prices) : null;
   const planImg = renderPlanCanvas(design.plan, { width: 1400, footer: false, names: true, dims: true }).toDataURL('image/jpeg', 0.85);
   const d3 = loadThumbs(design.id).d3;
-  const stats: [string, string][] = [
+  const stats: [string, string][] = ie ? [
+    ['مساحة الأرض', formatArea(s.landArea, 0)],
+    ['التكلفة التقديرية', `${money(ie.total)} ر.ق`],
+    ['المدى المتوقع', `${money(ie.low)} – ${money(ie.high)} ر.ق`],
+    ['السور', formatMeters(s.fenceLength, 1)],
+    ['أطوال الممرات', formatMeters(s.pathLength, 1)],
+    ['الحمامات', String(s.toilets)],
+    ['الحمل الكهربائي للإنارة', `${formatNumber(s.lights.totalWatts / 1000, 2)} kW`],
+    ['المساحة الفارغة', `${formatArea(s.freeArea, 0)} (${formatNumber(s.freePct, 0)}%)`],
+  ] : [
     ['مساحة الأرض', formatArea(s.landArea, 0)],
     ['الخيام', `${s.tentCount} — ${formatArea(s.tentArea, 1)}`],
     ['السعة التقديرية', s.capacity ? `≈ ${s.capacity} شخص جلوس` : '—'],
@@ -27,6 +40,11 @@ export function buildReportHtml(project: Project, design: Design): string {
     ['الحمل الكهربائي للإنارة', `${formatNumber(s.lights.totalWatts / 1000, 2)} kW`],
     ['المساحة الفارغة', `${formatArea(s.freeArea, 0)} (${formatNumber(s.freePct, 0)}%)`],
   ];
+  const izbaRows = ie
+    ? ie.byGroup
+        .map((g) => `<tr class="grp"><td colspan="4">${g.icon} ${esc(g.title)}</td><td class="n">${money(g.total)}</td></tr>` + ie.lines.filter((l) => l.group === g.id).map((l) => `<tr><td>${esc(l.label)}</td><td>${esc(l.unit)}</td><td class="n">${round(l.qty, 1)}</td><td class="n">${money(l.unitPrice)}</td><td class="n">${money(l.total)}</td></tr>`).join(''))
+        .join('') + `<tr class="grp"><td colspan="4">🛟 احتياطي ${CONTINGENCY_PCT}% (توصيلات، تسوية، رخص)</td><td class="n">${money(ie.contingency)}</td></tr>`
+    : '';
   const rows = lines
     .map((l) => {
       const price = project.prices[l.key];
@@ -49,6 +67,7 @@ export function buildReportHtml(project: Project, design: Design): string {
   .stat { border: 1px solid #e3d5b8; border-radius: 8px; padding: 6px 8px; } .stat b { display: block; font-size: 14px; } .stat span { font-size: 11px; color: #7a5c3e; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; } th, td { border-bottom: 1px solid #eee3cc; padding: 5px 6px; text-align: right; }
   th { background: #f6efe0; } td.n, th.n { text-align: left; font-variant-numeric: tabular-nums; direction: ltr; }
+  tr.grp td { background: #fbf6ea; font-weight: 700; }
   tfoot td { font-weight: 700; border-top: 2px solid #c9973f; font-size: 14px; }
   .note { font-size: 11px; color: #7a5c3e; margin-top: 8px; } ul { margin: 4px 0 10px; padding-right: 18px; font-size: 12px; columns: 2; }
   .bar { position: sticky; top: 0; background: #3b2a1e; color: #fff; padding: 10px; margin: -16px -16px 12px; display: flex; gap: 8px; align-items: center; justify-content: space-between; font-size: 14px; }
@@ -56,14 +75,14 @@ export function buildReportHtml(project: Project, design: Design): string {
   @media print { .bar { display: none; } body { padding: 0; } .imgs, .stats, table { break-inside: avoid; } }
 </style></head><body>
 <div class="bar"><span>اضغط «طباعة» واختر «حفظ كـ PDF» عشان ترسله للمقاول</span><button onclick="window.print()">طباعة / PDF</button></div>
-<header><div><h1>${esc(project.name)} — ${esc(design.name)}</h1><div class="sub">مخطط العنة • ${esc(dateLabel())}</div></div><div class="sub">الأرض ${round(design.plan.land.width, 1)} × ${round(design.plan.land.depth, 1)} م</div></header>
+<header><div><h1>${esc(project.name)} — ${esc(design.name)}</h1><div class="sub">${izba ? 'i3enna للعزب' : 'مخطط العنة'} • ${esc(dateLabel())}</div></div><div class="sub">الأرض ${round(design.plan.land.width, 1)} × ${round(design.plan.land.depth, 1)} م</div></header>
 <div class="imgs"><div><img src="${planImg}" alt="المخطط"><div class="cap">المخطط (مسقط علوي بالمقاسات)</div></div>${d3 ? `<div><img src="${d3}" alt="المجسم"><div class="cap">المجسم ثلاثي الأبعاد</div></div>` : ''}</div>
 <div class="stats">${stats.map(([k, v]) => `<div class="stat"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
 ${tents ? `<b style="font-size:13px">الخيام</b><ul>${tents}</ul>` : ''}
 <table><thead><tr><th>البند</th><th>الوحدة</th><th class="n">الكمية</th><th class="n">سعر الوحدة (ر.ق)</th><th class="n">الإجمالي (ر.ق)</th></tr></thead>
-<tbody>${rows || '<tr><td colspan="5">ما في بنود</td></tr>'}</tbody>
-<tfoot><tr><td colspan="4">الإجمالي التقديري${total ? '' : ' (ما انكتبت أسعار)'}</td><td class="n">${money(total)}</td></tr></tfoot></table>
-<p class="note">الكميات محسوبة تلقائياً من المخطط والأسعار مكتوبة من صاحب العنة — للتقدير فقط، والمقاسات النهائية تتأكد في الموقع.</p>
+<tbody>${(ie ? izbaRows : rows) || '<tr><td colspan="5">ما في بنود</td></tr>'}</tbody>
+<tfoot><tr><td colspan="4">الإجمالي التقديري${ie ? ` (المتوقع ${money(ie.low)} – ${money(ie.high)})` : total ? '' : ' (ما انكتبت أسعار)'}</td><td class="n">${money(ie ? ie.total : total)}</td></tr></tfoot></table>
+<p class="note">${ie ? 'الكميات محسوبة تلقائياً من المخطط، والأسعار تقريبية لسوق قطر (أو معدّلة من صاحب العزبة) — للتخطيط فقط وما تغني عن عرض سعر رسمي من المقاول.' : 'الكميات محسوبة تلقائياً من المخطط والأسعار مكتوبة من صاحب العنة — للتقدير فقط، والمقاسات النهائية تتأكد في الموقع.'}</p>
 <p class="note" style="border-top:1px solid #eee3cc;padding-top:6px">${esc(DEV_LINE)} • ${esc(OWNER_LINE)}</p>
 </body></html>`;
 }
