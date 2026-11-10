@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { Loader2 } from 'lucide-react';
 import { Modal } from './ui';
 import { checkName, fullBuyerPhone, GCC, guessGcc, parseBuyerPhone } from '../lib/buyer';
-import { getProducts } from '../lib/license';
+import { getProducts, izbaLive, setIzbaLive } from '../lib/license';
 import { trackCheckout } from '../lib/pixel';
 
 const TOKEN_KEY = 'enna.license.token';
@@ -21,7 +21,8 @@ export async function loadIzbaPrices(): Promise<IzbaPrices | null> {
   if (cache) return cache;
   try {
     const r = await fetch('/api/status');
-    const s = (await r.json()) as { online?: boolean; izba?: { price: number; basePrice: number; upgrade: number } };
+    const s = (await r.json()) as { online?: boolean; izba?: { price: number; basePrice: number; upgrade: number; live?: boolean } };
+    setIzbaLive(s.izba?.live);
     if (!s.izba) return null;
     cache = { ...s.izba, online: !!s.online };
     return cache;
@@ -51,6 +52,8 @@ export function IzbaLockedCard({ compact }: { compact?: boolean }) {
     void loadIzbaPrices().then(setP);
   }, []);
   const hasEnna = getProducts().includes('enna') && !!token();
+  // قبل الإطلاق: مخطط عزبة وصل لواحد ما عنده العزبة (رابط مشاركة) — بدون بيع ولا روابط
+  if (!izbaLive()) return <div className="rounded-xl bg-sand-100 p-4 text-center text-sm text-sand-700" data-testid="izba-unavailable">🏡 مخططات العزبة غير متاحة حالياً</div>;
   return (
     <div className="space-y-3 rounded-xl border-2 border-gold-500 bg-gold-50 p-4 text-center" data-testid="izba-locked">
       <div className="text-3xl">🏡</div>

@@ -58,6 +58,8 @@ const offerOn = () => offerPrice() > 0 && offerPrice() < price();
 const izbaPrice = () => setNum('izbaPrice', 499);
 const izbaListPrice = () => setNum('izbaListPrice', 999);
 const izbaUpgrade = () => setNum('izbaUpgrade', 299);
+// العزبة قبل الإطلاق مخفية عن العملاء: لا صفحة ولا بيع ولا ترقية (الفريق ياخذ أكواد عزبة من «أكواد يدوية»)
+const izbaLive = () => db.settings.izbaLive === true;
 const PRODUCTS = ['enna', 'izba'];
 const productOf = (v) => (v === 'izba' ? 'izba' : 'enna');
 /** منتجات الكود: القديم بدون قائمة = عنة. العزبة تشمل العنة */
@@ -454,6 +456,10 @@ function serveStatic(req, res, urlPath) {
     return res.end();
   }
   if (urlPath === '/izba') {
+    if (!izbaLive()) {
+      res.writeHead(302, { location: '/', 'cache-control': 'no-store' });
+      return res.end();
+    }
     const body = izbaPage();
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'content-length': body.length });
     return res.end(req.method === 'HEAD' ? undefined : body);
@@ -542,7 +548,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === '/api/status') {
       const refId = parseRef(url.searchParams.get('ref'));
-      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null, izba: { price: izbaPrice(), basePrice: Math.max(izbaPrice(), izbaListPrice()), upgrade: izbaUpgrade() } });
+      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null, izba: { price: izbaPrice(), basePrice: Math.max(izbaPrice(), izbaListPrice()), upgrade: izbaUpgrade(), live: izbaLive() } });
     }
 
     // عرض «خلصت التجربة»: نعطي المتصفح عرض موقّع بوقت محدود
@@ -567,6 +573,7 @@ const server = http.createServer(async (req, res) => {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
       const { name, phone, email, ref, offer, product: prodIn, upgradeToken } = await readBody(req);
       const product = productOf(prodIn);
+      if (product === 'izba' && !izbaLive()) return send(res, 403, { ok: false, error: 'العزبة غير متاحة حالياً' });
       const upRec = product === 'izba' ? upgradeTarget(upgradeToken) : null;
       if (product === 'izba' && upgradeToken && !upRec) return send(res, 400, { ok: false, error: 'حسابك فيه العزبة من قبل، أو لازم تسجّل دخول من جديد' });
       const refId = product === 'izba' ? null : parseRef(ref);
@@ -663,6 +670,7 @@ const server = http.createServer(async (req, res) => {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
       const { name, phone, ref, offer, product: prodIn, upgradeToken } = await readBody(req);
       const product = productOf(prodIn);
+      if (product === 'izba' && !izbaLive()) return send(res, 403, { ok: false, error: 'العزبة غير متاحة حالياً' });
       const upRec = product === 'izba' ? upgradeTarget(upgradeToken) : null;
       const refId = product === 'izba' ? null : parseRef(ref);
       const v = validateBuyer({ name, phone }, false);
@@ -792,7 +800,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
-        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade() } });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive() } });
       }
       // تجربة شاشة ما بعد الدفع بدون سكيب كاش ولا فلوس (ما تنحسب في المبيعات)
       if (p === '/api/admin/test-order' && req.method === 'POST') {
@@ -860,6 +868,7 @@ const server = http.createServer(async (req, res) => {
           next.izbaListPrice = il;
           next.izbaUpgrade = iu;
         }
+        if (b.izbaLive !== undefined) next.izbaLive = b.izbaLive === true;
         // العرض الخاص (اختياري في الطلب — لو ما انرسل نخلي القديم)
         if (b.offerPrice !== undefined) {
           const op = num(b.offerPrice, 0, 100000);

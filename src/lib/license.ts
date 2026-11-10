@@ -62,14 +62,25 @@ export function demoSite(): Product {
 // رابط المعاينة القديم (?izba=1) انشال: العزبة صارت مدفوعة — الفريق ياخذ كود عزبة مجاني من الأدمن
 ls.set(DEV, null);
 
+/** العزبة مطلقة للعملاء؟ (من /api/status — الأدمن يشغّلها). قبل الإطلاق ما تطلع لأحد إلا صاحب كود عزبة */
+let live = false;
+export function setIzbaLive(v: unknown) {
+  live = v === true;
+}
+export const izbaLive = () => live;
+
 /**
  * وصول العزبة:
  * - full: اشترى العزبة، أو في التجربة المجانية من صفحة العزبة، أو الموقع بدون تراخيص
- * - locked: يقدر يشوفها ويرقّي، بس ما يستخدمها
+ * - locked: يقدر يشوفها ويرقّي، بس ما يستخدمها (بعد الإطلاق)
+ * - hidden: قبل الإطلاق — ما تطلع له أبداً
  */
-export function izbaAccess(): 'full' | 'locked' {
+export function izbaAccess(): 'full' | 'locked' | 'hidden' {
   if (ls.get(TOKEN) === 'open') return 'full';
   if (getProducts().includes('izba')) return 'full';
   if (isDemo() && demoSite() === 'izba') return 'full';
-  return 'locked';
+  return live ? 'locked' : 'hidden';
 }
+
+/** يطلع له تبويب العزبة؟ */
+export const izbaVisible = () => izbaAccess() !== 'hidden';

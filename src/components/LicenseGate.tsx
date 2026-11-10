@@ -18,7 +18,7 @@ import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
 import { track } from '../lib/stats';
 import { claimOffer, getOffer, leftLabel, type TrialOffer } from '../lib/offer';
-import { getProducts, landingSite, markDemoSite, saveProducts } from '../lib/license';
+import { getProducts, landingSite, markDemoSite, saveProducts, izbaLive, setIzbaLive } from '../lib/license';
 import { useUpgrade } from './UpgradeIzba';
 import { setBuyer as pixelBuyer, trackCheckout, trackDemoBuyClick, trackPurchase, trackTrial, trackTrialEnded } from '../lib/pixel';
 import { demoLeft, demoUsed, isDemo, setDemoActive, startDemo } from '../lib/demo';
@@ -142,9 +142,10 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [login, setLogin] = useState({ phone: '', password: '' });
   const [loginErr, setLoginErr] = useState<{ phone?: string; password?: string }>({});
   const [acctPhone, setAcctPhone] = useState('');
-  const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean; sale?: boolean; content: SiteContent; izba?: { price: number; basePrice: number; upgrade: number } }>({ price: 299, online: false, basePrice: 299, refValid: false, content: {} });
+  const [info, setInfo] = useState<{ price: number; online: boolean; basePrice: number; refValid: boolean; sale?: boolean; content: SiteContent; izba?: { price: number; basePrice: number; upgrade: number; live?: boolean } }>({ price: 299, online: false, basePrice: 299, refValid: false, content: {} });
   // صفحة البيع: /izba = منتج العزبة (نص وصورة وسعر خاص)
   const site = useMemo(() => landingSite(), []);
+  // قبل الإطلاق السيرفر يحوّل /izba للرئيسية، فهذي تصير بس بعد ما الأدمن يطلقها
   const izbaSite = site === 'izba';
   const [buyer, setBuyer] = useState({ name: '', phone: '', email: '' });
   // دولة الجوال (خليجي): الافتراضي من المنطقة الزمنية لجهازه
@@ -199,7 +200,8 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         const r = await fetch('/api/status' + (ref ? `?ref=${encodeURIComponent(ref)}` : ''));
         const s = (await r.json()) as { licensing?: boolean; price?: number; basePrice?: number; refValid?: boolean; online?: boolean };
         if (!s.licensing) return setState('open');
-        setInfo({ price: s.price ?? 299, online: !!s.online, basePrice: s.basePrice ?? s.price ?? 299, refValid: !!s.refValid, sale: !!(s as { sale?: boolean }).sale, content: (s as { content?: SiteContent }).content || {}, izba: (s as { izba?: { price: number; basePrice: number; upgrade: number } }).izba });
+        setInfo({ price: s.price ?? 299, online: !!s.online, basePrice: s.basePrice ?? s.price ?? 299, refValid: !!s.refValid, sale: !!(s as { sale?: boolean }).sale, content: (s as { content?: SiteContent }).content || {}, izba: (s as { izba?: { price: number; basePrice: number; upgrade: number; live?: boolean } }).izba });
+        setIzbaLive((s as { izba?: { live?: boolean } }).izba?.live);
       } catch {
         // بيئة التطوير بدون خادم: لا يوجد نظام أكواد
         if (import.meta.env.DEV) return setState('open');
@@ -260,7 +262,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         if (data.ok) {
           if ((data as { products?: unknown }).products) saveProducts((data as { products?: unknown }).products);
           // عميل عنة فتح صفحة العزبة: نعرض عليه الترقية
-          if (izbaSite && !getProducts().includes('izba')) setTimeout(() => useUpgrade.getState().show(), 700);
+          if (izbaSite && izbaLive() && !getProducts().includes('izba')) setTimeout(() => useUpgrade.getState().show(), 700);
           if (data.hasPw === false && !pwSkippedRecently()) {
             setAcctPhone(localPhone(data.phone));
             return setState('setpw');
@@ -460,9 +462,11 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             </button>
           )}
           <div className="lg:hidden"><Features items={feats} /></div>
+          {info.izba?.live && (
           <a href={izbaSite ? '/' : '/izba'} className="block rounded-lg border border-dashed border-gold-500 px-3 py-1.5 text-center text-[12px] font-semibold text-gold-700 hover:bg-gold-50" data-testid="cross-link">
             {izbaSite ? '⛺ تبي تصمم عنة (مخيم بر)؟ شوف i3enna للعنن ←' : '🏡 جديد: عندك عزبة؟ خططها في i3enna للعزب ←'}
           </a>
+          )}
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-sand-200 p-1 text-sm font-semibold">
             {tabs.map(([m, label]) => {
               const on = m === 'buy' ? mode === 'buy' : mode !== 'buy';
