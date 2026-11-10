@@ -7,6 +7,7 @@ import { DEV_LINE, OWNER_LINE } from './brand';
 import { formatArea, formatMeters, formatNumber, round } from './geometry';
 import { isIzba } from './izba';
 import { CONTINGENCY_PCT, izbaEstimate } from './izbaCost';
+import { izbaInsights } from './izbaInsights';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const money = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -18,17 +19,18 @@ export function buildReportHtml(project: Project, design: Design): string {
   const lines = costLines(s);
   const total = lines.reduce((sum, l) => sum + (project.prices[l.key] ?? 0) * l.qty, 0);
   const ie = izba ? izbaEstimate(design.plan, s, project.prices) : null;
+  const ii = izba ? izbaInsights(design.plan, s) : null;
   const planImg = renderPlanCanvas(design.plan, { width: 1400, footer: false, names: true, dims: true }).toDataURL('image/jpeg', 0.85);
   const d3 = loadThumbs(design.id).d3;
   const stats: [string, string][] = ie ? [
     ['مساحة الأرض', formatArea(s.landArea, 0)],
     ['التكلفة التقديرية', `${money(ie.total)} ر.ق`],
     ['المدى المتوقع', `${money(ie.low)} – ${money(ie.high)} ر.ق`],
+    ['المباني', `${ii!.builtArea} م² (${ii!.coveragePct}%)`],
+    ['سعة الحلال', [ii!.sheep && `${ii!.sheep} غنم`, ii!.camels && `${ii!.camels} إبل`, ii!.horses && `${ii!.horses} خيل`].filter(Boolean).join(' • ') || '—'],
+    ['الماي باليوم', `${money(ii!.waterPerDay)} لتر${ii!.tankDays !== null ? ` (الخزان ${ii!.tankDays} يوم)` : ''}`],
+    ['الحمل الكهربائي', `${ii!.powerKw} kW — مولد ${ii!.generatorKva} KVA`],
     ['السور', formatMeters(s.fenceLength, 1)],
-    ['أطوال الممرات', formatMeters(s.pathLength, 1)],
-    ['الحمامات', String(s.toilets)],
-    ['الحمل الكهربائي للإنارة', `${formatNumber(s.lights.totalWatts / 1000, 2)} kW`],
-    ['المساحة الفارغة', `${formatArea(s.freeArea, 0)} (${formatNumber(s.freePct, 0)}%)`],
   ] : [
     ['مساحة الأرض', formatArea(s.landArea, 0)],
     ['الخيام', `${s.tentCount} — ${formatArea(s.tentArea, 1)}`],
