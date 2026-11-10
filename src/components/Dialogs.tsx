@@ -15,8 +15,10 @@ import { createSamplePlan, defaultLand, emptyPlan } from '../lib/sample';
 import { renderPlanSheet } from '../render2d/planSheet';
 import { usePhoto } from '../scene3d/photoStore';
 import { IzbaLockedCard, loadIzbaPrices, useUpgrade } from './UpgradeIzba';
+import { IzbaCostPanel } from './IzbaCostPanel';
+import { izbaEstimate } from '../lib/izbaCost';
 import { demoSite, getProducts, landingSite, izbaVisible } from '../lib/license';
-import { buildIzba, izbaEnabled, izbaLand, IZBA_PLOT_OPTIONS, IZBA_USES, type IzbaPlots, type IzbaUse } from '../lib/izba';
+import { buildIzba, isIzba, izbaEnabled, izbaLand, IZBA_PLOT_OPTIONS, IZBA_USES, type IzbaPlots, type IzbaUse } from '../lib/izba';
 import { loadThumbs } from '../lib/storage';
 import { validatePlan } from '../lib/validation';
 import { useViewport } from '../editor2d/viewport';
@@ -400,10 +402,17 @@ export function SummaryDialog() {
   const setEstimate = useEditor((st) => st.setEstimate);
   const design = useActiveDesign();
   const est = project.estimate ?? DEFAULT_ESTIMATE;
+  const izbaPlan = isIzba(design.plan.land);
   const lines = costLines(s);
   const total = lines.reduce((sum, l) => sum + (project.prices[l.key] ?? 0) * l.qty, 0);
   const priced = lines.filter((l) => project.prices[l.key] !== undefined).length;
   const exportCsv = () => {
+    if (izbaPlan) {
+      const e = izbaEstimate(design.plan, s, project.prices);
+      const rows = [['البند', 'الوحدة', 'الكمية', 'سعر الوحدة (تقريبي)', 'الإجمالي'], ...e.lines.map((l) => [l.label, l.unit, String(round(l.qty, 2)), String(l.unitPrice), String(l.total)]), ['احتياطي', '', '', '', String(e.contingency)], ['الإجمالي التقديري', '', '', '', String(e.total)]];
+      const csv = '\ufeff' + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+      return downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `i3enna-izba-cost-${stamp()}.csv`);
+    }
     const rows = [['البند', 'الوحدة', 'الكمية', 'سعر الوحدة', 'الإجمالي'], ...lines.map((l) => [l.label, l.unit, String(round(l.qty, 2)), String(project.prices[l.key] ?? ''), String(round((project.prices[l.key] ?? 0) * l.qty, 2))])];
     const csv = '﻿' + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `al-enna-quantities-${stamp()}.csv`);
@@ -435,10 +444,11 @@ export function SummaryDialog() {
       }
     >
       <div className="space-y-5 p-5" data-testid="summary">
+        {izbaPlan && <IzbaCostPanel plan={design.plan} summary={s} />}
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <Stat label="مساحة الأرض" value={formatArea(s.landArea, 0)} sub={`المحيط ${formatMeters(s.landPerimeter, 1)}`} />
-          <Stat label={`الخيام (${s.tentCount})`} value={formatArea(s.tentArea, 1)} sub={s.capacity ? `تكفي تقريباً ${s.capacity} شخص جلوس` : undefined} />
-          <Stat label="الملعب + منطقة الأمان" value={formatArea(s.courtZoneArea, 0)} sub={`الملعب ${formatArea(s.courtArea, 0)}`} />
+          {!izbaPlan && <><Stat label={`الخيام (${s.tentCount})`} value={formatArea(s.tentArea, 1)} sub={s.capacity ? `تكفي تقريباً ${s.capacity} شخص جلوس` : undefined} />
+          <Stat label="الملعب + منطقة الأمان" value={formatArea(s.courtZoneArea, 0)} sub={`الملعب ${formatArea(s.courtArea, 0)}`} /></>}
           <Stat label="المساحة الفارغة المتبقية" value={formatArea(s.freeArea, 0)} sub={`${formatNumber(s.freePct, 0)}% من الأرض`} />
           <Stat label="أطوال الممرات" value={formatMeters(s.pathLength, 1)} sub={`المساحة ${formatArea(s.pathArea, 1)}`} />
           <Stat label="العشب الصناعي (تقديري)" value={formatArea(s.turfArea, 1)} />
@@ -446,6 +456,7 @@ export function SummaryDialog() {
           <Stat label="طول السياج أو التور" value={formatMeters(s.fenceLength, 1)} />
         </div>
 
+        {!izbaPlan && (
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-xl border border-sand-200 bg-white p-3">
             <h3 className="mb-2 font-bold text-dune">الخيام</h3>
@@ -505,6 +516,8 @@ export function SummaryDialog() {
           </div>
         </div>
 
+        )}
+        {!izbaPlan && (
         <div className="rounded-xl border border-sand-200 bg-white p-3">
           <h3 className="mb-1 font-bold text-dune">التكلفة التقديرية</h3>
           <p className="mb-2 text-[12px] text-sand-600">الكميات محسوبة تلقائياً من المخطط. ما حطينا أسعار من عندنا — اكتب سعر الوحدة اللي عطاك إياه المورّد (بالريال القطري).</p>
@@ -542,6 +555,7 @@ export function SummaryDialog() {
             </table>
           </div>
         </div>
+        )}
       </div>
     </Modal>
   );
