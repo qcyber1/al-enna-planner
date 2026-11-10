@@ -1,5 +1,7 @@
 // التكلفة التقديرية للعزبة: كميات من المخطط × أسعار تقريبية لسوق قطر (المستخدم يعدّلها حسب عرض المقاول)
 // الأسعار نقطة بداية بس — مكتوبة بوضوح إنها تقريبية، ونعطي مدى (أقل / أعلى) مو رقم واحد.
+// المراجع (نوفمبر 2026): مقاولين قطر يسعّرون البناء بتشطيب متوسط 2,500–3,500 ر.ق/م²؛ المسابح بالخليج 1,500–3,000/م² + 10–40% إضافات؛
+// مظلات السيارات ~1,750 ر.ق للموقف (عرض سعر 2016، مرفوع للتضخم). الباقي تقدير — المستخدم يعدّله.
 import type { ElementKind, Plan, PlanElement, RoomType } from '../types/plan';
 import type { Summary } from './quantities';
 import { isIzba } from './izba';
@@ -26,7 +28,7 @@ export interface IzbaCostLine {
 }
 
 /** المدى حول الرقم: الأسعار تختلف حسب المقاول والمواد */
-export const RANGE = { low: 0.85, high: 1.2 } as const;
+export const RANGE = { low: 0.8, high: 1.25 } as const;
 /** احتياطي للمصاريف غير المتوقعة (توصيلات، تسوية أرض، رخص…) */
 export const CONTINGENCY_PCT = 10;
 
@@ -36,16 +38,16 @@ const LM = 'م طولي';
 
 /** بنود تنحسب بالمساحة (عرض × عمق العنصر) */
 const BY_AREA: Partial<Record<ElementKind, [string, number, CostGroup]>> = {
-  'majlis-room': ['المجلس (بناء بلوك + تشطيب)', 1800, 'civil'],
-  'worker-room': ['غرفة العامل', 1300, 'civil'],
-  'feed-store': ['مخزن العلف', 900, 'livestock'],
+  'majlis-room': ['المجلس (بناء بلوك + تشطيب)', 2500, 'civil'],
+  'worker-room': ['غرفة العامل', 1800, 'civil'],
+  'feed-store': ['مخزن العلف', 1200, 'livestock'],
   'sheep-pen': ['حظاير الغنم (مظلة حديد + شبك)', 150, 'livestock'],
   'camel-pen': ['حظيرة الإبل (شبك + مظلة جزئية)', 100, 'livestock'],
-  'horse-stable': ['إسطبل الخيل', 1200, 'livestock'],
+  'horse-stable': ['إسطبل الخيل', 1500, 'livestock'],
   'animal-shade': ['مظلات الحلال', 130, 'livestock'],
   'farm-bed': ['أحواض الزراعة (تربة + تنقيط)', 60, 'garden'],
   greenhouse: ['البيت المحمي', 120, 'garden'],
-  pool: ['المسبح (حفر + عزل + فلتر + بلاط)', 2500, 'garden'],
+  pool: ['المسبح (حفر + عزل + فلتر + بلاط)', 3000, 'garden'],
   canopy: ['المظلات والجلسات الخارجية', 250, 'services'],
 };
 
@@ -84,7 +86,7 @@ const BY_PIECE: Partial<Record<ElementKind, [string, number, CostGroup]>> = {
 };
 
 /** الغرف المبنية: هيكل + تشطيب متوسط، والحمامات والمطابخ عليها زيادة (سيراميك + تمديدات) */
-const ROOM_BASE = 1800;
+const ROOM_BASE = 2500;
 const WET_EXTRA = 700;
 const WET: RoomType[] = ['bathroom', 'kitchen'];
 
@@ -115,7 +117,7 @@ export function izbaCostLines(plan: Plan, s: Summary): IzbaCostLine[] {
     const block = fence.type === 'block';
     const h = fence.height ?? 2.5;
     // سعر السور يكبر مع الارتفاع (المرجع 2.5 م)
-    const perM = Math.round((block ? 350 : 120) * Math.max(0.6, h / 2.5));
+    const perM = Math.round((block ? 400 : 120) * Math.max(0.6, h / 2.5));
     add('fence', block ? `السور (بلوك ${h} م مع القواعد)` : 'السياج', LM, s.fenceLength, perM, 'civil');
     add('gate', 'البوابة الرئيسية (حديد)', PC, 1, 6000, 'civil');
   }
@@ -127,7 +129,7 @@ export function izbaCostLines(plan: Plan, s: Summary): IzbaCostLine[] {
 
   // المواقف: مظلة سيارات لكل موقف
   const slots = plan.elements.filter((e) => e.kind === 'parking').reduce((t, e) => t + (e.parking?.slots ?? Math.max(1, Math.round(e.width / 2.7))), 0);
-  add('parking', 'مظلات السيارات', 'موقف', slots, 2000, 'services');
+  add('parking', 'مظلات السيارات', 'موقف', slots, 2500, 'services');
 
   // بالقطعة
   for (const [kind, [label, price, group]] of Object.entries(BY_PIECE) as [ElementKind, [string, number, CostGroup]][]) {
