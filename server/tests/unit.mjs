@@ -162,3 +162,40 @@ test('سناب: شكل الحدث والتشفير والكوكيز', () => {
   assert.deepEqual(e.custom_data, { event_id: 'EN-1', value: 499, currency: 'QAR', content_ids: ['i3enna-izba-lifetime'], content_category: ['izba-planner'], number_items: ['1'], order_id: 'EN-1' });
   assert.deepEqual(snapCookies({ headers: { cookie: '_fbp=x; _scid=abc-1; _sccid=click%2D9' } }), { scid: 'abc-1', sccid: 'click-9' });
 });
+
+import { buildReport, parseRange } from '../report.mjs';
+test('التقرير: المبيعات والتجارب واللي ما كمّلوا والمقارنة', () => {
+  const now = Date.parse('2026-11-11T12:00:00+03:00');
+  const t = (d, h = 12) => Date.parse(`${d}T${String(h).padStart(2, '0')}:00:00+03:00`);
+  const db = {
+    funnel: { '2026-11-11': { visit: ['a', 'b', 'c', 'd'], trial_start: ['a', 'b'], 'izba:visit': ['z'] }, '2026-11-10': { visit: ['a', 'b'] } },
+    orders: [
+      { id: '1', no: 1, name: 'سعد', phone: '97455111111', status: 'paid', online: true, amount: 299, paidAt: t('2026-11-11', 10), createdAt: t('2026-11-11', 9), offer: true, codeId: 'c1' },
+      { id: '2', no: 2, name: 'تجربة', phone: '97455000000', status: 'paid', online: true, amount: 299, paidAt: t('2026-11-11'), test: true },
+      { id: '3', no: 3, name: 'فهد', phone: '97455222222', status: 'pending', online: true, amount: 299, createdAt: t('2026-11-11', 11) },
+      { id: '4', no: 4, name: 'فهد', phone: '97455222222', status: 'cancelled', online: true, amount: 299, createdAt: t('2026-11-11', 11), lastError: 'x' },
+      { id: '5', no: 5, name: 'أمس', phone: '97455333333', status: 'paid', online: true, amount: 249, paidAt: t('2026-11-10'), createdAt: t('2026-11-10') },
+      { id: '6', no: 6, name: 'عزبة', phone: '97455444444', status: 'paid', online: true, amount: 499, product: 'izba', paidAt: t('2026-11-11', 14), createdAt: t('2026-11-11', 13) },
+    ],
+    codes: { c1: { id: 'c1', price: 299, createdAt: t('2026-11-11'), devices: ['d'] }, m1: { id: 'm1', name: 'يدوي', price: 150, createdAt: t('2026-11-11', 8), devices: [] }, g1: { id: 'g1', price: 0, createdAt: t('2026-11-11'), devices: [] } },
+    feedback: [],
+    referrals: [],
+  };
+  const r = buildReport(db, '2026-11-11', '2026-11-11', now);
+  assert.equal(r.days, 1);
+  assert.equal(r.visits, 5);
+  assert.equal(r.trials, 2);
+  assert.equal(r.purchases, 3, 'سعد + العزبة + الكود اليدوي (بدون التجربة)');
+  assert.equal(r.revenue, 299 + 499 + 150);
+  assert.equal(r.revenueBy.izba, 499);
+  assert.equal(r.offerSales, 1);
+  assert.equal(r.lost.length, 1, 'فهد مرة وحدة');
+  assert.equal(r.lost[0].tries, 2);
+  assert.equal(r.prev.from, '2026-11-10');
+  assert.equal(r.prev.revenue, 249);
+  assert.equal(r.prev.visits, 2);
+  assert.equal(r.totals.sales, 4);
+  // الفترة: المستقبل ينقص لليوم، والمقلوبة تتعدل
+  assert.deepEqual(parseRange('2026-12-01', '2026-11-01', now), { from: '2026-11-01', to: '2026-11-11' });
+  assert.equal(buildReport(db, '2026-11-10', '2026-11-11', now).perDay.length, 2);
+});
