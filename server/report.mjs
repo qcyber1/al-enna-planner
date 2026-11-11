@@ -66,14 +66,21 @@ function periodStats(db, days) {
   }
   sales.sort((a, b) => a.at - b.at);
   // حاولوا يدفعون وما كمّلوا (مجمّعين حسب الرقم، وبدون اللي دفع بعدين)
-  const paidPhones = new Set((db.orders || []).filter((o) => o.status === 'paid').map((o) => String(o.phone || '').replace(/\D/g, '')));
+  // نفس الشخص = آخر 8 أرقام + نفس المنتج — اللي دفع في طلب ثاني أو عنده كود ما يطلع هنا
+  const pk = (phone, prod) => {
+    const d = String(phone || '').replace(/\D/g, '').slice(-8);
+    return d.length === 8 ? d + '|' + (prod === 'izba' ? 'izba' : 'enna') : '';
+  };
+  const paidPhones = new Set();
+  for (const o of db.orders || []) if (o.status === 'paid' && !o.test) paidPhones.add(pk(o.phone, o.product));
+  for (const c of Object.values(db.codes || {})) if (!c.revoked && c.phone) for (const pr of Array.isArray(c.products) && c.products.length ? c.products : ['enna']) paidPhones.add(pk(c.phone, pr));
   const lostMap = new Map();
   for (const o of db.orders || []) {
     if (o.test || o.status === 'paid') continue;
     const d = qaDay(o.createdAt || 0);
     if (!set.has(d)) continue;
     perDay[d].attempts++;
-    const k = String(o.phone || '').replace(/\D/g, '');
+    const k = pk(o.phone, o.product);
     if (!k || paidPhones.has(k)) continue;
     const x = lostMap.get(k) || { name: o.name || '', phone: o.phone || '', product: prodOf(o), tries: 0, last: 0, reason: '' };
     x.tries++;
