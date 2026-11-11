@@ -281,6 +281,8 @@ export interface Project {
   /** أسعار الوحدات التي يدخلها المستخدم (لا توجد أسعار افتراضية) */
   prices: Record<string, number>;
   estimate?: EstimateSettings;
+  /** كهرباء العنة: الأجهزة والموسم وخزان الديزل (lib/power.ts) */
+  power?: import('../lib/power').PowerSettings;
 }
 
 export interface ProjectMeta {

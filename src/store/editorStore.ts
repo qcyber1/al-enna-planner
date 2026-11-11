@@ -1,3 +1,4 @@
+import { DEFAULT_POWER, type PowerSettings } from '../lib/power';
 import { create } from 'zustand';
 import { PRESET_HOUR, clampHour, timeFromHour } from '../lib/sunclock';
 import { isDemo } from '../lib/demo';
@@ -41,7 +42,8 @@ export type DialogName =
   | 'generator'
   | 'invite'
   | 'feedback'
-  | 'checklist';
+  | 'checklist'
+  | 'power';
 
 export interface Toast {
   id: string;
@@ -169,6 +171,7 @@ interface State {
   // ——— الأسعار والتقدير ———
   setPrice: (key: string, value: number | null) => void;
   setEstimate: (patch: Partial<EstimateSettings>) => void;
+  setPower: (patch: Partial<PowerSettings>) => void;
 
   setSaveState: (s: 'saved' | 'pending' | 'error', err?: string | null) => void;
 }
@@ -695,6 +698,11 @@ export const useEditor = create<State>()((set, get) => ({
         updatedAt: Date.now(),
       },
     });
+  },
+
+  setPower: (patch) => {
+    const s = get();
+    set({ project: { ...s.project, power: { ...DEFAULT_POWER, ...s.project.power, ...patch }, updatedAt: Date.now() } });
   },
 
   setSaveState: (saveState, err = null) => set({ saveState, saveError: err }),

@@ -13,6 +13,7 @@ import { FeedbackDialog } from './components/FeedbackDialog';
 import { Tour } from './components/Tour';
 import { BackupNudge } from './components/BackupNudge';
 import { ChecklistDialog } from './components/ChecklistDialog';
+import { PowerDialog } from './components/PowerDialog';
 import { BottomSheet } from './components/BottomSheet';
 import Editor2D from './editor2d/Editor2D';
 import { startAutosave, useEditor } from './store/editorStore';
@@ -145,6 +146,7 @@ export default function App() {
       <Tour />
       <BackupNudge />
       <ChecklistDialog />
+      <PowerDialog />
       <WelcomeDialog />
       <LandDialog />
       <SummaryDialog />

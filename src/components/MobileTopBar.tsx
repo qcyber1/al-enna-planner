@@ -22,6 +22,7 @@ import {
   Sparkles,
   Gift,
   X,
+  Zap,
 } from 'lucide-react';
 import { useEditor } from '../store/editorStore';
 import { Segmented, cx } from './ui';
@@ -145,6 +146,9 @@ export function MobileTopBar() {
               </button>
               <button type="button" className={item} onClick={() => go('summary')} data-testid="open-summary">
                 <Calculator size={19} /> القياسات والكميات والتكلفة
+              </button>
+              <button type="button" className={item} onClick={() => go('power')} data-testid="open-power">
+                <Zap size={19} /> الكهرباء: المولد والديزل والكيابل
               </button>
               <button type="button" className={item} onClick={() => go('checklist')} data-testid="open-checklist">
                 <ClipboardCheck size={19} /> قائمة التجهيز قبل التركيب

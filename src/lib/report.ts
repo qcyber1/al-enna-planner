@@ -8,6 +8,7 @@ import { formatArea, formatMeters, formatNumber, round } from './geometry';
 import { isIzba } from './izba';
 import { CONTINGENCY_PCT, izbaEstimate } from './izbaCost';
 import { izbaInsights } from './izbaInsights';
+import { computePower } from './power';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const money = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -20,6 +21,7 @@ export function buildReportHtml(project: Project, design: Design): string {
   const total = lines.reduce((sum, l) => sum + (project.prices[l.key] ?? 0) * l.qty, 0);
   const ie = izba ? izbaEstimate(design.plan, s, project.prices) : null;
   const ii = izba ? izbaInsights(design.plan, s) : null;
+  const pw = izba ? null : computePower(design.plan, project.power);
   const planImg = renderPlanCanvas(design.plan, { width: 1400, footer: false, names: true, dims: true }).toDataURL('image/jpeg', 0.85);
   const d3 = loadThumbs(design.id).d3;
   const stats: [string, string][] = ie ? [
@@ -39,7 +41,8 @@ export function buildReportHtml(project: Project, design: Design): string {
     ['العشب الصناعي (تقديري)', formatArea(s.turfArea, 1)],
     ['السياج أو التور', formatMeters(s.fenceLength, 1)],
     ['الحمامات / المغاسل', `${s.toilets} / ${s.sinks}`],
-    ['الحمل الكهربائي للإنارة', `${formatNumber(s.lights.totalWatts / 1000, 2)} kW`],
+    ['الحمل الكهربائي', pw && pw.peakKw ? `${pw.peakKw} kW — مولد ${pw.generatorKva} kVA` : `${formatNumber(s.lights.totalWatts / 1000, 2)} kW`],
+    ['الديزل بالليلة', pw?.litersPerNight ? `≈ ${pw.litersPerNight} لتر` : '—'],
     ['المساحة الفارغة', `${formatArea(s.freeArea, 0)} (${formatNumber(s.freePct, 0)}%)`],
   ];
   const izbaRows = ie
@@ -81,6 +84,7 @@ export function buildReportHtml(project: Project, design: Design): string {
 <div class="imgs"><div><img src="${planImg}" alt="المخطط"><div class="cap">المخطط (مسقط علوي بالمقاسات)</div></div>${d3 ? `<div><img src="${d3}" alt="المجسم"><div class="cap">المجسم ثلاثي الأبعاد</div></div>` : ''}</div>
 <div class="stats">${stats.map(([k, v]) => `<div class="stat"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>
 ${tents ? `<b style="font-size:13px">الخيام</b><ul>${tents}</ul>` : ''}
+${pw && pw.lines.some((l) => l.watts > 0) ? `<b style="font-size:13px">⚡ الكهرباء (${pw.generatorKva} kVA)</b><ul>${pw.lines.filter((l) => l.watts > 0).map((l) => `<li>${esc(l.name)}: ${formatNumber(l.watts / 1000, 1)} kW${l.cableM ? ` — ${l.cableM} م كيبل ${l.cableMm2 ? l.cableMm2 + ' مم²' : '(لوحة فرعية)'}` : ''}</li>`).join('')}</ul>${pw.cableByMm2.length ? `<div class="note">الكيابل تقريباً: ${pw.cableByMm2.map((c) => `${c.m} م × ${c.mm2} مم²`).join(' • ')}</div>` : ''}` : ''}
 <table><thead><tr><th>البند</th><th>الوحدة</th><th class="n">الكمية</th><th class="n">سعر الوحدة (ر.ق)</th><th class="n">الإجمالي (ر.ق)</th></tr></thead>
 <tbody>${(ie ? izbaRows : rows) || '<tr><td colspan="5">ما في بنود</td></tr>'}</tbody>
 <tfoot><tr><td colspan="4">الإجمالي التقديري${ie ? ` (المتوقع ${money(ie.low)} – ${money(ie.high)})` : total ? '' : ' (ما انكتبت أسعار)'}</td><td class="n">${money(ie ? ie.total : total)}</td></tr></tfoot></table>

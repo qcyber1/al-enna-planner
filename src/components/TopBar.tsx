@@ -21,6 +21,7 @@ import {
   Sparkles,
   Gift,
   ClipboardCheck,
+  Zap,
 } from 'lucide-react';
 import { useEditor } from '../store/editorStore';
 import { IconButton, Segmented, cx } from './ui';
@@ -181,6 +182,9 @@ export function TopBar({ compact }: { compact: boolean }) {
             </IconButton>
             <IconButton tone="dark" label="القياسات وحصر الكميات" onClick={() => openDialog('summary')} data-testid="open-summary">
               <Calculator size={17} />
+            </IconButton>
+            <IconButton tone="dark" label="كهرباء العنة (المولد والكيابل)" onClick={() => openDialog('power')} data-testid="open-power-desk">
+              <Zap size={17} />
             </IconButton>
             <IconButton tone="dark" label="قائمة التجهيز قبل التركيب" onClick={() => openDialog('checklist')} data-testid="open-checklist-desk">
               <ClipboardCheck size={17} />
