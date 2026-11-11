@@ -58,7 +58,7 @@ export function WelcomeDialog() {
     const st = useEditor.getState();
     const u = IZBA_USES.find((x) => x.id === use)!;
     const size = IZBA_PLOT_OPTIONS.find((x) => x.n === plots)!.size;
-    st.addDesign(`${u.title} ${size}`, 'blank');
+    st.addDesign(`${u.title} ${size}`, 'blank', true);
     st.setPlan(() => buildIzba(use, plots), { history: false });
     openDialog(null);
     setTimeout(() => useViewport.getState().requestFit(), 60);
@@ -67,7 +67,7 @@ export function WelcomeDialog() {
   const startEmptyIzba = () => {
     const st = useEditor.getState();
     const size = IZBA_PLOT_OPTIONS.find((x) => x.n === plots)!.size;
-    st.addDesign(`عزبة فاضية ${size}`, 'blank');
+    st.addDesign(`عزبة فاضية ${size}`, 'blank', true);
     st.setPlan(() => emptyPlan(izbaLand(plots)), { history: false });
     openDialog(null);
     setTimeout(() => useViewport.getState().requestFit(), 60);

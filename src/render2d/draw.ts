@@ -1302,7 +1302,9 @@ export function drawLabels(ctx: Ctx, plan: Plan, o: LabelOpts) {
       cy = m.y;
       const L = polylineLength(pts);
       if (el.kind === 'path' && el.path) {
-        dims = `${fmt(L)} × ${fmt(el.path.width)} م = ${fmt(L * el.path.width, 1)} م²`;
+        const c = el.path.circle;
+        // دائرة (حديقة / ميدان / مضمار): القطر أوضح من «الطول × العرض»
+        dims = c ? (c.filled ? `⌀ ${fmt(c.r * 2)} م • ${fmt(Math.PI * c.r * c.r, 0)} م²` : `⌀ ${fmt(c.r * 2)} م • طوله ${fmt(L, 0)} م`) : `${fmt(L)} × ${fmt(el.path.width)} م = ${fmt(L * el.path.width, 1)} م²`;
       } else {
         dims = `${fmt(L)} م`;
       }

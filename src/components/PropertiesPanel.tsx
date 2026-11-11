@@ -1,3 +1,5 @@
+import { izbaInsights } from '../lib/izbaInsights';
+import { useSummary } from '../hooks/useDerived';
 import { AlertTriangle, Copy, Lock, Trash2, Unlock, ArrowUpToLine, ArrowDownToLine, RotateCcw, RotateCw, Plus, Ruler, Wand2 } from 'lucide-react';
 import type { FloorFinish, PlanElement, RoomType, Side, WallFinish } from '../types/plan';
 import { getPlan, useEditor, usePlan } from '../store/editorStore';
@@ -107,6 +109,7 @@ function NothingSelected() {
         )}
       </Section>
       <WindSection />
+      <IzbaTipsSection />
       <Section title={`القياسات (${plan.measurements.length})`}>
         {plan.measurements.length === 0 && <p className="text-[12px] text-sand-600">استخدم أداة القياس <Ruler size={12} className="inline" /> لقياس أي مسافة على المخطط.</p>}
         {plan.measurements.map((m, i) => (
@@ -539,6 +542,32 @@ function LightSection({ el, upd }: { el: PlanElement; upd: Upd }) {
         </>
       )}
       <p className="text-[11px] text-sand-600">بدّل إلى «ليل» لمشاهدة تأثير الإنارة، أو فعّل خريطة الإضاءة في المخطط 2D.</p>
+    </Section>
+  );
+}
+
+/** العزبة: نصايح سريعة (الماي، العلف، المولد…) وزر «ملف العزبة» — تبين وأنت تصمم */
+function IzbaTipsSection() {
+  const plan = usePlan();
+  const s = useSummary();
+  const tips = useMemo(() => (plan.land.site === 'izba' ? izbaInsights(plan, s).tips : []), [plan, s]);
+  if (plan.land.site !== 'izba') return null;
+  return (
+    <Section title={`🏡 العزبة${tips.length ? ` (${tips.length})` : ''}`}>
+      {tips.length === 0 ? (
+        <div className="rounded-lg bg-turf-500/10 p-2.5 text-[12px] text-turf-700" data-testid="izba-tips-ok">✓ مرتبة: الماي والعلف والخدمات تمام</div>
+      ) : (
+        <ul className="space-y-1.5" data-testid="izba-side-tips">
+          {tips.map((t) => (
+            <li key={t.text} className={cx('rounded-lg p-2 text-[12px] leading-snug', t.level === 'warn' ? 'bg-amber-50 text-amber-900' : 'bg-sand-100 text-sand-800')}>
+              {t.level === 'warn' ? '⚠️' : '💡'} {t.text}
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" onClick={() => useEditor.getState().openDialog('izba')} className="mt-2 w-full rounded-lg bg-gold-500 py-2 text-[12px] font-bold text-dune" data-testid="side-izba-hub">
+        📋 ملف العزبة: التكلفة والري والكهرباء
+      </button>
     </Section>
   );
 }
