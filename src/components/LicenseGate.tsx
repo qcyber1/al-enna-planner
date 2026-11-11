@@ -129,6 +129,8 @@ const IZBA_FEATURES = [
 ];
 const localPhone = (ph?: string) => (ph && ph.startsWith('974') && ph.length === 11 ? ph.slice(3) : ph || '');
 const ORDER_KEY = 'enna.order';
+/** شكل كود التفعيل: ENNA-XXXX-XXXX-XXXX (بشرطات أو بدونها) */
+const isCode = (v: string) => /^enna[-\s]?[a-z0-9]{4}[-\s]?[a-z0-9]{4}[-\s]?[a-z0-9]{4}$/i.test(v.trim());
 const REF_KEY = 'enna.ref';
 export { TOKEN_KEY };
 
@@ -282,12 +284,11 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const activate = async (theCode: string) => {
     setBusy(true);
     setError('');
     try {
-      const { data } = await post('/api/activate', { code, device: deviceId() });
+      const { data } = await post('/api/activate', { code: theCode, device: deviceId() });
       if (data.ok && data.token) {
         set(TOKEN_KEY, data.token);
         saveProducts((data as { products?: unknown }).products);
@@ -301,9 +302,22 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     }
   };
 
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void activate(code);
+  };
+
   const doLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    // كتب كود التفعيل في خانة الجوال أو كلمة المرور؟ نفعّله على طول بدل ما نطلب رقم
+    const typed = [login.password, login.phone].map((v) => v.trim()).find((v) => isCode(v));
+    if (typed) {
+      setCode(typed);
+      setMode('code');
+      setLoginErr({});
+      return void activate(typed);
+    }
     const errs = { phone: parsePhone(login.phone).error, password: login.password ? undefined : 'اكتب كلمة المرور' };
     setLoginErr(errs);
     if (errs.phone || errs.password) return;
@@ -484,7 +498,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
                 {busy ? <Loader2 size={18} className="animate-spin" /> : <LogIn size={18} />} دخول
               </button>
               <div className="flex justify-between text-[12px]">
-                <button type="button" className="font-semibold text-gold-700 underline" onClick={() => { setMode('code'); setError(''); }} data-testid="use-code">أول مرة؟ ادخل بالكود</button>
+                <button type="button" className="rounded-lg border-2 border-gold-500 bg-white px-3 py-1.5 font-bold text-dune hover:bg-gold-50" onClick={() => { setMode('code'); setError(''); }} data-testid="use-code">🔑 عندي كود تفعيل</button>
                 {info.content.support ? (
                   <a href={waLink(info.content.support, 'هلا، نسيت كلمة المرور حق مخطط العنة')} target="_blank" rel="noreferrer" className="font-semibold text-gold-700 underline" data-testid="support-link">
                     نسيت كلمة المرور؟ تواصل معنا
