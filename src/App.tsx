@@ -23,8 +23,43 @@ import { useShortcuts } from './hooks/useShortcuts';
 import { clearShareHash, readShareFromHash } from './lib/share';
 import { storageAvailable } from './lib/storage';
 import { cx } from './components/ui';
+import { ErrorBoundary, isChunkError, reloadOnce } from './components/ErrorBoundary';
 
 const loadScene3D = () => import('./scene3d/Scene3D');
+
+// ملف ناقص بعد نشر نسخة جديدة (الصفحة كانت مفتوحة من قبل): Vite يبلغنا ← نحدّث مرة وحدة
+if (typeof window !== 'undefined') window.addEventListener('vite:preloadError', () => void reloadOnce());
+
+/** بدل الشاشة البيضاء: رسالة واضحة والمخطط 2D يظل شغال */
+function Error3D({ error, reset }: { error: Error; reset: () => void }) {
+  const setView = useEditor((s) => s.setView);
+  const chunk = isChunkError(error);
+  return (
+    <div className="flex h-full items-center justify-center bg-sand-50 p-6" data-testid="error-3d">
+      <div className="max-w-sm space-y-3 rounded-2xl bg-white p-5 text-center shadow">
+        <div className="text-3xl">🧊</div>
+        <div className="font-bold text-dune">{chunk ? 'في نسخة جديدة من الموقع' : 'ما قدرنا نعرض المجسم 3D'}</div>
+        <p className="text-sm text-sand-700">{chunk ? 'حدّث الصفحة عشان يشتغل المجسم — تصميمك محفوظ.' : 'تصميمك محفوظ وما تأثر. جرّب تحدّث الصفحة، أو كمّل على المخطط 2D.'}</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          <button type="button" onClick={() => window.location.reload()} className="rounded-lg bg-gold-500 px-4 py-2 font-bold text-dune">
+            حدّث الصفحة
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              reset();
+              setView('2d');
+            }}
+            className="rounded-lg border border-sand-300 px-4 py-2 font-semibold text-dune"
+          >
+            ارجع للمخطط 2D
+          </button>
+        </div>
+        {!chunk && <p className="select-all break-all text-[10px] text-sand-500" dir="ltr">{String(error.message).slice(0, 200)}</p>}
+      </div>
+    </div>
+  );
+}
 const Scene3D = lazy(loadScene3D);
 
 // تحميل الـ3D بهدوء بعد ما تستقر الصفحة (أول فتح صار أسرع، والتبديل لـ3D يظل فوري)
@@ -110,9 +145,17 @@ export default function App() {
           )}
           {(effectiveView === '3d' || effectiveView === 'split') && (
             <div className={cx('relative h-full min-w-0', effectiveView === 'split' ? 'w-1/2' : 'w-full')}>
-              <Suspense fallback={<Loading3D />}>
-                <Scene3D />
-              </Suspense>
+              <ErrorBoundary
+                onError={(e) => {
+                  // ملف ناقص بعد تحديث الموقع: نحدّث الصفحة مرة وحدة وتنحل
+                  if (isChunkError(e)) reloadOnce();
+                }}
+                fallback={(e, reset) => <Error3D error={e} reset={reset} />}
+              >
+                <Suspense fallback={<Loading3D />}>
+                  <Scene3D />
+                </Suspense>
+              </ErrorBoundary>
             </div>
           )}
           {!isDesktop && (

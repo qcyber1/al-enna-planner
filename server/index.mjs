@@ -469,7 +469,11 @@ function serveStatic(req, res, urlPath) {
   }
   let file = safeJoin(DIST, urlPath);
   if (!file) return send(res, 403, { error: 'forbidden' });
-  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, 'index.html');
+  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+    // ملف /assets ناقص (نسخة قديمة بعد النشر): 404 بدون حفظ — مو الصفحة الرئيسية (كانت تنحفظ سنة وتخرب المجسم)
+    if (urlPath.startsWith('/assets/')) return send(res, 404, 'not found', { 'cache-control': 'no-store', 'content-type': 'text/plain; charset=utf-8' });
+    file = path.join(DIST, 'index.html');
+  }
   const ext = path.extname(file);
   const immutable = urlPath.startsWith('/assets/');
   const headers = {

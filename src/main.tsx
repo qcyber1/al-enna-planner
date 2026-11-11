@@ -6,6 +6,7 @@ import '@fontsource/ibm-plex-sans-arabic/600.css';
 import '@fontsource/ibm-plex-sans-arabic/700.css';
 import './index.css';
 import App from './App';
+import { ErrorBoundary, isChunkError, reloadOnce } from './components/ErrorBoundary';
 import { LicenseGate } from './components/LicenseGate';
 import { useEditor } from './store/editorStore';
 import { useViewport } from './editor2d/viewport';
@@ -32,8 +33,26 @@ if ('serviceWorker' in navigator && import.meta.env.PROD && !new URLSearchParams
 const ready = getLang() === 'en' ? initI18n().catch(() => {}) : Promise.resolve();
 void ready.then(() => createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <LicenseGate>
-      <App />
-    </LicenseGate>
+    <ErrorBoundary
+      onError={(e) => {
+        if (isChunkError(e)) reloadOnce();
+      }}
+      fallback={() => (
+        <div dir="rtl" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#3b2a1e', padding: 24, fontFamily: 'IBM Plex Sans Arabic, system-ui, sans-serif' }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 360, textAlign: 'center' }}>
+            <div style={{ fontSize: 32 }}>⛺</div>
+            <p style={{ fontWeight: 700, color: '#2b1d12' }}>صار خطأ بسيط في الصفحة</p>
+            <p style={{ color: '#7a5c3e', fontSize: 14 }}>تصميمك محفوظ وما تأثر — حدّث الصفحة وتكمل.</p>
+            <button type="button" onClick={() => window.location.reload()} style={{ background: '#d4a24c', border: 0, borderRadius: 10, padding: '10px 18px', fontWeight: 700, cursor: 'pointer' }}>
+              حدّث الصفحة
+            </button>
+          </div>
+        </div>
+      )}
+    >
+      <LicenseGate>
+        <App />
+      </LicenseGate>
+    </ErrorBoundary>
   </StrictMode>,
 ));
