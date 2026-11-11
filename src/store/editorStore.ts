@@ -153,7 +153,7 @@ interface State {
 
   // ——— التصاميم ———
   switchDesign: (id: string) => void;
-  addDesign: (name: string, source: 'copy' | 'blank' | 'sample') => void;
+  addDesign: (name: string, source: 'copy' | 'blank' | 'sample', quiet?: boolean) => void;
   renameDesign: (id: string, name: string) => void;
   setDesignNote: (id: string, note: string) => void;
   deleteDesign: (id: string) => void;
@@ -551,7 +551,7 @@ export const useEditor = create<State>()((set, get) => ({
     });
   },
 
-  addDesign: (name, source) => {
+  addDesign: (name, source, quiet) => {
     const s = get();
     let plan: Plan;
     const current = activeDesign(s.project).plan;
@@ -565,7 +565,7 @@ export const useEditor = create<State>()((set, get) => ({
       future: [],
       selection: [],
     });
-    get().toast(`تم إنشاء «${d.name}»`, 'success');
+    if (!quiet) get().toast(`تم إنشاء «${d.name}»`, 'success');
   },
 
   renameDesign: (id, name) => {

@@ -5,7 +5,7 @@ import { createElement, makeRoom, ROOM_TYPE_LABELS } from './catalog';
 import { WALL } from './rooms';
 
 export interface BuildingPreset {
-  id: 'izba-house' | 'majlis-annex';
+  id: 'izba-house' | 'majlis-annex' | 'women-annex' | 'workers';
   title: string;
   blurb: string;
   width: number;
@@ -15,6 +15,8 @@ export interface BuildingPreset {
 export const BUILDING_PRESETS: BuildingPreset[] = [
   { id: 'izba-house', title: 'مبنى عزبة كامل', blurb: 'مجلس كبير، غرفة ألعاب، غرفتين نوم، حمامين، مطبخ ومخزن', width: 20, depth: 12 },
   { id: 'majlis-annex', title: 'مجلس مع حمام ومطبخ', blurb: 'ملحق مجلس مستقل', width: 14, depth: 8 },
+  { id: 'women-annex', title: 'ملحق النساء', blurb: 'مجلس نساء، حمام، مطبخ صغير ومدخل مستقل', width: 14, depth: 9 },
+  { id: 'workers', title: 'سكن العمال', blurb: 'غرفتين، حمام ومطبخ — قريب من الحلال', width: 11, depth: 6 },
 ];
 
 type R = [RoomType, number, number, number, number, Opening[], Opening[]?, string?];
@@ -51,6 +53,21 @@ export function buildPreset(id: BuildingPreset['id'], x0: number, y0: number, ro
       ['bath-set', 11.5, 1.1],
       ['bath-set', 14.3, 1.1],
     );
+  } else if (id === 'women-annex') {
+    rooms.push(
+      ['majlis', 0, 0, 9.2, 9, [d('front', 1.8)], [d('left', 1.4), d('back', 1.4, -2.5), d('back', 1.4, 2.5)], 'مجلس النساء'],
+      ['bathroom', 9, 0, 5, 3.8, [d('left', 0.8, 0.6)], [d('back', 0.6)]],
+      ['kitchen', 9, 3.6, 5, 5.4, [d('front', 0.9)], [d('right', 1.2)], 'مطبخ صغير'],
+    );
+    furn.push(['sofa-l', 4.6, 4.5, { width: 8.4, depth: 8.2 }], ['tv-unit', 8.65, 4.5, { rotation: 90 }], ['coffee-table', 4.6, 5], ['bath-set', 11.9, 1.1], ['kitchen-counter', 13.45, 6.3, { rotation: 90 }]);
+  } else if (id === 'workers') {
+    rooms.push(
+      ['bedroom', 0, 0, 4, 6, [d('front', 0.9)], [d('back', 1)], 'غرفة عامل 1'],
+      ['bedroom', 3.8, 0, 4, 6, [d('front', 0.9)], [d('back', 1)], 'غرفة عامل 2'],
+      ['bathroom', 7.6, 0, 3.4, 3, [d('front', 0.8, 0.6)], [d('right', 0.6)]],
+      ['kitchen', 7.6, 2.8, 3.4, 3.2, [d('front', 0.8)], [d('right', 1)]],
+    );
+    furn.push(['bed', 2, 1.3], ['bed', 5.8, 1.3], ['bath-set', 9.3, 1.1], ['kitchen-counter', 10.65, 4.4, { rotation: 90, width: 2.4 }]);
   } else {
     rooms.push(
       ['majlis', 0, 0, 9.2, 8, [d('front', 1.8)], [d('front', 1.4, -3), d('front', 1.4, 3), d('left', 1.4)]],

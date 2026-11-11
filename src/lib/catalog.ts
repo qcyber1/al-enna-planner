@@ -54,7 +54,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
 
 export const CATEGORY_ORDER: Category[] = ['tents', 'facilities', 'paths', 'lighting', 'furniture', 'livestock', 'garden', 'building', 'interior'];
 /** ترتيب المكتبة في العزبة: الحلال والزراعة أول */
-export const IZBA_CATEGORY_ORDER: Category[] = ['building', 'interior', 'livestock', 'facilities', 'garden', 'tents', 'furniture', 'paths', 'lighting'];
+export const IZBA_CATEGORY_ORDER: Category[] = ['livestock', 'building', 'facilities', 'garden', 'interior', 'paths', 'lighting', 'furniture', 'tents'];
 
 export const TENT_STYLE_LABELS: Record<TentStyle, string> = {
   majlis: 'مجلس (سقف مائل)',
