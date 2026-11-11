@@ -198,4 +198,10 @@ test('التقرير: المبيعات والتجارب واللي ما كمّل
   // الفترة: المستقبل ينقص لليوم، والمقلوبة تتعدل
   assert.deepEqual(parseRange('2026-12-01', '2026-11-01', now), { from: '2026-11-01', to: '2026-11-11' });
   assert.equal(buildReport(db, '2026-11-10', '2026-11-11', now).perDay.length, 2);
+  // عمولة سكيب كاش: على الدفع الإلكتروني بس (مب الكود اليدوي)
+  const f = buildReport(db, '2026-11-11', '2026-11-11', now, { pct: 2.5, fixed: 1 });
+  assert.equal(f.fees, 8.48 + 13.48, 'كل عملية تتقرب لحالها (8.475 + 13.475)');
+  assert.equal(f.net, Math.round((948 - f.fees) * 100) / 100);
+  assert.equal(f.sales.find((x) => x.method === 'code').fee, 0);
+  assert.equal(r.fees, 0, 'بدون إعداد = بدون عمولة');
 });

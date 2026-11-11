@@ -111,12 +111,20 @@ function periodStats(db, days) {
 }
 
 /** التقرير كامل: الفترة + نفس الطول قبلها للمقارنة */
-export function buildReport(db, fromIn, toIn, now = Date.now()) {
+/** عمولة سكيب كاش لعملية وحدة (الدفع الإلكتروني بس) */
+export const feeOf = (s, fee) => (s.method === 'online' && fee ? Math.round(((s.amount * (fee.pct || 0)) / 100 + (s.amount > 0 ? fee.fixed || 0 : 0)) * 100) / 100 : 0);
+
+export function buildReport(db, fromIn, toIn, now = Date.now(), fee = { pct: 0, fixed: 0 }) {
   const { from, to } = parseRange(fromIn, toIn, now);
   const days = dayList(from, to);
   const prevTo = qaDay(dayStart(from) - DAY);
   const prevFrom = qaDay(dayStart(from) - days.length * DAY);
   const cur = periodStats(db, days);
+  for (const s of cur.sales) {
+    s.fee = feeOf(s, fee);
+    s.net = Math.round((s.amount - s.fee) * 100) / 100;
+  }
+  const fees = Math.round(cur.sales.reduce((t, s) => t + s.fee, 0) * 100) / 100;
   const prev = periodStats(db, dayList(prevFrom, prevTo));
   return {
     from,
@@ -125,6 +133,10 @@ export function buildReport(db, fromIn, toIn, now = Date.now()) {
     generatedAt: now,
     funnelKeptDays: 90,
     ...cur,
+    fee,
+    fees,
+    net: Math.round((cur.revenue - fees) * 100) / 100,
+    onlineRevenue: cur.sales.filter((s) => s.method === 'online').reduce((t, s) => t + s.amount, 0),
     prev: { from: prevFrom, to: prevTo, visits: prev.visits, trials: prev.trials, purchases: prev.purchases, revenue: prev.revenue },
     totals: allTime(db),
   };
