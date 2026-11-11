@@ -61,6 +61,8 @@ const izbaListPrice = () => setNum('izbaListPrice', 999);
 const izbaUpgrade = () => setNum('izbaUpgrade', 299);
 // العزبة قبل الإطلاق مخفية عن العملاء: لا صفحة ولا بيع ولا ترقية (الفريق ياخذ أكواد عزبة من «أكواد يدوية»)
 const izbaLive = () => db.settings.izbaLive === true;
+// عمولة سكيب كاش (من عقد التاجر): نسبة % + رسوم ثابتة لكل عملية — للعرض في الإيراد بس، ما تأثر على سعر العميل
+const skipcashFee = () => ({ pct: setNum('skipcashFeePct', 0), fixed: setNum('skipcashFeeFixed', 0) });
 const PRODUCTS = ['enna', 'izba'];
 const productOf = (v) => (v === 'izba' ? 'izba' : 'enna');
 /** منتجات الكود: القديم بدون قائمة = عنة. العزبة تشمل العنة */
@@ -796,7 +798,7 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'POST' && req.headers['x-enna-admin'] !== '1') return send(res, 403, { error: 'طلب مرفوض' });
       if (p === ADMIN_PATH) return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }), { 'x-robots-tag': 'noindex, nofollow' });
       if (p === '/api/admin/report') {
-        return send(res, 200, buildReport(db, url.searchParams.get('from'), url.searchParams.get('to')));
+        return send(res, 200, buildReport(db, url.searchParams.get('from'), url.searchParams.get('to'), Date.now(), skipcashFee()));
       }
       if (p === '/api/admin/funnel') {
         const days = Math.min(90, Math.max(1, Number(url.searchParams.get('days')) || 7));
@@ -804,7 +806,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
-        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive() } });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive(), skipcashFeePct: skipcashFee().pct, skipcashFeeFixed: skipcashFee().fixed } });
       }
       // تجربة شاشة ما بعد الدفع بدون سكيب كاش ولا فلوس (ما تنحسب في المبيعات)
       if (p === '/api/admin/test-order' && req.method === 'POST') {
@@ -873,6 +875,13 @@ const server = http.createServer(async (req, res) => {
           next.izbaUpgrade = iu;
         }
         if (b.izbaLive !== undefined) next.izbaLive = b.izbaLive === true;
+        if (b.skipcashFeePct !== undefined) {
+          const fp = Number(b.skipcashFeePct);
+          const ff = Number(b.skipcashFeeFixed ?? 0);
+          if (!Number.isFinite(fp) || fp < 0 || fp > 15 || !Number.isFinite(ff) || ff < 0 || ff > 50) return send(res, 400, { error: 'تأكد من عمولة سكيب كاش (النسبة 0–15% والرسوم الثابتة 0–50 ر.ق)' });
+          next.skipcashFeePct = Math.round(fp * 100) / 100;
+          next.skipcashFeeFixed = Math.round(ff * 100) / 100;
+        }
         // العرض الخاص (اختياري في الطلب — لو ما انرسل نخلي القديم)
         if (b.offerPrice !== undefined) {
           const op = num(b.offerPrice, 0, 100000);
