@@ -1,3 +1,4 @@
+import { computePower } from '../lib/power';
 import { useMemo, useState } from 'react';
 import { ClipboardCheck, MessageCircle, RotateCcw } from 'lucide-react';
 import { useActiveDesign, useEditor } from '../store/editorStore';
@@ -32,7 +33,8 @@ function ChecklistBody() {
   const openDialog = useEditor((s) => s.openDialog);
   const design = useActiveDesign();
   const s = useSummary();
-  const groups = useMemo(() => buildChecklist(s), [s]);
+  const power = useEditor((st) => st.project.power);
+  const groups = useMemo(() => buildChecklist(s, computePower(design.plan, power)), [s, design.plan, power]);
   const [done, setDone] = useState<Record<string, boolean>>(() => load(design.id));
   const total = checklistCount(groups);
   const ids = new Set(groups.flatMap((g) => g.items.map((i) => i.id)));

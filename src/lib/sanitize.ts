@@ -1,3 +1,4 @@
+import { sanitizePower } from './power';
 import {
   SCHEMA_VERSION,
   type Design,
@@ -256,6 +257,7 @@ export function sanitizeProject(raw: unknown, report?: SanitizeReport): Project 
     }
   }
   const est = isObj(raw.estimate) ? raw.estimate : {};
+  const power = sanitizePower(raw.power);
   return {
     schema: SCHEMA_VERSION,
     id: str(raw.id, uid('p'), 80) || uid('p'),
@@ -266,6 +268,7 @@ export function sanitizeProject(raw: unknown, report?: SanitizeReport): Project 
     activeDesignId: designs.some((d) => d.id === active) ? active : designs[0].id,
     finalDesignId: typeof raw.finalDesignId === 'string' ? raw.finalDesignId : undefined,
     prices,
+    ...(power ? { power } : {}),
     estimate: {
       beamLength: num(est.beamLength, DEFAULT_ESTIMATE.beamLength, 0.5, 12),
       beamSection: str(est.beamSection, DEFAULT_ESTIMATE.beamSection, 20),

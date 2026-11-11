@@ -1,3 +1,4 @@
+import type { PowerResult } from './power';
 // قائمة التجهيز قبل التركيب: مستخرجة من المخطط (تتشيّك وتنحفظ لكل تصميم)
 import type { ElementKind } from '../types/plan';
 import type { Summary } from './quantities';
@@ -16,7 +17,7 @@ export interface CheckGroup {
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
-export function buildChecklist(s: Summary): CheckGroup[] {
+export function buildChecklist(s: Summary, power?: PowerResult): CheckGroup[] {
   const c = s.counts;
   const label = (k: ElementKind) => CATALOG_BY_KIND[k].label;
   const groups: CheckGroup[] = [];
@@ -49,9 +50,14 @@ export function buildChecklist(s: Summary): CheckGroup[] {
     s.lights.groundLights + s.lights.pathEdgeLights > 0 && { id: 'ground', text: `ليتات أرضية للممرات × ${s.lights.groundLights + s.lights.pathEdgeLights}` },
     s.lights.entranceLights > 0 && { id: 'entrance', text: `إنارة المدخل × ${s.lights.entranceLights}` },
     s.lights.lanterns + s.lights.tentEntranceLights > 0 && { id: 'lanterns', text: `فوانيس مداخل الخيام × ${s.lights.lanterns + s.lights.tentEntranceLights}` },
-    kw > 0 && { id: 'genpower', text: `مولد لا يقل عن ${Math.max(5, Math.ceil((kw * 1.5) / 0.8))} kVA`, hint: `حمل الإنارة ≈ ${r1(kw)} kW + احتياط للمكيفات والمطبخ` },
-    c['generator'] > 0 && { id: 'diesel', text: c['diesel-tank'] > 0 ? 'تعبئة خزان الديزل' : 'ديزل للمولد (جوالين)' },
-    kw > 0 && { id: 'cables', text: 'أسلاك تمديد خارجية + مشتركات مقاومة للماء + لوحة قواطع' },
+    power && power.generatorKva > 0
+      ? { id: 'genpower', text: `مولد ${power.generatorKva} kVA`, hint: `أعلى حمل ≈ ${power.peakKw} kW (أجهزة + إنارة)` }
+      : kw > 0 && { id: 'genpower', text: `مولد لا يقل عن ${Math.max(5, Math.ceil((kw * 1.5) / 0.8))} kVA`, hint: `حمل الإنارة ≈ ${r1(kw)} kW + احتياط للمكيفات والمطبخ` },
+    c['generator'] > 0 && { id: 'diesel', text: c['diesel-tank'] > 0 ? 'تعبئة خزان الديزل' : 'ديزل للمولد (جوالين)', hint: power?.litersPerNight ? `≈ ${power.litersPerNight} لتر بالليلة` : undefined },
+    ...(power?.cableByMm2.length
+      ? power.cableByMm2.map((cb) => ({ id: `cable-${cb.mm2}`, text: `كيبل ${cb.mm2} مم² ≈ ${Math.ceil(cb.m * 1.1)} م`, hint: 'مع 10% احتياط' }))
+      : []),
+    (kw > 0 || (power?.lines.length ?? 0) > 0) && { id: 'cables', text: 'مشتركات مقاومة للماء + لوحة قواطع (مع قاطع تسريب أرضي)' },
   ]);
 
   g('الممرات والأرضيات', '🟩', [
