@@ -8,6 +8,7 @@ import { formatArea, formatMeters, formatNumber, round } from './geometry';
 import { isIzba } from './izba';
 import { CONTINGENCY_PCT, izbaEstimate, izbaPhases } from './izbaCost';
 import { izbaInsights } from './izbaInsights';
+import { izbaIrrigation } from './irrigation';
 import { computePower } from './power';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -21,6 +22,7 @@ export function buildReportHtml(project: Project, design: Design): string {
   const total = lines.reduce((sum, l) => sum + (project.prices[l.key] ?? 0) * l.qty, 0);
   const ie = izba ? izbaEstimate(design.plan, s, project.prices) : null;
   const ii = izba ? izbaInsights(design.plan, s) : null;
+  const ir = izba ? izbaIrrigation(design.plan) : null;
   const pw = izba ? null : computePower(design.plan, project.power);
   const planImg = renderPlanCanvas(design.plan, { width: 1400, footer: false, names: true, dims: true }).toDataURL('image/jpeg', 0.85);
   const d3 = loadThumbs(design.id).d3;
@@ -32,6 +34,7 @@ export function buildReportHtml(project: Project, design: Design): string {
     ['سعة الحلال', [ii!.sheep && `${ii!.sheep} غنم`, ii!.camels && `${ii!.camels} إبل`, ii!.horses && `${ii!.horses} خيل`].filter(Boolean).join(' • ') || '—'],
     ['الماي باليوم', `${money(ii!.waterPerDay)} لتر${ii!.tankDays !== null ? ` (الخزان ${ii!.tankDays} يوم)` : ''}`],
     ['الحمل الكهربائي', `${ii!.powerKw} kW — مولد ${ii!.generatorKva} KVA`],
+    ['شبكة الري', ir && ir.flowLph ? `${ir.mainM} م رئيسي + ${ir.lateralM} م تنقيط — مضخة ${ir.pumpHp} حصان، ${ir.zones} محبس` : '—'],
     ['السور', formatMeters(s.fenceLength, 1)],
   ] : [
     ['مساحة الأرض', formatArea(s.landArea, 0)],
