@@ -43,7 +43,8 @@ export type DialogName =
   | 'invite'
   | 'feedback'
   | 'checklist'
-  | 'power';
+  | 'power'
+  | 'izba';
 
 export interface Toast {
   id: string;

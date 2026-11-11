@@ -29,7 +29,7 @@ import { isDemo } from '../lib/demo';
 import { trackExportBlocked } from '../lib/pixel';
 
 /** في التجربة المجانية: التصدير بعد الشراء */
-function demoBlock(what = 'export'): boolean {
+export function demoBlock(what = 'export'): boolean {
   if (!isDemo()) return false;
   trackExportBlocked(what);
   useEditor.getState().toast('التصدير متاح بعد الشراء — تصميمك ينحفظ لك 👍', 'warning');
@@ -62,7 +62,7 @@ export function WelcomeDialog() {
     st.setPlan(() => buildIzba(use, plots), { history: false });
     openDialog(null);
     setTimeout(() => useViewport.getState().requestFit(), 60);
-    st.toast(`تم فتح «${u.title}» على ${size} م — عدّل عليها براحتك`, 'success');
+    st.toast(`تم فتح «${u.title}» على ${size} م — عدّل عليها براحتك`, 'success', { label: '📋 ملف العزبة', run: () => useEditor.getState().openDialog('izba') });
   };
   const startEmptyIzba = () => {
     const st = useEditor.getState();
