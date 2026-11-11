@@ -183,7 +183,7 @@ export function renderPlanSheet(plan: Plan, info: SheetInfo): HTMLCanvasElement 
   dimLine(ctx, { x: b.minX, y: b.maxY + 2.2 }, { x: b.maxX, y: b.maxY + 2.2 }, `${fmt(b.maxX - b.minX)} م`, ppm);
   dimLine(ctx, { x: b.minX - 2.2, y: b.minY }, { x: b.minX - 2.2, y: b.maxY }, `${fmt(b.maxY - b.minY)} م`, ppm, true);
   ctx.restore();
-  drawWatermark(ctx, ax, ay, aw, ah, false);
+  drawWatermark(ctx, ax, ay, aw, ah, false, izba);
 
   // الإطار فوق المسقط
   ctx.strokeStyle = '#2b1d12';
@@ -216,7 +216,7 @@ export function renderPlanSheet(plan: Plan, info: SheetInfo): HTMLCanvasElement 
   ctx.fillStyle = '#d4a24c';
   ctx.fillRect(tbX, top + 230, tbW, 8);
   text(ctx, izba ? 'مخطط عزبة' : 'مخطط عنة', R, top + 80, 78, '#f7ecd6', 800);
-  text(ctx, 'مخطط العنة | Al Enna Planner', R, top + 170, 38, '#d4a24c', 600);
+  text(ctx, izba ? 'i3enna للعزب | i3enna Izba' : 'مخطط العنة | Al Enna Planner', R, top + 170, 38, '#d4a24c', 600);
 
   let y = top + 300;
   const row = (k: string, v: string, size = 42) => {

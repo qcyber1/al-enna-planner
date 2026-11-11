@@ -110,7 +110,7 @@ export function renderPlanCanvas(plan: Plan, opts: PlanImageOptions = {}): HTMLC
     ctx.textAlign = 'left';
     ctx.font = `600 ${header * 0.24}px ${FONT}`;
     ctx.fillStyle = '#d4a24c';
-    ctx.fillText('مخطط العنة | Al Enna Planner', header * 0.35, header * 0.5);
+    ctx.fillText(plan.land.site === 'izba' ? 'i3enna للعزب | i3enna Izba' : 'مخطط العنة | Al Enna Planner', header * 0.35, header * 0.5);
   }
 
   // سهم الشمال
@@ -174,7 +174,7 @@ export function renderPlanCanvas(plan: Plan, opts: PlanImageOptions = {}): HTMLC
   }
 
   // علامتنا الخفيفة على المخطط
-  drawWatermark(ctx, 0, header, W, mapH, !!opts.night);
+  drawWatermark(ctx, 0, header, W, mapH, !!opts.night, plan.land.site === 'izba');
 
   if (opts.lightMap) {
     // مفتاح خريطة الإضاءة

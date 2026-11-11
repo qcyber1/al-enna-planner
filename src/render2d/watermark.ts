@@ -6,7 +6,7 @@ const FONT = "'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif";
  * علامتنا على الصور المصدّرة: شارة صغيرة في الزاوية + اسم شفاف جداً في النص
  * (خفيفة وما تخرّب الصورة، بس تحفظ إن الشغل من مخطط العنة حتى لو قصّوا الزاوية)
  */
-export function drawWatermark(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, dark = false) {
+export function drawWatermark(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, dark = false, izba = false) {
   const s = Math.max(0.6, Math.min(w, h) / 900);
   ctx.save();
   // ١) الاسم في النص — شفاف جداً ومايل
@@ -16,7 +16,7 @@ export function drawWatermark(ctx: CanvasRenderingContext2D, x: number, y: numbe
   ctx.fillStyle = dark ? '#ffffff' : '#3b2a1e';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const mark = '⛺ مخطط العنة • Al Enna Planner';
+  const mark = izba ? '🏡 i3enna للعزب • i3enna Izba' : '⛺ مخطط العنة • Al Enna Planner';
   ctx.font = `700 100px ${FONT}`;
   // حجم يناسب ~55% من عرض الصورة عشان ما يطلع برا
   const size = Math.max(14, Math.min(90, (100 * w * 0.55) / ctx.measureText(mark).width));
@@ -26,7 +26,7 @@ export function drawWatermark(ctx: CanvasRenderingContext2D, x: number, y: numbe
 
   // ٢) شارة الزاوية (تحت يسار)
   ctx.save();
-  const text = `⛺ مخطط العنة • ${SITE_HOST}`;
+  const text = izba ? `🏡 i3enna للعزب • ${SITE_HOST}` : `⛺ مخطط العنة • ${SITE_HOST}`;
   ctx.font = `600 ${Math.round(17 * s)}px ${FONT}`;
   ctx.direction = 'rtl';
   const tw = ctx.measureText(text).width;

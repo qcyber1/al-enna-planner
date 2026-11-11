@@ -8,14 +8,16 @@ import { IzbaInsightsPanel, IzbaIrrigationPanel } from './IzbaInsightsPanel';
 import { IzbaCostPanel } from './IzbaCostPanel';
 import { izbaEstimate } from '../lib/izbaCost';
 import { izbaInsights } from '../lib/izbaInsights';
+import { izbaMaterials, materialRows } from '../lib/izbaMaterials';
 import { openReport } from '../lib/report';
 import { demoBlock } from './Dialogs';
 import { formatNumber } from '../lib/geometry';
 
-type Tab = 'summary' | 'cost' | 'water' | 'power' | 'next';
+type Tab = 'summary' | 'cost' | 'materials' | 'water' | 'power' | 'next';
 const TABS: [Tab, string][] = [
   ['summary', '📊 الملخص'],
   ['cost', '💰 التكلفة'],
+  ['materials', '🧱 المواد'],
   ['water', '💧 الري'],
   ['power', '⚡ الكهرباء'],
   ['next', '✅ الخطوات'],
@@ -101,6 +103,7 @@ function Body() {
             <p className="text-[12px] text-sand-600">نصيحة: الري بالليل أو قبل الفجر يوفر لين 30% من الماي بالصيف. وخل لكل محبس مؤقت لحاله.</p>
           </div>
         )}
+        {tab === 'materials' && <MaterialsTab plan={design.plan} />}
         {tab === 'power' && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -122,6 +125,27 @@ function Body() {
         )}
       </div>
     </Modal>
+  );
+}
+
+function MaterialsTab({ plan }: { plan: Parameters<typeof izbaMaterials>[0] }) {
+  const rows = useMemo(() => materialRows(izbaMaterials(plan)), [plan]);
+  return (
+    <div className="space-y-2" data-testid="izba-materials">
+      <p className="text-[13px] text-sand-700">كميات تقريبية من المباني والسور اللي في المخطط — خذها معك لما تطلب عروض أسعار من المقاول أو محل مواد البناء.</p>
+      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-center justify-between gap-2 rounded-xl border border-sand-200 bg-white px-3 py-2">
+            <span className="text-sm">
+              {r.icon} {r.label}
+              {r.hint && <span className="block text-[11px] text-sand-500">{r.hint}</span>}
+            </span>
+            <b className="shrink-0 text-dune tabular-nums">{r.value}</b>
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-sand-500">بلوك 40×20×20، لياسة 1.5 سم، صبة سقف 20 سم، و5–10% هدر. المهندس أو المقاول يعتمد الكميات النهائية.</p>
+    </div>
   );
 }
 
