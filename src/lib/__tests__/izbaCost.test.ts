@@ -33,3 +33,16 @@ describe('تكلفة العزبة التقديرية', () => {
     expect(b.total).toBeLessThan(a.total);
   });
 });
+
+import { izbaPhases } from '../izbaCost';
+describe('مراحل البناء', () => {
+  it('مجموع المراحل = الإجمالي تقريباً، والسور بالمرحلة الأولى', () => {
+    const plan = buildIzba('mixed', 1);
+    const e = izbaEstimate(plan, computeSummary(plan, DEFAULT_ESTIMATE), {});
+    const ph = izbaPhases(e);
+    expect(ph.length).toBe(3);
+    expect(Math.abs(ph.reduce((t, p) => t + p.total, 0) - e.total)).toBeLessThan(5);
+    expect(ph[0].items.some((x) => x.includes('السور'))).toBe(true);
+    expect(ph[2].items.some((x) => x.includes('حظاير'))).toBe(true);
+  });
+});

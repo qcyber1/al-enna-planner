@@ -173,3 +173,38 @@ export function izbaEstimate(plan: Plan, s: Summary, prices: Record<string, numb
 }
 
 export const hasIzbaEstimate = (plan: Plan) => isIzba(plan.land);
+
+/** مراحل البناء: أغلب الناس يبنون العزبة على مراحل — كل مرحلة بتكلفتها (مع نصيبها من الاحتياطي) */
+export interface IzbaPhase {
+  n: number;
+  title: string;
+  icon: string;
+  hint: string;
+  total: number;
+  items: string[];
+}
+
+const PHASE1 = new Set(['fence', 'gate', 'water-tank', 'generator', 'diesel-tank', 'toilet', 'sink', 'worker-room', 'parking', 'path-sand', 'path-tiles']);
+const PHASE2 = new Set(['rooms', 'rooms-wet', 'majlis-room']);
+
+export function phaseOf(l: Pick<IzbaCostLine, 'key' | 'group'>): 1 | 2 | 3 {
+  const k = l.key.replace(/^izba:/, '');
+  if (PHASE1.has(k)) return 1;
+  if (PHASE2.has(k) || l.group === 'interior') return 2;
+  return 3;
+}
+
+export function izbaPhases(e: IzbaEstimate): IzbaPhase[] {
+  const meta: [string, string, string][] = [
+    ['السور والخدمات الأساسية', '🧱', 'السور والبوابة، الماي والكهرباء، الحمام وغرفة العامل — العزبة تصير قابلة للاستخدام'],
+    ['المباني والمجلس', '🏠', 'المجلس والغرف وتشطيبها والأثاث'],
+    ['الحلال والزراعة والجلسات', '🌴', 'الحظاير والإسطبلات، النخل والزراعة، الجلسات والإنارة والكماليات'],
+  ];
+  const k = e.subtotal ? 1 + CONTINGENCY_PCT / 100 : 1;
+  return meta
+    .map(([title, icon, hint], i) => {
+      const ls = e.lines.filter((l) => phaseOf(l) === i + 1);
+      return { n: i + 1, title, icon, hint, total: Math.round(ls.reduce((t, l) => t + l.total, 0) * k), items: ls.map((l) => l.label) };
+    })
+    .filter((p) => p.total > 0);
+}
