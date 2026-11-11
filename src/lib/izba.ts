@@ -8,14 +8,16 @@ import { validatePlan } from './validation';
 import { izbaAccess } from './license';
 
 export type IzbaUse = 'livestock' | 'rest' | 'farm' | 'mixed' | 'horses' | 'camels' | 'family';
-export type IzbaPlots = 1 | 2 | 4;
+export type IzbaPlots = 1 | 2 | 3 | 4 | 6;
 
 export const IZBA_PLOT = 50;
 
 export const IZBA_PLOT_OPTIONS: { n: IzbaPlots; label: string; size: string }[] = [
   { n: 1, label: 'أرض وحدة', size: '50 × 50' },
   { n: 2, label: 'أرضين', size: '100 × 50' },
+  { n: 3, label: '3 أراضي', size: '150 × 50' },
   { n: 4, label: '4 أراضي', size: '100 × 100' },
+  { n: 6, label: '6 أراضي', size: '150 × 100' },
 ];
 
 export const IZBA_USES: { id: IzbaUse; icon: string; title: string; blurb: string }[] = [
@@ -34,8 +36,10 @@ export function isIzba(land: Pick<Land, 'site'> | undefined): boolean {
 
 export function izbaLand(plots: IzbaPlots = 1): Land {
   const l = defaultLand();
-  const width = plots === 1 ? IZBA_PLOT : IZBA_PLOT * 2;
-  const depth = plots === 4 ? IZBA_PLOT * 2 : IZBA_PLOT;
+  // الأراضي جنب بعض: 1، 2، 3 بصف وحد — و 4 و 6 بصفين
+  const cols = plots === 1 ? 1 : plots === 2 || plots === 4 ? 2 : 3;
+  const width = IZBA_PLOT * cols;
+  const depth = plots === 4 || plots === 6 ? IZBA_PLOT * 2 : IZBA_PLOT;
   return {
     ...l,
     site: 'izba',
@@ -67,9 +71,12 @@ function build(land: Land, specs: Spec[], extra: PlanElement[] = []): Plan {
 
 /** عدد أراضي 50×50 التقريبي لأرض موجودة */
 export function plotsOf(land: Pick<Land, 'width' | 'depth'>): IzbaPlots {
-  const big = Math.max(land.width, land.depth) >= 90;
-  const both = Math.min(land.width, land.depth) >= 90;
-  return both ? 4 : big ? 2 : 1;
+  const long = Math.max(land.width, land.depth);
+  const short = Math.min(land.width, land.depth);
+  const cols = long >= 140 ? 3 : long >= 90 ? 2 : 1;
+  const rows = short >= 90 ? 2 : 1;
+  const n = cols * rows;
+  return n >= 6 ? 6 : n >= 4 ? 4 : n === 3 ? 3 : n === 2 ? 2 : 1;
 }
 
 /** قالب عزبة جاهز حسب الاستخدام وعدد الأراضي (ويحافظ على اتجاه الشمال لو عطيناه أرض المستخدم) */
