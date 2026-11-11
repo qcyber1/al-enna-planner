@@ -204,4 +204,7 @@ test('التقرير: المبيعات والتجارب واللي ما كمّل
   assert.equal(f.net, Math.round((948 - f.fees) * 100) / 100);
   assert.equal(f.sales.find((x) => x.method === 'code').fee, 0);
   assert.equal(r.fees, 0, 'بدون إعداد = بدون عمولة');
+  // دفع في طلب ثاني (برقم مكتوب بشكل مختلف) = ما يطلع في «ما كمّلوا»
+  db.orders.push({ id: '7', no: 7, name: 'فهد', phone: '+974 5522 2222', status: 'paid', online: true, amount: 299, paidAt: t('2026-11-11', 15), createdAt: t('2026-11-11', 15) });
+  assert.equal(buildReport(db, '2026-11-11', '2026-11-11', now).lost.length, 0);
 });
