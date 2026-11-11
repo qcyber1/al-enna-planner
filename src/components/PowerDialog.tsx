@@ -46,7 +46,7 @@ export function PowerDialog() {
   const genWarn = st.generatorKva > 0 && r.generatorKva > st.generatorKva;
 
   return (
-    <Modal open={open} onClose={() => openDialog(null)} wide="xl" title="⚡ كهرباء العنة" footer={<Button variant="primary" onClick={() => openDialog(null)}>تم</Button>}>
+    <Modal open={open} onClose={() => openDialog(null)} wide="xl" title={design.plan.land.site === 'izba' ? '⚡ كهرباء العزبة' : '⚡ كهرباء العنة'} footer={<Button variant="primary" onClick={() => openDialog(null)}>تم</Button>}>
       <div className="space-y-4 p-5" data-testid="power">
         <div className="flex flex-wrap items-center gap-2">
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-sand-100 p-1" role="tablist">

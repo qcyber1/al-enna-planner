@@ -23,13 +23,14 @@ import {
   ClipboardCheck,
   Zap,
 } from 'lucide-react';
-import { useEditor } from '../store/editorStore';
+import { useEditor, usePlan } from '../store/editorStore';
 import { IconButton, Segmented, cx } from './ui';
 import { LangToggle } from './LangToggle';
 import type { TimeOfDay, ViewMode } from '../types/plan';
 
 export function TopBar({ compact }: { compact: boolean }) {
   const project = useEditor((s) => s.project);
+  const izbaPlan = usePlan().land.site === 'izba';
   const view = useEditor((s) => s.view);
   const setView = useEditor((s) => s.setView);
   const time = useEditor((s) => s.time);
@@ -177,6 +178,11 @@ export function TopBar({ compact }: { compact: boolean }) {
         </span>
         {!compact && (
           <>
+            {izbaPlan && (
+              <button type="button" onClick={() => openDialog('izba')} className="mx-1 inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-gold-500 px-3 text-[13px] font-bold text-dune hover:bg-gold-400" data-testid="open-izba-hub">
+                📋 ملف العزبة
+              </button>
+            )}
             <IconButton tone="dark" label="إعدادات الأرض" onClick={() => openDialog('land')} data-testid="open-land">
               <Map size={17} />
             </IconButton>

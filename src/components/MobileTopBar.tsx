@@ -24,7 +24,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { useEditor } from '../store/editorStore';
+import { useEditor, usePlan } from '../store/editorStore';
 import { Segmented, cx } from './ui';
 import { LangToggle } from './LangToggle';
 import type { DialogName } from '../store/editorStore';
@@ -41,6 +41,7 @@ function hasLicense(): boolean {
 /** شريط علوي مبسّط للجوال: الأساسيات ظاهرة والباقي في قائمة */
 export function MobileTopBar() {
   const project = useEditor((s) => s.project);
+  const izbaPlan = usePlan().land.site === 'izba';
   const view = useEditor((s) => s.view);
   const setView = useEditor((s) => s.setView);
   const time = useEditor((s) => s.time);
@@ -144,6 +145,11 @@ export function MobileTopBar() {
               <button type="button" className={item} onClick={() => go('share')}>
                 <Share2 size={19} /> مشاركة وتصدير الصور
               </button>
+              {izbaPlan && (
+                <button type="button" className={item + ' bg-gold-50 font-bold'} onClick={() => go('izba')} data-testid="open-izba-hub-m">
+                  📋 ملف العزبة: التكلفة والري والكهرباء
+                </button>
+              )}
               <button type="button" className={item} onClick={() => go('summary')} data-testid="open-summary">
                 <Calculator size={19} /> القياسات والكميات والتكلفة
               </button>
