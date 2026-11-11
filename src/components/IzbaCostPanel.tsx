@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { useEditor } from '../store/editorStore';
 import { formatNumber } from '../lib/geometry';
-import { CONTINGENCY_PCT, izbaEstimate } from '../lib/izbaCost';
+import { CONTINGENCY_PCT, izbaEstimate, izbaPhases } from '../lib/izbaCost';
 import type { Plan } from '../types/plan';
 import type { Summary } from '../lib/quantities';
 
@@ -13,6 +13,7 @@ export function IzbaCostPanel({ plan, summary }: { plan: Plan; summary: Summary 
   const setPrice = useEditor((s) => s.setPrice);
   const est = useMemo(() => izbaEstimate(plan, summary, prices), [plan, summary, prices]);
   const [open, setOpen] = useState(false);
+  const phases = useMemo(() => izbaPhases(est), [est]);
   const top = Math.max(1, ...est.byGroup.map((g) => g.total));
   const customCount = est.lines.filter((l) => l.custom).length;
 
@@ -54,6 +55,26 @@ export function IzbaCostPanel({ plan, summary }: { plan: Plan; summary: Summary 
           <span className="text-left tabular-nums">{qar(est.contingency)}</span>
         </div>
       </div>
+
+      {phases.length > 1 && (
+        <div className="space-y-1.5" data-testid="izba-phases">
+          <div className="text-sm font-bold text-dune">🗓️ إذا بتبنيها على مراحل</div>
+          {phases.map((p, i) => (
+            <div key={p.n} className="rounded-lg bg-sand-50 px-3 py-2">
+              <div className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="font-semibold text-dune">
+                  {p.icon} المرحلة {p.n}: {p.title}
+                </span>
+                <span className="tabular-nums">
+                  <b>{qar(p.total)}</b>
+                  {i > 0 && <span className="text-[11px] text-sand-500"> • المجموع {qar(phases.slice(0, i + 1).reduce((t, x) => t + x.total, 0))}</span>}
+                </span>
+              </div>
+              <div className="text-[11px] text-sand-600">{p.hint}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <button type="button" onClick={() => setOpen((v) => !v)} className="text-sm font-semibold text-gold-700 underline" data-testid="izba-cost-toggle">
         {open ? 'إخفاء التفاصيل' : `تفاصيل البنود (${est.lines.length})${customCount ? ` — عدّلت ${customCount}` : ''}`}

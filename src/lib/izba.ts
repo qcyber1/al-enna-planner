@@ -7,7 +7,7 @@ import { circlePath } from './angleAssist';
 import { validatePlan } from './validation';
 import { izbaAccess } from './license';
 
-export type IzbaUse = 'livestock' | 'rest' | 'farm' | 'mixed';
+export type IzbaUse = 'livestock' | 'rest' | 'farm' | 'mixed' | 'horses' | 'camels' | 'family';
 export type IzbaPlots = 1 | 2 | 4;
 
 export const IZBA_PLOT = 50;
@@ -23,6 +23,9 @@ export const IZBA_USES: { id: IzbaUse; icon: string; title: string; blurb: strin
   { id: 'livestock', icon: '🐑', title: 'عزبة حلال', blurb: 'حظاير غنم وإبل، مظلات، علف وغرفة عامل' },
   { id: 'rest', icon: '🏊', title: 'استراحة', blurb: 'مجلس، مسبح، حديقة ونخل، جلسات وشوي' },
   { id: 'farm', icon: '🌴', title: 'زراعة', blurb: 'نخل، أحواض خضرة، بيت محمي وخزان ماي' },
+  { id: 'horses', icon: '🐎', title: 'عزبة خيل', blurb: 'إسطبلات، ميدان رمل للتمرين، علف وغرفة سايس' },
+  { id: 'camels', icon: '🐪', title: 'عزبة هجن وإبل', blurb: 'حظاير إبل، مضمار تمرين، مشارب وعلف' },
+  { id: 'family', icon: '👨‍👩‍👧', title: 'استراحة عائلية', blurb: 'مجلس رجال ومجلس نساء منفصل، مسبح وألعاب أطفال' },
 ];
 
 export function isIzba(land: Pick<Land, 'site'> | undefined): boolean {
@@ -122,7 +125,10 @@ function perimeterLayout(use: IzbaUse, W: number, D: number): [Spec[], PlanEleme
   const blue = '#2f5f9e';
   const livestock = use === 'livestock' || use === 'mixed';
   const farm = use === 'farm' || use === 'mixed';
-  const rest = use === 'rest';
+  const family = use === 'family';
+  const rest = use === 'rest' || family;
+  const horses = use === 'horses';
+  const camels = use === 'camels';
 
   // 1) صف شجر على السور الشمالي، مع فتحات للنخل
   for (let x = 4, i = 0; x <= W - 4 + 1e-6; x += big ? 7 : 6, i++) s.push([i % 2 && farm ? 'palm' : 'tree', x, 2.6]);
@@ -167,17 +173,50 @@ function perimeterLayout(use: IzbaUse, W: number, D: number): [Spec[], PlanEleme
     }
   }
 
+  // 4ب) الخيل: إسطبلات على السور الشرقي + علف ومشرب
+  if (horses) {
+    s.push(['feed-store', W - 2.5, 7, { rotation: 90, roof: blue }]);
+    s.push(['trough', W - 9, 7, { rotation: 90, name: 'مشرب الخيل' }]);
+    const cols = big ? [W - 3, W - 12] : [W - 3];
+    let n = 0;
+    for (const cx of cols)
+      for (let y = 19; y + 7 <= D - (big ? 12 : 1); y += 16) {
+        n++;
+        s.push(['horse-stable', cx, y, { rotation: 90, name: `إسطبل ${n}`, roof: red }]);
+      }
+  }
+  // 4ج) الهجن: حظاير إبل على السور الشرقي
+  if (camels) {
+    s.push(['feed-store', W - 2.5, 7, { rotation: 90, roof: blue }]);
+    s.push(['trough', W - 9, 7, { rotation: 90, name: 'مشرب' }]);
+    const cols = big ? [W - 8.5, W - 25] : [W - 8.5];
+    let n = 0;
+    for (const cx of cols)
+      for (let y = 22; y + 10 <= D - (tall ? 1 : 0); y += 22) {
+        n++;
+        s.push(['camel-pen', cx, y, { rotation: 90, name: `حظيرة إبل ${n}`, roof: blue }]);
+      }
+  }
+  // 4د) العائلية: مجلس النساء على السور الشرقي، بعيد عن مجلس الرجال، مع حمام وجلسة خاصة
+  if (family) {
+    const fw = big ? 14 : 12;
+    const fy = 8 + fw / 2;
+    s.push(['majlis-room', W - 4.5, fy, { width: fw, depth: 7, rotation: 90, name: 'مجلس النساء' }]);
+    s.push(['toilet', W - 2.2, fy + fw / 2 + 2, { rotation: 90, name: 'حمام النساء' }]);
+    s.push(['canopy', W - 16, fy - fw / 4 - 1, { name: 'جلسة النساء', width: 6, depth: 5 }]);
+  }
+
   // 5) وسط الحوش حسب الاستخدام
   const cx0 = yardX + 18;
-  const cx1 = livestock ? W - 16 : W - 4;
+  const cx1 = livestock ? W - 16 : horses ? W - (big ? 17 : 8) : camels ? W - (big ? 35 : 18) : family ? W - 20 : W - 4;
   const mid = (cx0 + cx1) / 2;
   if (rest) {
     s.push(['pool', mid, D / 2 - 2, big ? { width: 12, depth: 6 } : {}]);
     s.push(['seating', mid, D / 2 + 5, { name: 'جلسة المسبح' }]);
     s.push(['kids-area', cx1 - 4, 12]);
     ground.push(lawn(mid - (big ? 14 : 0), D - 16, big ? 7 : 5));
-    for (let y = 12; y <= D - 12; y += 8) s.push(['palm', W - 3, y]);
-    if (big) s.push(['volleyball', cx1 - 12, tall ? D - 20 : D / 2]);
+    if (!family) for (let y = 12; y <= D - 12; y += 8) s.push(['palm', W - 3, y]);
+    if (big && !family) s.push(['volleyball', cx1 - 12, tall ? D - 20 : D / 2]);
   }
   if (farm) {
     const fx0 = cx0;
@@ -189,6 +228,20 @@ function perimeterLayout(use: IzbaUse, W: number, D: number): [Spec[], PlanEleme
       s.push(['farm-bed', cx0 + 6, D - 16]);
       s.push(['farm-bed', cx0 + 6, D - 24]);
     }
+  }
+
+  // ميدان الخيل / مضمار الهجن: أرضية رمل في وسط الحوش
+  if (horses || camels) {
+    // الخيل: الميدان بين الممر الرئيسي والإسطبلات (قطره 16 م أو أكثر — مناسب للترويض)
+    const hx0 = W / 2 + 2;
+    const hx1 = W - (big ? 15 : 5);
+    const span = horses ? Math.min(hx1 - hx0, D - 24) : Math.min(cx1 - cx0, D - 24);
+    const r = Math.max(6, Math.min(horses ? 12 : 18, span / 2 - 0.5));
+    const c = horses ? { x: (hx0 + hx1) / 2, y: D / 2 + 3 } : { x: (cx0 + cx1) / 2, y: D / 2 + 3 };
+    const g = horses ? circlePath(c, r, true, 2) : circlePath(c, r, false, 3);
+    const el = createElement('path', g.points[0], { points: g.points, name: horses ? 'ميدان الخيل' : 'مضمار تمرين الهجن' });
+    el.path = { ...el.path!, material: 'sand', width: g.width, circle: { r, filled: horses } };
+    ground.push(el);
   }
 
   // 6) الممر الرئيسي: من البوابة لين باب المجلس
@@ -214,7 +267,8 @@ export function izbaEnabled(): boolean {
 /** أفكار «ولّد» للعزبة: الاستخدامات الأربعة على أرض المستخدم */
 export function izbaIdeas(base: Land): { title: string; description: string; plan: Plan; issues: number; skipped: string[] }[] {
   const plots = plotsOf(base);
-  return IZBA_USES.map((u) => {
+  // «وريني 4 أفكار»: الاستخدامات الأساسية (الخيل والهجن والعائلية من شاشة البداية)
+  return IZBA_USES.filter((u) => ['mixed', 'livestock', 'rest', 'farm'].includes(u.id)).map((u) => {
     const plan = buildIzba(u.id, plots, base);
     return { title: u.title, description: u.blurb, plan, issues: validatePlan(plan).issues.length, skipped: [] };
   });

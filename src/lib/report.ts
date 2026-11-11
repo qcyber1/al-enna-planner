@@ -6,7 +6,7 @@ import { loadThumbs } from './storage';
 import { DEV_LINE, OWNER_LINE } from './brand';
 import { formatArea, formatMeters, formatNumber, round } from './geometry';
 import { isIzba } from './izba';
-import { CONTINGENCY_PCT, izbaEstimate } from './izbaCost';
+import { CONTINGENCY_PCT, izbaEstimate, izbaPhases } from './izbaCost';
 import { izbaInsights } from './izbaInsights';
 import { computePower } from './power';
 
@@ -88,6 +88,7 @@ ${pw && pw.lines.some((l) => l.watts > 0) ? `<b style="font-size:13px">⚡ ال�
 <table><thead><tr><th>البند</th><th>الوحدة</th><th class="n">الكمية</th><th class="n">سعر الوحدة (ر.ق)</th><th class="n">الإجمالي (ر.ق)</th></tr></thead>
 <tbody>${(ie ? izbaRows : rows) || '<tr><td colspan="5">ما في بنود</td></tr>'}</tbody>
 <tfoot><tr><td colspan="4">الإجمالي التقديري${ie ? ` (المتوقع ${money(ie.low)} – ${money(ie.high)})` : total ? '' : ' (ما انكتبت أسعار)'}</td><td class="n">${money(ie ? ie.total : total)}</td></tr></tfoot></table>
+${ie && izbaPhases(ie).length > 1 ? `<p class="note"><b>على مراحل:</b> ${izbaPhases(ie).map((p) => `${p.icon} المرحلة ${p.n} (${esc(p.title)}): ${money(p.total)} ر.ق`).join(' • ')}</p>` : ''}
 <p class="note">${ie ? 'الكميات محسوبة تلقائياً من المخطط، والأسعار تقريبية لسوق قطر (أو معدّلة من صاحب العزبة) — للتخطيط فقط وما تغني عن عرض سعر رسمي من المقاول.' : 'الكميات محسوبة تلقائياً من المخطط والأسعار مكتوبة من صاحب العنة — للتقدير فقط، والمقاسات النهائية تتأكد في الموقع.'}</p>
 <p class="note" style="border-top:1px solid #eee3cc;padding-top:6px">${esc(DEV_LINE)} • ${esc(OWNER_LINE)}</p>
 </body></html>`;
