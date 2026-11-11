@@ -902,9 +902,10 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { ok: true });
       }
       if (p === '/api/admin/contacted' && req.method === 'POST') {
-        const { ids } = await readBody(req);
+        const { ids, undo } = await readBody(req);
         const set = new Set(Array.isArray(ids) ? ids.slice(0, 50).map(String) : []);
-        for (const o of db.orders) if (set.has(o.id)) o.contactedAt = Date.now();
+        // undo = تراجع (رجّعه لقائمة اللي ما تواصلت معهم)
+        for (const o of db.orders) if (set.has(o.id)) o.contactedAt = undo === true ? undefined : Date.now();
         saveDb();
         return send(res, 200, { ok: true });
       }
