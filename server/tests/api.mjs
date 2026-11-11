@@ -601,3 +601,11 @@ test('منتج العزبة: الشراء يعطي عنة+عزبة، والتر�
   const fe = await admin('/api/admin/funnel?days=1');
   assert.equal(fe.json.total.visit, 1, 'زيارة العنة من الاختبار السابق بس');
 });
+
+test('ملف /assets ناقص يرجع 404 بدون حفظ (مو الصفحة الرئيسية)', async () => {
+  const r = await fetch(BASE + '/assets/old-chunk-abc123.js');
+  assert.equal(r.status, 404);
+  assert.equal(r.headers.get('cache-control'), 'no-store');
+  const home = await fetch(BASE + '/some/spa/route');
+  assert.equal(home.status, 200);
+});

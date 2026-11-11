@@ -1,3 +1,4 @@
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { CameraControls, PointerLockControls } from '@react-three/drei';
@@ -518,9 +519,11 @@ export default function Scene3D() {
         <WorldContext.Provider value={w}>
           <SceneLighting time={time} hour={hour} land={plan.land} size={size} />
           {BETA && quality !== 'low' && !night && (
-            <Suspense fallback={null}>
-              <SkyReflections night={false} />
-            </Suspense>
+            <ErrorBoundary fallback={() => null}>
+              <Suspense fallback={null}>
+                <SkyReflections night={false} />
+              </Suspense>
+            </ErrorBoundary>
           )}
           <Ground3D land={plan.land} w={w} />
           <Fence3D land={plan.land} w={w} />
@@ -544,10 +547,13 @@ export default function Scene3D() {
           {!walking && <DragController grab={grab} />}
           <CaptureHandler />
           {BETA && (
-            <Suspense fallback={null}>
-              {!PROMO && !photoOn && <SceneEffects quality={quality} night={night} mobile={MOBILE} />}
-              <PhotoTracer time={time} />
-            </Suspense>
+            // المؤثرات اختيارية: لو طاحت (كرت شاشة ما يدعمها أو ملف ناقص) المجسم يكمل بدونها
+            <ErrorBoundary fallback={() => null}>
+              <Suspense fallback={null}>
+                {!PROMO && !photoOn && <SceneEffects quality={quality} night={night} mobile={MOBILE} />}
+                <PhotoTracer time={time} />
+              </Suspense>
+            </ErrorBoundary>
           )}
           <AutoThumb />
         </WorldContext.Provider>
@@ -555,9 +561,11 @@ export default function Scene3D() {
       {!ready && <div className="absolute inset-0 flex items-center justify-center text-sand-800">جاري تجهيز المشهد ثلاثي الأبعاد…</div>}
       <Camera3DOverlay move={move} />
       {BETA && (
+        <ErrorBoundary fallback={() => null}>
         <Suspense fallback={null}>
           <PhotoOverlay />
         </Suspense>
+        </ErrorBoundary>
       )}
       {!walking && (
         <div className="pointer-events-none absolute inset-0">

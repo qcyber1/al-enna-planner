@@ -2,7 +2,7 @@
 // - الصفحة: من الشبكة أولاً (عشان التحديثات توصل)، وإذا ما في نت من النسخة المحفوظة
 // - ملفات /assets (أسماؤها فيها بصمة): من المحفوظ أولاً
 // - الـ API ولوحة الإدارة: ما تنحفظ أبداً
-const CACHE = 'enna-v1';
+const CACHE = 'enna-v2';
 const SHELL = ['/', '/manifest.webmanifest', '/favicon.svg', '/icon-192.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
@@ -45,7 +45,8 @@ self.addEventListener('fetch', (e) => {
         (hit) =>
           hit ||
           fetch(req).then((res) => {
-            if (res.ok) {
+            // ما نحفظ صفحة HTML مكان ملف JS (لو السيرفر رجّع الرئيسية بالغلط)
+            if (res.ok && !String(res.headers.get('content-type') || '').includes('text/html')) {
               const copy = res.clone();
               caches.open(CACHE).then((c) => c.put(req, copy));
             }
