@@ -12,6 +12,7 @@ import { recordEvent, funnelSummary } from './funnel.mjs';
 import { validateBuyer, parsePhone } from './buyer.mjs';
 import { safeJoin, readBody as readBodyRaw } from './http-utils.mjs';
 import { sendEvent, userData, metaCookies, capiEnabled } from './meta.mjs';
+import { buildReport } from './report.mjs';
 import { sendSnap, snapUser, snapCookies, snapEnabled } from './snap.mjs';
 import { loadDbFile, latestBackup, writeDbFile, dailyBackup } from './datastore.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
@@ -794,6 +795,9 @@ const server = http.createServer(async (req, res) => {
       // حماية CSRF: أوامر اللوحة لازم تجي من صفحة اللوحة نفسها
       if (req.method === 'POST' && req.headers['x-enna-admin'] !== '1') return send(res, 403, { error: 'طلب مرفوض' });
       if (p === ADMIN_PATH) return send(res, 200, adminPage({ skipcash: skipcashEnabled ? skipcashEnv : '', licensing: LICENSING, maxDevices: MAX_DEVICES, persistent: DATA_DIR === '/data' || !!process.env.DATA_DIR }), { 'x-robots-tag': 'noindex, nofollow' });
+      if (p === '/api/admin/report') {
+        return send(res, 200, buildReport(db, url.searchParams.get('from'), url.searchParams.get('to')));
+      }
       if (p === '/api/admin/funnel') {
         const days = Math.min(90, Math.max(1, Number(url.searchParams.get('days')) || 7));
         return send(res, 200, funnelSummary(db, days, Date.now(), productOf(url.searchParams.get('product'))));

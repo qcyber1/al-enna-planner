@@ -1,3 +1,4 @@
+import { REPORT_SECTION, REPORT_SCRIPT } from './adminReport.mjs';
 // لوحة الإدارة والحسابات (صفحة واحدة بدون مكتبات)
 export function adminPage({ licensing, maxDevices, persistent, skipcash }) {
   return `<!doctype html>
@@ -70,6 +71,7 @@ tbody tr:hover{background:#fcfbf8}td small{color:var(--mute)}
   <div class="brand"><i>⛺</i><div>مخطط العنة<small>لوحة التحكم</small></div></div>
   <nav id="tabs">
     <button class="on" data-t="overview">📊 نظرة عامة</button>
+    <button data-t="report">📄 التقارير</button>
     <button data-t="funnel">📈 مسار البيع</button>
     <button data-t="orders">🧾 الطلبات <span class="n" id="n_orders"></span></button>
     <button data-t="codes">👥 العملاء</button>
@@ -110,6 +112,7 @@ ${persistent ? '' : '<div class="alert warn">⚠ لم يتم ربط Volume عل�
   <div class="card"><div class="card-h"><h3>آخر الملاحظات</h3><button class="ghost" type="button" data-go="feedback">عرض الكل</button></div><div id="ov_fb"></div></div>
 </section>
 
+${REPORT_SECTION}
 <section class="card" data-p="funnel" hidden>
   <div class="card-h"><div><h3>مسار البيع</h3><p class="sub">كم شخص وصل لكل خطوة — كل شخص ينحسب مرة وحدة في اليوم. أرقامنا من موقعنا مباشرة (بدون حظر إعلانات)، وما فيها التجارب ولا أصحاب الأكواد.</p></div>
   <div class="row"><select id="fprod" style="max-width:150px"><option value="enna">⛺ العنة</option><option value="izba">🏡 العزبة</option></select><select id="fd" style="max-width:150px"><option value="1">اليوم</option><option value="7" selected>آخر ٧ أيام</option><option value="30">آخر ٣٠ يوم</option><option value="90">آخر ٩٠ يوم</option></select></div></div>
@@ -293,8 +296,9 @@ rcsv.onclick=()=>{const rows=[['صاحب الرابط','الجوال','الكو�
   if(rows.length===1)return alert('ما في مكافآت مستحقة حالياً ✓');
   const s='\\ufeff'+rows.map(r=>r.map(c=>'"'+String(c??'').replace(/"/g,'""')+'"').join(',')).join('\\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='al-enna-referrals-due-'+new Date().toISOString().slice(0,10)+'.csv';a.click()};
-const TT={overview:['نظرة عامة','ملخص المبيعات والعملاء'],funnel:['مسار البيع','وين يوقف الناس قبل ما يشترون'],orders:['الطلبات','كل طلبات الشراء وحالة الدفع'],codes:['العملاء','الأكواد والأجهزة وكلمات المرور'],refs:['الإحالات','مين جاب عملاء ومكافآتهم'],feedback:['الملاحظات','آراء المستخدمين والفريق'],pricing:['الأسعار والعروض','السعر والخصومات'],content:['نصوص الموقع','عدّل كلام صفحة الدخول والشراء'],manual:['أكواد يدوية','هدايا وحسابات تجريبية']};
-function go(t){if(!TT[t])t='overview';for(const x of tabs.querySelectorAll('button[data-t]'))x.classList.toggle('on',x.dataset.t===t);for(const s of document.querySelectorAll('[data-p]'))s.hidden=s.dataset.p!==t;pt.textContent=TT[t][0];ps.textContent=TT[t][1];if(t==='funnel')loadFunnel().catch(()=>{});if(location.hash!=='#'+t)history.replaceState(null,'','#'+t);window.scrollTo(0,0)}
+const TT={overview:['نظرة عامة','ملخص المبيعات والعملاء'],report:['التقارير','تقرير يومي أو لأي فترة — للشركاء'],funnel:['مسار البيع','وين يوقف الناس قبل ما يشترون'],orders:['الطلبات','كل طلبات الشراء وحالة الدفع'],codes:['العملاء','الأكواد والأجهزة وكلمات المرور'],refs:['الإحالات','مين جاب عملاء ومكافآتهم'],feedback:['الملاحظات','آراء المستخدمين والفريق'],pricing:['الأسعار والعروض','السعر والخصومات'],content:['نصوص الموقع','عدّل كلام صفحة الدخول والشراء'],manual:['أكواد يدوية','هدايا وحسابات تجريبية']};
+function go(t){if(!TT[t])t='overview';for(const x of tabs.querySelectorAll('button[data-t]'))x.classList.toggle('on',x.dataset.t===t);for(const s of document.querySelectorAll('[data-p]'))s.hidden=s.dataset.p!==t;pt.textContent=TT[t][0];ps.textContent=TT[t][1];if(t==='funnel')loadFunnel().catch(()=>{});if(t==='report')rpLoad().catch(()=>{});if(location.hash!=='#'+t)history.replaceState(null,'','#'+t);window.scrollTo(0,0)}
+${REPORT_SCRIPT}
 const FST=[['visit','👀 زار صفحة الشراء'],['trial_start','▶️ بدأ التجربة المجانية'],['trial_end','⏱ خلّص التجربة'],['demo_buy_click','🛒 ضغط «اشترِ» من التجربة'],['checkout_click','📝 عبّى بياناته وضغط ادفع'],['checkout','💳 وصل صفحة الدفع'],['purchase','✅ اشترى']];
 const pct=(a,b)=>b?Math.round(a/b*1000)/10+'%':'—';
 async function loadFunnel(){const d=await api('/api/admin/funnel?days='+fd.value+'&product='+fprod.value);const t=d.total,top=Math.max(1,t.visit);
