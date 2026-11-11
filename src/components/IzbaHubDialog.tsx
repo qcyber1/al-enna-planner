@@ -9,17 +9,19 @@ import { IzbaCostPanel } from './IzbaCostPanel';
 import { izbaEstimate } from '../lib/izbaCost';
 import { izbaInsights } from '../lib/izbaInsights';
 import { izbaMaterials, materialRows } from '../lib/izbaMaterials';
+import { MONTHS, monthTasks, yearLoad } from '../lib/izbaCalendar';
 import { openReport } from '../lib/report';
 import { demoBlock } from './Dialogs';
 import { formatNumber } from '../lib/geometry';
 
-type Tab = 'summary' | 'cost' | 'materials' | 'water' | 'power' | 'next';
+type Tab = 'summary' | 'cost' | 'materials' | 'water' | 'power' | 'calendar' | 'next';
 const TABS: [Tab, string][] = [
   ['summary', '📊 الملخص'],
   ['cost', '💰 التكلفة'],
   ['materials', '🧱 المواد'],
   ['water', '💧 الري'],
   ['power', '⚡ الكهرباء'],
+  ['calendar', '📅 التقويم'],
   ['next', '✅ الخطوات'],
 ];
 
@@ -104,6 +106,7 @@ function Body() {
           </div>
         )}
         {tab === 'materials' && <MaterialsTab plan={design.plan} />}
+        {tab === 'calendar' && <CalendarTab plan={design.plan} />}
         {tab === 'power' && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -145,6 +148,42 @@ function MaterialsTab({ plan }: { plan: Parameters<typeof izbaMaterials>[0] }) {
         ))}
       </div>
       <p className="text-[11px] text-sand-500">بلوك 40×20×20، لياسة 1.5 سم، صبة سقف 20 سم، و5–10% هدر. المهندس أو المقاول يعتمد الكميات النهائية.</p>
+    </div>
+  );
+}
+
+function CalendarTab({ plan }: { plan: Parameters<typeof monthTasks>[0] }) {
+  const now = new Date().getMonth() + 1;
+  const [m, setM] = useState(now);
+  const load = useMemo(() => yearLoad(plan), [plan]);
+  const tasks = useMemo(() => monthTasks(plan, m), [plan, m]);
+  return (
+    <div className="space-y-3" data-testid="izba-calendar">
+      <p className="text-[13px] text-sand-700">شغل كل شهر حسب اللي في عزبتك — لمناخ قطر.</p>
+      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+        {MONTHS.map((name, i) => (
+          <button
+            key={name}
+            type="button"
+            onClick={() => setM(i + 1)}
+            data-testid={`month-${i + 1}`}
+            className={cx('rounded-lg border px-1 py-1.5 text-[12px] font-bold', m === i + 1 ? 'border-gold-500 bg-gold-500 text-dune' : 'border-sand-200 bg-white text-sand-700 hover:border-gold-500')}
+          >
+            {name}
+            {i + 1 === now && <span className="block text-[9px] font-normal">الحين</span>}
+            <span className="block text-[10px] font-normal opacity-70">{load[i]} شغلة</span>
+          </button>
+        ))}
+      </div>
+      <ul className="space-y-1.5">
+        {tasks.map((t) => (
+          <li key={t.text} className="flex gap-2 rounded-xl border border-sand-200 bg-white p-2.5 text-sm">
+            <span className="text-lg leading-none">{t.icon}</span>
+            <span>{t.text}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-sand-500">تذكيرات عامة — التحصينات والعلاجات يحددها البيطري، ومواعيد النخل تختلف شوي حسب الصنف.</p>
     </div>
   );
 }
