@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { Plan } from '../types/plan';
 import type { Summary } from '../lib/quantities';
 import { izbaInsights } from '../lib/izbaInsights';
+import { izbaIrrigation } from '../lib/irrigation';
 import { formatNumber } from '../lib/geometry';
 
 const n = (v: number) => formatNumber(v, 0);
@@ -21,6 +22,7 @@ function Card({ icon, label, value, sub, warn }: { icon: string; label: string; 
 
 export function IzbaInsightsPanel({ plan, summary }: { plan: Plan; summary: Summary }) {
   const x = useMemo(() => izbaInsights(plan, summary), [plan, summary]);
+  const irr = useMemo(() => izbaIrrigation(plan), [plan]);
   const herd = [x.sheep && `${n(x.sheep)} غنم`, x.camels && `${n(x.camels)} إبل`, x.horses && `${n(x.horses)} خيل`].filter(Boolean).join(' • ');
   return (
     <div className="space-y-2" data-testid="izba-insights">
@@ -35,6 +37,17 @@ export function IzbaInsightsPanel({ plan, summary }: { plan: Plan; summary: Summ
         <Card icon="⚡" label="الحمل الكهربائي" value={`${x.powerKw} kW`} sub="تكييف + إنارة + مضخات" />
         <Card icon="🔌" label="المولد المناسب" value={x.generatorKva ? `${x.generatorKva} KVA` : '—'} sub="مع هامش تشغيل المكيفات" />
       </div>
+      {irr.flowLph > 0 && (
+        <div className="space-y-2 pt-1" data-testid="izba-irrigation">
+          <h3 className="font-bold text-dune">💧 شبكة الري بالتنقيط</h3>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <Card icon="🚰" label="الخط الرئيسي (32 مم)" value={`${n(irr.mainM)} م`} sub={irr.hasTank ? 'من الخزان لكل الزرع' : 'ما في خزان — محسوب بين الزرع'} warn={!irr.hasTank} />
+            <Card icon="〰️" label="خطوط التنقيط (16 مم)" value={`${n(irr.lateralM)} م`} sub={`${n(irr.drippers)} نقاطة${irr.sprinklers ? ` • ${irr.sprinklers} رشاش` : ''}`} />
+            <Card icon="⚙️" label="المضخة" value={`${irr.pumpHp} حصان`} sub={`${n(irr.flowLph)} لتر/ساعة`} />
+            <Card icon="⏱️" label="وقت الري باليوم" value={`${n(irr.minutesPerDay)} دقيقة`} sub={`${irr.zones} محبس (زون) — كل واحد لحاله`} />
+          </div>
+        </div>
+      )}
       {x.tips.length > 0 && (
         <ul className="space-y-1" data-testid="izba-tips">
           {x.tips.map((t) => (

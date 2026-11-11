@@ -1323,5 +1323,16 @@
 "الحلال والزراعة والجلسات": "Livestock, planting & seating",
 "السور والبوابة، الماي والكهرباء، الحمام وغرفة العامل — العزبة تصير قابلة للاستخدام": "Wall and gate, water and power, restroom and worker's room — the izba becomes usable",
 "المجلس والغرف وتشطيبها والأثاث": "Majlis and rooms, finishing and furniture",
-"الحظاير والإسطبلات، النخل والزراعة، الجلسات والإنارة والكماليات": "Pens and stables, palms and planting, seating, lighting and extras"
+"الحظاير والإسطبلات، النخل والزراعة، الجلسات والإنارة والكماليات": "Pens and stables, palms and planting, seating, lighting and extras",
+"💧 شبكة الري بالتنقيط": "💧 Drip irrigation network",
+"🚰 الخط الرئيسي (32 مم)": "🚰 Main line (32 mm)",
+"〰️ خطوط التنقيط (16 مم)": "〰️ Drip lines (16 mm)",
+"⚙️ المضخة": "⚙️ Pump",
+"⏱️ وقت الري باليوم": "⏱️ Daily irrigation time",
+"من الخزان لكل الزرع": "from the tank to all plants",
+"ما في خزان — محسوب بين الزرع": "No tank — measured between plants",
+"{0} حصان": "{0} HP",
+"{0} دقيقة": "{0} min",
+"{0} لتر/ساعة": "{0} L/h",
+"{0} محبس (زون) — كل واحد لحاله": "{0} valves (zones) — run one at a time"
 }

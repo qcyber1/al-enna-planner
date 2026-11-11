@@ -5,6 +5,7 @@
 import type { ElementKind, Plan, PlanElement, RoomType } from '../types/plan';
 import type { Summary } from './quantities';
 import { isIzba } from './izba';
+import { izbaIrrigation } from './irrigation';
 
 export type CostGroup = 'civil' | 'livestock' | 'garden' | 'services' | 'interior' | 'lighting';
 
@@ -141,6 +142,13 @@ export function izbaCostLines(plan: Plan, s: Summary): IzbaCostLine[] {
     const p = PATHS[m];
     if (p) add('path-' + m, p[0], M2, v.area, p[1], 'garden');
   }
+  // شبكة الري بالتنقيط (من الخزان للنخل والشجر والأحواض)
+  const irr = izbaIrrigation(plan);
+  add('irr-main', 'خط الري الرئيسي (32 مم)', LM, irr.mainM, 12, 'garden');
+  add('irr-lateral', 'خطوط التنقيط (16 مم)', LM, irr.lateralM, 3, 'garden');
+  add('irr-sprinklers', 'رشاشات الحشيش', PC, irr.sprinklers, 35, 'garden');
+  add('irr-pump', `مضخة الري (${irr.pumpHp} حصان)`, PC, irr.pumpHp ? 1 : 0, 900 + irr.pumpHp * 600, 'garden');
+  add('irr-control', `جهاز ري أوتوماتيكي + ${irr.zones} محبس`, PC, irr.zones ? 1 : 0, 400 + irr.zones * 150, 'garden');
   add('string-lights', 'سلاسل ليتات', LM, s.lights.stringLength, 25, 'lighting');
   add('path-edge', 'إنارة جوانب الممرات', PC, s.lights.pathEdgeLights, 150, 'lighting');
   return out;
