@@ -86,7 +86,7 @@ function PipeFence({ w, d, h, color, gate = 2.4 }: { w: number; d: number; h: nu
 
 /** سقف صاج مائل على أعمدة */
 function ShedRoof({ w, d, h, color, poleColor, x = 0, z = 0 }: { w: number; d: number; h: number; color: string; poleColor: string; x?: number; z?: number }) {
-  const mat = useMat({ color, map: corrugatedTexture(), roughness: 0.55, metalness: 0.35, side: THREE.DoubleSide });
+  const mat = useMat({ color, map: corrugatedTexture(), roughness: 0.72, metalness: 0.12, side: THREE.DoubleSide });
   const slope = Math.min(0.5, d * 0.08);
   const n = Math.max(1, Math.round(w / 4));
   return (
@@ -268,7 +268,7 @@ function Trough({ el }: P) {
 
 /** سقف ساندوتش بانل (كيربي) مائل شوي مع بروز من كل جهة */
 function KirbyRoof({ w, d, h, color }: { w: number; d: number; h: number; color: string }) {
-  const mat = useMat({ color, map: corrugatedTexture(), roughness: 0.5, metalness: 0.3 });
+  const mat = useMat({ color, map: corrugatedTexture(), roughness: 0.7, metalness: 0.12 });
   const slope = Math.min(0.35, d * 0.05);
   return (
     <group>

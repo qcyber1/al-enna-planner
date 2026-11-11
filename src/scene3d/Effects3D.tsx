@@ -21,7 +21,18 @@ export function SceneEffects({ quality, night, mobile }: { quality: LightQuality
   const high = quality === 'high' && !mobile;
   // نبني السلسلة حسب الحاجة: التوهج بالليل بس، وعلى الجوال بدون تنعيم الحواف (الدقة عالية أصلاً)
   const fx: JSX.Element[] = [
-    <N8AO key="ao" halfRes={!high} aoRadius={night ? 1.2 : 2.2} distanceFalloff={1} intensity={night ? 1.4 : 2.4} color="#2b1d12" quality={high ? 'high' : 'performance'} />,
+    // ظلال الزوايا: نصف قطر صغير وشدة أخف ودقة كاملة على الكمبيوتر — عشان ما «تتلون» البقع وتتحرك مع حركة الكاميرا
+    <N8AO
+      key="ao"
+      halfRes={mobile}
+      aoRadius={night ? 1 : 1.3}
+      distanceFalloff={0.5}
+      intensity={night ? 1.1 : 1.5}
+      color="#2b1d12"
+      quality={high ? 'high' : 'medium'}
+      denoiseSamples={8}
+      denoiseRadius={12}
+    />,
   ];
   if (night) fx.push(<Bloom key="bloom" mipmapBlur intensity={1.1} luminanceThreshold={0.55} luminanceSmoothing={0.2} radius={0.7} />);
   fx.push(<ToneMapping key="tm" mode={ToneMappingMode.ACES_FILMIC} />);
