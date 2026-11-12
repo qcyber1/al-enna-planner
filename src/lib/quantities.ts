@@ -1,3 +1,4 @@
+import { isCourtKind } from './catalog';
 import type { EstimateSettings, ElementKind, PathMaterial, Plan, PlanElement, Vec2 } from '../types/plan';
 import { CATALOG_BY_KIND, PATH_MATERIAL_LABELS, isTentKind } from './catalog';
 import {
@@ -162,7 +163,7 @@ function rasterAreas(plan: Plan): { occupied: number; reserved: number; land: nu
     const shapes = elementShapes(el);
     if (!shapes.length) continue;
     solid.push({ shapes, b: elementBounds(el) });
-    if (el.kind === 'volleyball' && el.court && el.court.safetyMargin > 0) {
+    if (isCourtKind(el.kind) && el.court && el.court.safetyMargin > 0) {
       const z = courtSafetyPolygon(el);
       zones.push({ shapes: [z], b: boundsOf(z) });
     }
@@ -222,6 +223,7 @@ export function computeSummary(plan: Plan, est: EstimateSettings = DEFAULT_ESTIM
       if (el.tent?.entranceLight) lights.tentEntranceLights++;
     }
     switch (el.kind) {
+      case 'football':
       case 'volleyball': {
         const m = el.court?.safetyMargin ?? 0;
         courts.push({
@@ -329,6 +331,7 @@ export function costLines(s: Summary): CostLine[] {
     'canopy',
     'majlis-rug',
     'volleyball',
+    'football',
     'toilet',
     'sink',
     'outdoor-kitchen',

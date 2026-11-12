@@ -1,3 +1,4 @@
+import { isCourtKind } from './catalog';
 import type { Plan, PlanElement } from '../types/plan';
 import { validatePlan, type Issue } from './validation';
 import { CATALOG_BY_KIND } from './catalog';
@@ -15,7 +16,7 @@ const rank = (e: PlanElement) => {
   // نحرك الأسهل: الأصغر، ومو الملعب ولا الخيام ولا الممرات
   const c = CATALOG_BY_KIND[e.kind]?.collision;
   let r = area(e);
-  if (e.kind === 'volleyball') r += 1e5;
+  if (isCourtKind(e.kind)) r += 1e5;
   if (e.tent) r += 5e4;
   if (c === 'path' || e.points) r += 1e6;
   return r;
@@ -115,7 +116,7 @@ export function fixIssue(plan: Plan, issue: Issue, maxRadius = 25, preferId?: st
   for (const m of movers.sort((a, b) => (a.id === pick.id ? -1 : b.id === pick.id ? 1 : 0))) {
     // «ثقل» التحريك: الكبير أثقل، والملعب أثقل، واللي المستخدم مختاره (غالباً توه حاطه) أخف بوايد
     let w = 1 + Math.min(2, (m.width * m.depth) / 50);
-    if (m.kind === 'volleyball') w += 2;
+    if (isCourtKind(m.kind)) w += 2;
     if (m.id === preferId) w *= 0.4;
     if (issue.code === 'tent-entrance-blocked' && m.id === issue.elementIds[0]) w *= 3; // نحرك اللي يسد المدخل مو الخيمة
     if (issue.code === 'livestock-wind' && m.id === issue.elementIds[1]) w *= 4; // نحرك الحلال مو المجلس

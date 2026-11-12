@@ -1,6 +1,6 @@
 // مولّد تصاميم العنة: يأخذ متطلبات المستخدم ويولّد عدة توزيعات مختلفة تلقائياً
 import type { ElementKind, Land, Plan, PlanElement, Vec2 } from '../types/plan';
-import { createElement, qiblaRotation } from './catalog';
+import { createElement, isCourtKind, qiblaRotation } from './catalog';
 import {
   add,
   convexIntersect,
@@ -30,6 +30,8 @@ export interface GenInput {
   toilets: number;
   sinks: number;
   court: boolean;
+  /** ملعب كورة خماسي 20×10 */
+  football?: boolean;
   firePit: boolean;
   parking: number;
   prayer: boolean;
@@ -222,7 +224,7 @@ interface Placer {
 }
 
 function footprint(el: PlanElement, clearance: number): Vec2[] {
-  if (el.kind === 'volleyball') {
+  if (isCourtKind(el.kind)) {
     const m = (el.court?.safetyMargin ?? 0) + clearance * 0.3;
     return rectCorners(el.x, el.y, el.width + 2 * m, el.depth + 2 * m, el.rotation);
   }
@@ -231,7 +233,7 @@ function footprint(el: PlanElement, clearance: number): Vec2[] {
 
 function fits(P: Placer, el: PlanElement, clearance: number, inset: number): boolean {
   const fp = footprint(el, clearance);
-  const body = el.kind === 'volleyball' ? courtSafetyPolygon(el) : rectCorners(el.x, el.y, el.width + 2 * inset, el.depth + 2 * inset, el.rotation);
+  const body = isCourtKind(el.kind) ? courtSafetyPolygon(el) : rectCorners(el.x, el.y, el.width + 2 * inset, el.depth + 2 * inset, el.rotation);
   if (!polygonInside(body, P.land)) return false;
   for (const o of P.occupied) if (convexIntersect(fp, o, 0.01)) return false;
   return true;
@@ -247,7 +249,7 @@ function placeNear(P: Placer, el: PlanElement, want: Vec2, clearance = 1.2, maxR
       el.x = round(want.x + Math.cos(a) * r, 2);
       el.y = round(want.y + Math.sin(a) * r, 2);
       if (fits(P, el, clearance, 0.4)) {
-        P.occupied.push(el.kind === 'volleyball' ? courtSafetyPolygon(el) : rectCorners(el.x, el.y, el.width, el.depth, el.rotation));
+        P.occupied.push(isCourtKind(el.kind) ? courtSafetyPolygon(el) : rectCorners(el.x, el.y, el.width, el.depth, el.rotation));
         P.els.push(el);
         return true;
       }
@@ -346,6 +348,17 @@ function build(land: Land, input: GenInput, s: Strategy): GenResult {
     if (!placeNear(P, court, want, 0.3, 30)) {
       court.rotation = (court.rotation + 90) % 360;
       if (!placeNear(P, court, want, 0.3)) skipped.push('ملعب الطائرة (المساحة لا تكفي)');
+    }
+  }
+  // 3ب) ملعب الكورة الخماسي: عند الملعب الثاني لو موجود، وإلا مكان الملعب
+  if (input.football) {
+    const fb = mk('football', { name: 'ملعب الكورة' });
+    const a = input.court ? { u: -s.anchors.court.u || 0.4, v: s.anchors.court.v } : s.anchors.court;
+    const want = at(f, a);
+    fb.rotation = faceToward(want, add(want, scale(f.n, -1)), f);
+    if (!placeNear(P, fb, want, 0.3, 30)) {
+      fb.rotation = (fb.rotation + 90) % 360;
+      if (!placeNear(P, fb, want, 0.3)) skipped.push('ملعب الكورة (المساحة لا تكفي)');
     }
   }
 
@@ -545,6 +558,7 @@ export function genInputFromPlan(plan: Plan): GenInput | null {
     toilets: Math.min(10, n('toilet')),
     sinks: Math.min(10, n('sink')),
     court: n('volleyball') > 0,
+    football: n('football') > 0,
     firePit: n('fire-pit') > 0,
     parking: Math.min(20, slots),
     prayer: n('prayer-area') > 0,

@@ -67,6 +67,7 @@ const BY_PIECE: Partial<Record<ElementKind, [string, number, CostGroup]>> = {
   tannour: ['التنور', 1800, 'services'],
   'kids-area': ['ألعاب الأطفال', 8000, 'services'],
   volleyball: ['ملعب الطائرة (شبكة + تجهيز)', 3000, 'services'],
+  football: ['ملعب كورة خماسي (عشب صناعي + مرامي)', 15000, 'services'],
   seating: ['جلسات خارجية', 1500, 'services'],
   'majlis-rug': ['جلسات أرضية (سدو)', 1200, 'services'],
   'outdoor-kitchen': ['مطبخ خارجي', 6000, 'services'],

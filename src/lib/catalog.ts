@@ -331,6 +331,25 @@ export const CATALOG: CatalogItem[] = [
     },
   },
   {
+    kind: 'football',
+    category: 'facilities',
+    label: 'ملعب كرة قدم خماسي',
+    description: '20 × 10 م عشب صناعي مع المرامي ومنطقة أمان',
+    icon: '⚽',
+    geometry: 'rect',
+    collision: 'court',
+    minSize: 6,
+    defaults: {
+      ...base,
+      width: 20,
+      depth: 10,
+      height: 2,
+      color: '#4f9a3a',
+      accent: '#ffffff',
+      court: { surface: 'turf', safetyMargin: 1.5, netHeight: 2, attackLines: false },
+    },
+  },
+  {
     kind: 'toilet',
     category: 'facilities',
     label: 'كبينة حمام',
@@ -995,6 +1014,11 @@ export const CATALOG_BY_KIND: Record<ElementKind, CatalogItem> = Object.fromEntr
 
 export function catalogOf(kind: ElementKind): CatalogItem {
   return CATALOG_BY_KIND[kind];
+}
+
+/** الملاعب (طائرة وكورة): لها منطقة أمان ونفس قواعد المسافات */
+export function isCourtKind(kind: ElementKind): boolean {
+  return kind === 'volleyball' || kind === 'football';
 }
 
 export function isTentKind(kind: ElementKind): boolean {
