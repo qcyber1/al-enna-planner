@@ -23,7 +23,7 @@ import { Tent3D } from './Tent3D';
 import {
   BBQ3D,
   Canopy3D,
-  Court3D,
+  Court3D, Football3D,
   Generator3D,
   Kitchen3D,
   Parking3D,
@@ -80,6 +80,9 @@ const Element3D = memo(function Element3D({ el, night, lampsOn, selected, showSa
     switch (el.kind) {
       case 'volleyball':
         body = <Court3D el={el} showSafety={showSafety} />;
+        break;
+      case 'football':
+        body = <Football3D el={el} />;
         break;
       case 'canopy':
         body = <Canopy3D el={el} />;

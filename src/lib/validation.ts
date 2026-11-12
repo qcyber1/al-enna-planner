@@ -1,3 +1,4 @@
+import { isCourtKind } from './catalog';
 import type { Plan, PlanElement, Vec2 } from '../types/plan';
 import { CATALOG_BY_KIND, isTentKind, type CollisionClass } from './catalog';
 import { angleDiff, compassName, WIND_FROM } from './wind';
@@ -164,7 +165,7 @@ export function validatePlan(plan: Plan): ValidationResult {
         at: { x: it.el.x, y: it.el.y },
       });
     }
-    if (it.el.kind === 'volleyball' && inside && !polygonInside(courtSafetyPolygon(it.el), land)) {
+    if (isCourtKind(it.el.kind) && inside && !polygonInside(courtSafetyPolygon(it.el), land)) {
       push({
         code: 'court-zone-outside',
         severity: 'warning',
@@ -223,7 +224,7 @@ export function validatePlan(plan: Plan): ValidationResult {
 
   // 3) منطقة أمان الملعب
   for (const C of items) {
-    if (C.el.kind !== 'volleyball' || !C.el.court) continue;
+    if (!isCourtKind(C.el.kind) || !C.el.court) continue;
     const margin = C.el.court.safetyMargin;
     if (margin <= 0) continue;
     const zone = [courtSafetyPolygon(C.el)];

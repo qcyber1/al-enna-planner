@@ -596,3 +596,76 @@ export const Seating3D = memo(function Seating3D({ el }: P) {
     </group>
   );
 });
+
+/** ملعب كورة خماسي: عشب صناعي، خطوط، دائرة الوسط، منطقة الجزاء، ومرميين بالشبك */
+export const Football3D = memo(function Football3D({ el }: P) {
+  const w = el.width;
+  const d = el.depth;
+  const turfGeo = useGeometry(() => scaledPlane(w, d, Math.max(1, w / 4), Math.max(1, d / 4)), [w, d]);
+  const turf = useMat({ color: '#5fae46', map: turfTexture(), roughness: 1 });
+  const line = useMat({ color: '#ffffff', roughness: 0.8 });
+  const netMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ map: netTexture(), transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, color: '#f2f2f2' }),
+    [],
+  );
+  const m = 0.3;
+  const lw = 0.08;
+  const cr = Math.min(3, d / 4);
+  const pr = Math.min(6, d * 0.35);
+  const gw = 3;
+  const gh = 2;
+  const gd = 1;
+  const strips: [number, number, number, number][] = [
+    [0, -d / 2 + m, w - 2 * m, lw],
+    [0, d / 2 - m, w - 2 * m, lw],
+    [-w / 2 + m, 0, lw, d - 2 * m],
+    [w / 2 - m, 0, lw, d - 2 * m],
+    [0, 0, lw, d - 2 * m],
+  ];
+  return (
+    <group>
+      <mesh geometry={turfGeo} material={turf} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow />
+      {strips.map(([x, z, sx, sz], i) => (
+        <mesh key={i} position={[x, 0.03, z]} rotation={[-Math.PI / 2, 0, 0]} material={line}>
+          <planeGeometry args={[sx, sz]} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} material={line}>
+        <ringGeometry args={[cr - lw / 2, cr + lw / 2, 48]} />
+      </mesh>
+      {[-1, 1].map((s) => (
+        <group key={s}>
+          {/* نص دائرة منطقة الجزاء */}
+          <mesh position={[s * (w / 2 - m), 0.03, 0]} rotation={[-Math.PI / 2, 0, s < 0 ? -Math.PI / 2 : Math.PI / 2]} material={line}>
+            <ringGeometry args={[pr - lw / 2, pr + lw / 2, 40, 1, 0, Math.PI]} />
+          </mesh>
+          {/* المرمى: قائمين وعارضة وشبك */}
+          <group position={[s * (w / 2 + gd / 2 - 0.2), 0, 0]}>
+            {[-gw / 2, gw / 2].map((z) => (
+              <mesh key={z} position={[-s * (gd / 2), gh / 2, z]} castShadow>
+                <cylinderGeometry args={[0.05, 0.05, gh, 10]} />
+                <meshStandardMaterial color="#f7f7f7" metalness={0.3} roughness={0.4} />
+              </mesh>
+            ))}
+            <mesh position={[-s * (gd / 2), gh, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+              <cylinderGeometry args={[0.05, 0.05, gw, 10]} />
+              <meshStandardMaterial color="#f7f7f7" metalness={0.3} roughness={0.4} />
+            </mesh>
+            {/* الشبك: خلف ويمين ويسار وفوق */}
+            <mesh position={[s * (gd / 2), gh / 2, 0]} rotation={[0, Math.PI / 2, 0]} material={netMat}>
+              <planeGeometry args={[gw, gh]} />
+            </mesh>
+            {[-gw / 2, gw / 2].map((z) => (
+              <mesh key={z} position={[0, gh / 2, z]} material={netMat}>
+                <planeGeometry args={[gd, gh]} />
+              </mesh>
+            ))}
+            <mesh position={[0, gh, 0]} rotation={[-Math.PI / 2, 0, 0]} material={netMat}>
+              <planeGeometry args={[gd, gw]} />
+            </mesh>
+          </group>
+        </group>
+      ))}
+    </group>
+  );
+});

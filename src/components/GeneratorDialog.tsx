@@ -68,7 +68,7 @@ export function GeneratorDialog() {
   const adopt = (list: GenResult[]) => {
     const st = useEditor.getState();
     for (const r of list) {
-      st.addDesign(r.title, 'blank');
+      st.addDesign(r.title, 'blank', true);
       st.setPlan(() => r.plan, { history: false });
     }
     openDialog(null);
@@ -135,6 +135,7 @@ export function GeneratorDialog() {
           </div>
           <div className="grid gap-x-6 rounded-xl border border-sand-200 bg-white px-4 py-2 sm:grid-cols-2">
             <Toggle label="🏐 ملعب كرة طائرة" checked={input.court} onChange={(v) => set({ court: v })} />
+            <Toggle label="⚽ ملعب كورة خماسي (20×10)" checked={!!input.football} onChange={(v) => set({ football: v })} />
             <Toggle label="🔥 الضو (شبّة)" checked={input.firePit} onChange={(v) => set({ firePit: v })} />
             <Toggle label="🍢 منطقة شواء" checked={input.bbq} onChange={(v) => set({ bbq: v })} />
             <Toggle label="🕌 مصلّى" checked={input.prayer} onChange={(v) => set({ prayer: v })} />

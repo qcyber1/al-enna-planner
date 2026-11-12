@@ -1,3 +1,4 @@
+import { isCourtKind } from '../lib/catalog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
@@ -689,7 +690,7 @@ export default function Editor2D() {
                 if (overlays.lightMap) drawLightMap(ctx, lightPlan);
                 if (overlays.safety) {
                   for (const el of plan.elements) {
-                    if (el.kind !== 'volleyball') continue;
+                    if (!isCourtKind(el.kind)) continue;
                     ctx.save();
                     ctx.translate(el.x, el.y);
                     ctx.rotate(el.rotation * DEG);

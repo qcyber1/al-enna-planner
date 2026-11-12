@@ -60,6 +60,7 @@ export type ElementKind =
   | 'canopy'
   | 'majlis-rug'
   | 'volleyball'
+  | 'football'
   | 'toilet'
   | 'sink'
   | 'outdoor-kitchen'

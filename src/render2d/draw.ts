@@ -1,3 +1,4 @@
+import { isCourtKind } from '../lib/catalog';
 import { trIfEn } from '../lib/i18n';
 // رسم المسقط العلوي — دوال مشتركة بين محرر Konva وتصدير الصور.
 // جميع الإحداثيات بالمتر؛ ppm = عدد البكسلات لكل متر على الشاشة (لحساب سماكة الخطوط وحجم النص).
@@ -436,6 +437,43 @@ function drawCourt(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   issueOutline(ctx, w, d, o);
 }
 
+/** ملعب كورة خماسي: عشب، خطوط بيضاء، دائرة الوسط، منطقة الجزاء، والمرمى */
+function drawFootball(ctx: Ctx, el: PlanElement, o: DrawOpts) {
+  const w = el.width;
+  const d = el.depth;
+  ctx.fillStyle = '#3f8f35';
+  ctx.fillRect(-w / 2, -d / 2, w, d);
+  // خطوط القص (أشرطة فاتحة وغامقة)
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  for (let x = -w / 2, i = 0; x < w / 2; x += 2, i++) if (i % 2) ctx.fillRect(x, -d / 2, 2, d);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = Math.max(0.06, px(o, 1.2));
+  const m = 0.3;
+  ctx.strokeRect(-w / 2 + m, -d / 2 + m, w - 2 * m, d - 2 * m);
+  ctx.beginPath();
+  ctx.moveTo(0, -d / 2 + m);
+  ctx.lineTo(0, d / 2 - m);
+  ctx.stroke();
+  const cr = Math.min(3, d / 4);
+  ctx.beginPath();
+  ctx.arc(0, 0, cr, 0, Math.PI * 2);
+  ctx.stroke();
+  // منطقة الجزاء (نص دائرة) والمرمى
+  const pr = Math.min(6, d * 0.35);
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(s * (w / 2 - m), 0, pr, s < 0 ? -Math.PI / 2 : Math.PI / 2, s < 0 ? Math.PI / 2 : (3 * Math.PI) / 2);
+    ctx.stroke();
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(s < 0 ? -w / 2 - 0.6 : w / 2, -1.5, 0.6, 3);
+  }
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(0, 0, Math.max(0.12, px(o, 2)), 0, Math.PI * 2);
+  ctx.fill();
+  issueOutline(ctx, w, d, o);
+}
+
 export function drawCourtZone(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   const m = el.court?.safetyMargin ?? 0;
   if (m <= 0) return;
@@ -854,6 +892,8 @@ export function drawLocalElement(ctx: Ctx, el: PlanElement, o: DrawOpts) {
       return drawRug(ctx, el, o);
     case 'volleyball':
       return drawCourt(ctx, el, o);
+    case 'football':
+      return drawFootball(ctx, el, o);
     case 'toilet':
       return drawToilet(ctx, el, o);
     case 'sink':
@@ -1086,7 +1126,7 @@ export function drawElementWorld(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   ctx.save();
   ctx.translate(el.x, el.y);
   ctx.rotate(el.rotation * DEG);
-  if (el.kind === 'volleyball' && o.showSafety !== false) drawCourtZone(ctx, el, o);
+  if (isCourtKind(el.kind) && o.showSafety !== false) drawCourtZone(ctx, el, o);
   drawLocalElement(ctx, el, o);
   ctx.restore();
 }
