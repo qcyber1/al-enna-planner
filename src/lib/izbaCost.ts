@@ -216,3 +216,20 @@ export function izbaPhases(e: IzbaEstimate): IzbaPhase[] {
     })
     .filter((p) => p.total > 0);
 }
+
+/** مرحلة كل عنصر في المخطط (نفس تقسيم التكلفة) */
+const EL_PHASE1 = new Set(['water-tank', 'generator', 'diesel-tank', 'toilet', 'sink', 'worker-room', 'parking', 'entrance-light', 'light-pole', 'flood-light']);
+const EL_PHASE2 = new Set(['room', 'majlis-room', 'sofa-l', 'tv-unit', 'coffee-table', 'bed', 'wardrobe', 'billiard', 'kitchen-counter', 'bath-set']);
+export function elementPhase(el: Plan['elements'][number]): 1 | 2 | 3 {
+  if (el.kind === 'path') return el.path?.material === 'turf' ? 3 : 1;
+  if (EL_PHASE1.has(el.kind)) return 1;
+  if (EL_PHASE2.has(el.kind)) return 2;
+  return 3;
+}
+
+/** المخطط لين نهاية مرحلة معيّنة (السور جزء من الأرض فيطلع من المرحلة 1) */
+export function phasePlan(plan: Plan, n: 1 | 2 | 3): Plan {
+  const copy = JSON.parse(JSON.stringify(plan)) as Plan;
+  copy.elements = copy.elements.filter((e) => elementPhase(e) <= n);
+  return copy;
+}

@@ -1406,5 +1406,17 @@
 "سبتمبر": "September",
 "أكتوبر": "October",
 "نوفمبر": "November",
-"ديسمبر": "December"
+"ديسمبر": "December",
+"📊 قارن بين الاستخدامات (التكلفة والحلال والماي)": "📊 Compare uses (cost, livestock & water)",
+"إخفاء المقارنة": "Hide comparison",
+"الاستخدام": "Use",
+"التكلفة": "Cost",
+"الماي/يوم": "Water/day",
+"المباني": "Buildings",
+"اختار": "Choose",
+"الأوفر": "Cheapest",
+"{0} ألف": "{0}k",
+"تقديرات تقريبية للقالب الجاهز — تقدر تعدّل كل شي بعد ما تختار.": "Approximate figures for the ready template — you can change everything after choosing.",
+"👁 شوفها": "👁 View it",
+"هذي العزبة بعد «المرحلة {0}» — التصميم الأصلي محفوظ في «التصاميم»": "This is the izba after “Phase {0}” — your original design is kept under “Designs”"
 }
