@@ -5,6 +5,7 @@ import { createElement } from './catalog';
 import { defaultLand, emptyPlan } from './sample';
 import { circlePath } from './angleAssist';
 import { validatePlan } from './validation';
+import { placePreset } from './buildings';
 import { izbaAccess } from './license';
 
 export type IzbaUse = 'livestock' | 'rest' | 'farm' | 'mixed' | 'horses' | 'camels' | 'family';
@@ -141,9 +142,10 @@ function perimeterLayout(use: IzbaUse, W: number, D: number): [Spec[], PlanEleme
   for (let x = 4, i = 0; x <= W - 4 + 1e-6; x += big ? 7 : 6, i++) s.push([i % 2 && farm ? 'palm' : 'tree', x, 2.6]);
 
   // 2) المجلس على السور الغربي، بابه للحوش (شرق)
-  const mw = rest || big ? 16 : 12;
+  // مبنى حقيقي (مجلس + حمام + مطبخ بالأثاث) بداله صندوق — يبين من الداخل في المجسم
+  const mw = 14;
   const my = 8 + mw / 2;
-  s.push(['majlis-room', 4.5, my, { width: mw, depth: 7, rotation: 270, roof: rest ? undefined : red }]);
+  ground.push(...placePreset('majlis-annex', 5, my, 270, rest ? undefined : red));
   s.push(['toilet', 2.2, my + mw / 2 + 2, { rotation: 270, name: 'حمام' }]);
   s.push(['worker-room', 3, my + mw / 2 + 6, { rotation: 270, roof: red }]);
   const yardX = 12;
@@ -206,10 +208,10 @@ function perimeterLayout(use: IzbaUse, W: number, D: number): [Spec[], PlanEleme
   }
   // 4د) العائلية: مجلس النساء على السور الشرقي، بعيد عن مجلس الرجال، مع حمام وجلسة خاصة
   if (family) {
-    const fw = big ? 14 : 12;
+    // ملحق النساء: مجلس وحمام ومطبخ صغير — بابه للحوش (غرب)
+    const fw = 14;
     const fy = 8 + fw / 2;
-    s.push(['majlis-room', W - 4.5, fy, { width: fw, depth: 7, rotation: 90, name: 'مجلس النساء' }]);
-    s.push(['toilet', W - 2.2, fy + fw / 2 + 2, { rotation: 90, name: 'حمام النساء' }]);
+    ground.push(...placePreset('women-annex', W - 5.5, fy, 90));
     s.push(['canopy', W - 16, fy - fw / 4 - 1, { name: 'جلسة النساء', width: 6, depth: 5 }]);
   }
 

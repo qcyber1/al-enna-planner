@@ -83,4 +83,17 @@ export function buildPreset(id: BuildingPreset['id'], x0: number, y0: number, ro
   return els;
 }
 
+/**
+ * يحط مبنى جاهز ووسطه عند (cx, cy) ومدوّر بزاوية rot (90/180/270 — الواجهة تلف معه).
+ * الغرف والأثاث كلهم يلفون حول وسط المبنى، والأبواب والشبابيك تتبع الغرفة تلقائياً.
+ */
+export function placePreset(id: BuildingPreset['id'], cx: number, cy: number, rot = 0, roof?: string, facade?: string): PlanElement[] {
+  const p = BUILDING_PRESETS.find((b) => b.id === id)!;
+  const els = buildPreset(id, -p.width / 2, -p.depth / 2, roof, facade);
+  const a = (rot * Math.PI) / 180;
+  const c = Math.round(Math.cos(a) * 1e6) / 1e6;
+  const s = Math.round(Math.sin(a) * 1e6) / 1e6;
+  return els.map((e) => ({ ...e, x: Math.round((cx + e.x * c - e.y * s) * 100) / 100, y: Math.round((cy + e.x * s + e.y * c) * 100) / 100, rotation: (((e.rotation + rot) % 360) + 360) % 360 }));
+}
+
 export { WALL };
