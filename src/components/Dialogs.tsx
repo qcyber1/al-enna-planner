@@ -16,6 +16,7 @@ import { renderPlanSheet } from '../render2d/planSheet';
 import { usePhoto } from '../scene3d/photoStore';
 import { IzbaLockedCard, loadIzbaPrices, useUpgrade } from './UpgradeIzba';
 import { IzbaCostPanel } from './IzbaCostPanel';
+import { IzbaCompare } from './IzbaCompare';
 import { IzbaInsightsPanel } from './IzbaInsightsPanel';
 import { izbaEstimate } from '../lib/izbaCost';
 import { demoSite, getProducts, landingSite, izbaVisible } from '../lib/license';
@@ -45,6 +46,7 @@ export function WelcomeDialog() {
   const openDialog = useEditor((s) => s.openDialog);
   const [site, setSite] = useState<'enna' | 'izba'>('enna');
   const [plots, setPlots] = useState<IzbaPlots>(1);
+  const [compare, setCompare] = useState(false);
   // العزبة منتج مستقل: قبل الإطلاق ما تطلع إلا لصاحب كود عزبة، وبعده التبويب للكل (قوالبها لصاحب ترخيصها أو تجربتها)
   const [showIzba, setShowIzba] = useState(izbaVisible);
   useEffect(() => {
@@ -157,6 +159,10 @@ export function WelcomeDialog() {
                 ))}
               </div>
             </div>
+            <button type="button" onClick={() => setCompare((v) => !v)} className="w-full rounded-lg border border-gold-500 bg-gold-50 px-3 py-2 text-[13px] font-bold text-dune" data-testid="izba-compare-toggle">
+              {compare ? 'إخفاء المقارنة' : '📊 قارن بين الاستخدامات (التكلفة والحلال والماي)'}
+            </button>
+            {compare && <IzbaCompare plots={plots} onPick={applyIzba} />}
             <button type="button" onClick={startEmptyIzba} className="w-full rounded-lg border border-sand-300 bg-white px-3 py-2 text-[13px] font-semibold text-dune hover:border-gold-500" data-testid="izba-empty">
               أو ابدأ من أرض فاضية ({IZBA_PLOT_OPTIONS.find((x) => x.n === plots)!.size} م)
             </button>

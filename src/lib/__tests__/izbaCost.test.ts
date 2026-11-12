@@ -46,3 +46,20 @@ describe('مراحل البناء', () => {
     expect(ph[2].items.some((x) => x.includes('حظاير'))).toBe(true);
   });
 });
+
+import { phasePlan, elementPhase } from '../izbaCost';
+describe('شوف المرحلة', () => {
+  it('المرحلة 1 فيها الخزان والمولد بدون المجلس والحظاير، و2 تضيف المجلس', () => {
+    const plan = buildIzba('mixed', 1);
+    const p1 = phasePlan(plan, 1);
+    const kinds1 = new Set(p1.elements.map((e) => e.kind));
+    expect(kinds1.has('water-tank')).toBe(true);
+    expect(kinds1.has('majlis-room')).toBe(false);
+    expect(kinds1.has('sheep-pen')).toBe(false);
+    const p2 = phasePlan(plan, 2);
+    expect(p2.elements.some((e) => e.kind === 'majlis-room')).toBe(true);
+    expect(p2.elements.some((e) => e.kind === 'sheep-pen')).toBe(false);
+    expect(plan.elements.length).toBeGreaterThan(p2.elements.length);
+    expect(plan.elements.every((e) => [1, 2, 3].includes(elementPhase(e)))).toBe(true);
+  });
+});

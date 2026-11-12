@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { useEditor } from '../store/editorStore';
 import { formatNumber } from '../lib/geometry';
-import { CONTINGENCY_PCT, izbaEstimate, izbaPhases } from '../lib/izbaCost';
+import { CONTINGENCY_PCT, izbaEstimate, izbaPhases, phasePlan } from '../lib/izbaCost';
 import type { Plan } from '../types/plan';
 import type { Summary } from '../lib/quantities';
 
@@ -14,6 +14,14 @@ export function IzbaCostPanel({ plan, summary }: { plan: Plan; summary: Summary 
   const est = useMemo(() => izbaEstimate(plan, summary, prices), [plan, summary, prices]);
   const [open, setOpen] = useState(false);
   const phases = useMemo(() => izbaPhases(est), [est]);
+  /** تصميم جديد فيه بس اللي ينبني لين هالمرحلة — تشوفه بالمخطط والمجسم */
+  const showPhase = (n: 1 | 2, title: string) => {
+    const st = useEditor.getState();
+    st.addDesign(`المرحلة ${n} — ${title}`, 'blank', true);
+    st.setPlan(() => phasePlan(plan, n), { history: false });
+    st.openDialog(null);
+    st.toast(`هذي العزبة بعد «المرحلة ${n}» — التصميم الأصلي محفوظ في «التصاميم»`, 'success');
+  };
   const top = Math.max(1, ...est.byGroup.map((g) => g.total));
   const customCount = est.lines.filter((l) => l.custom).length;
 
@@ -70,7 +78,14 @@ export function IzbaCostPanel({ plan, summary }: { plan: Plan; summary: Summary 
                   {i > 0 && <span className="text-[11px] text-sand-500"> • المجموع {qar(phases.slice(0, i + 1).reduce((t, x) => t + x.total, 0))}</span>}
                 </span>
               </div>
-              <div className="text-[11px] text-sand-600">{p.hint}</div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] text-sand-600">{p.hint}</span>
+                {p.n < 3 && (
+                  <button type="button" onClick={() => showPhase(p.n as 1 | 2, p.title)} className="shrink-0 rounded-md border border-gold-500 bg-white px-2 py-0.5 text-[11px] font-bold text-dune" data-testid={`show-phase-${p.n}`}>
+                    👁 شوفها
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
