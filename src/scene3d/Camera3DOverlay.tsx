@@ -72,7 +72,7 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
           onClick={() => useAiPhoto.getState().show()}
           title="صورة حقيقية بالذكاء الاصطناعي — كأنها مصوّرة بالدرون"
           data-testid="ai-photo-btn"
-          className={`pointer-events-auto absolute left-3 flex h-11 items-center gap-1.5 rounded-xl bg-dune px-4 text-sm font-bold text-sand-50 shadow-lg hover:brightness-110 ${BETA ? 'bottom-16' : 'bottom-3'}`}
+          className={`pointer-events-auto absolute left-3 flex h-11 items-center gap-1.5 rounded-xl bg-dune px-4 text-sm font-bold text-sand-50 shadow-lg hover:brightness-110 ${BETA ? 'bottom-[7.25rem] lg:bottom-16' : 'bottom-16 lg:bottom-3'}`}
         >
           📸 صورة حقيقية
         </button>
@@ -83,7 +83,7 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
           onClick={startPhoto}
           title="رندر واقعي: صورة كأنها مصوّرة (محاكاة حقيقية للضوء)"
           data-testid="photo-render"
-          className="pointer-events-auto absolute bottom-3 left-3 flex h-11 items-center gap-1.5 rounded-xl bg-gradient-to-l from-gold-500 to-gold-600 px-4 text-sm font-bold text-white shadow-lg hover:brightness-105"
+          className="pointer-events-auto absolute bottom-16 left-3 flex h-11 items-center gap-1.5 rounded-xl bg-gradient-to-l lg:bottom-3 from-gold-500 to-gold-600 px-4 text-sm font-bold text-white shadow-lg hover:brightness-105"
         >
           <Sparkles size={17} /> رندر واقعي
         </button>
@@ -120,7 +120,7 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
       )}
       {walking && (
         <>
-          <div className="pointer-events-auto absolute bottom-4 right-1/2 flex translate-x-1/2 flex-col items-center gap-2">
+          <div className="pointer-events-auto absolute bottom-20 right-1/2 flex translate-x-1/2 lg:bottom-4 flex-col items-center gap-2">
             <button id="walk-start" type="button" className="hidden rounded-full bg-dune px-4 py-2 text-sm text-sand-50 shadow-lg sm:block">
               انقر هنا للتحكم بالماوس • W A S D للمشي • Shift للجري • Esc للخروج
             </button>
