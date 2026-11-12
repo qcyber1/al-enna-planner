@@ -1,3 +1,4 @@
+import { useAiPhoto } from '../components/AiPhotoDialog';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
@@ -419,6 +420,16 @@ function CaptureHandler() {
     renderScene(() => gl.render(scene, camera));
     const st = useEditor.getState();
     const design = activeDesign(st.project);
+    if (capture.mode === 'ai') {
+      // لقطة للذكاء الاصطناعي: بدون علامة مائية، عرض 1536 بالكثير، JPEG
+      const w = Math.min(1536, gl.domElement.width);
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = Math.round((w * gl.domElement.height) / gl.domElement.width);
+      c.getContext('2d')?.drawImage(gl.domElement, 0, 0, c.width, c.height);
+      useAiPhoto.getState().gotSource(c.toDataURL('image/jpeg', 0.88));
+      return;
+    }
     if (capture.mode === 'thumb') {
       const small = document.createElement('canvas');
       small.width = 640;

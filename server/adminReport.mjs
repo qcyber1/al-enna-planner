@@ -29,7 +29,7 @@ const rpMask=p=>{const d=String(p||'').replace(/\D/g,'');if(!d)return '—';retu
 const rpN=n=>(Math.round(n||0)).toLocaleString('en-US');
 const rpPct=(a,b)=>b?(Math.round(a/b*1000)/10)+'%':'—';
 const rpDelta=(a,b)=>{if(!b)return a?'<span class="up">جديد</span>':'';const p=Math.round((a-b)/b*100);return '<span class="'+(p>=0?'up':'down')+'">'+(p>=0?'▲ ':'▼ ')+Math.abs(p)+'%</span>'};
-const RP_PROD={enna:'⛺ عنة',izba:'🏡 عزبة'};
+const RP_PROD={enna:'⛺ عنة',izba:'🏡 عزبة',photos:'📸 باقة صور'};
 const RP_METHOD={online:'سكيب كاش',manual:'تحويل يدوي',code:'كود يدوي'};
 const rpDateLabel=d=>d.from===d.to?d.from:d.from+' ← '+d.to;
 function rpHtml(d,forPrint){

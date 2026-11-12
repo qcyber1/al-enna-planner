@@ -25,7 +25,7 @@ export function parseRange(fromIn, toIn, now = Date.now()) {
   return { from, to };
 }
 
-const prodOf = (o) => (o.product === 'izba' ? 'izba' : 'enna');
+const prodOf = (o) => (o.product === 'izba' ? 'izba' : o.product === 'photos' ? 'photos' : 'enna');
 
 function periodStats(db, days) {
   const set = new Set(days);

@@ -9,8 +9,8 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty",
     "preview": "vite preview",
-    "test": "vitest run && node --test server/tests/unit.mjs server/tests/api.mjs server/tests/skipcash.mjs",
-    "test:server": "node --test server/tests/unit.mjs server/tests/api.mjs server/tests/skipcash.mjs",
+    "test": "vitest run && node --test server/tests/unit.mjs server/tests/api.mjs server/tests/skipcash.mjs server/tests/aiphoto.mjs",
+    "test:server": "node --test server/tests/unit.mjs server/tests/api.mjs server/tests/skipcash.mjs server/tests/aiphoto.mjs",
     "start": "node server/index.mjs"
   },
   "devDependencies": {
