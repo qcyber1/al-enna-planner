@@ -25,3 +25,25 @@ export function snapPurchase(orderRef: string, value: number, product: 'enna' | 
 export function snapTrial() {
   snap()?.('track', 'START_TRIAL', {});
 }
+
+async function sha256(v: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** نعطي سناب جوال/إيميل العميل مشفّرين SHA-256 (يرفع نسبة المطابقة) — ما يوقف شي لو فشل */
+export async function snapSetUser({ phone, email }: { phone?: string; email?: string } = {}) {
+  const s = snap();
+  if (!s || !globalThis.crypto?.subtle) return;
+  try {
+    const data: Record<string, string> = {};
+    let ph = String(phone || '').replace(/\D/g, '');
+    if (ph.length === 8) ph = '974' + ph;
+    if (ph) data.user_hashed_phone_number = await sha256(ph);
+    const em = String(email || '').trim().toLowerCase();
+    if (em.includes('@') && !em.endsWith('@i3enna.qa')) data.user_hashed_email = await sha256(em);
+    if (Object.keys(data).length) s('setUserData', data);
+  } catch {
+    /* تجاهل */
+  }
+}

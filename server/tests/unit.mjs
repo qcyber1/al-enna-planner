@@ -153,13 +153,15 @@ test('سناب: شكل الحدث والتشفير والكوكيز', () => {
   const u = snapUser({ email: 'A@B.com ', phone: '+974 5512 3456', ip: '1.2.3.4', ua: 'UA', scid: 'c1', sccid: 'k1' });
   assert.equal(u.em[0].length, 64);
   assert.equal(u.ph[0], snapUser({ phone: '97455123456' }).ph[0]);
-  assert.deepEqual([u.client_ip_address, u.user_agent, u.sc_cookie1, u.sc_click_id], ['1.2.3.4', 'UA', 'c1', 'k1']);
+  assert.equal(snapUser({ phone: '5512 3456' }).ph[0], u.ph[0], 'الرقم بدون 974 نفس الرقم مع 974');
+  assert.deepEqual([u.client_ip_address, u.client_user_agent, u.sc_cookie1, u.sc_click_id], ['1.2.3.4', 'UA', 'c1', 'k1']);
   assert.equal(snapUser({ email: 'x@i3enna.qa' }).em, undefined);
   const b = snapPayload({ name: 'PURCHASE', eventId: 'EN-1', value: 499, user: u, product: 'izba', now: 1_700_000_000_000 });
   const e = b.data[0];
   assert.equal(e.event_time, 1_700_000_000);
   assert.equal(e.event_source_url, 'https://www.i3enna.qa/izba');
-  assert.deepEqual(e.custom_data, { event_id: 'EN-1', value: 499, currency: 'QAR', content_ids: ['i3enna-izba-lifetime'], content_category: ['izba-planner'], number_items: ['1'], order_id: 'EN-1' });
+  assert.equal(e.event_id, 'EN-1');
+  assert.deepEqual(e.custom_data, { value: 499, currency: 'QAR', content_ids: ['i3enna-izba-lifetime'], content_category: ['izba-planner'], num_items: 1, order_id: 'EN-1' });
   assert.deepEqual(snapCookies({ headers: { cookie: '_fbp=x; _scid=abc-1; _sccid=click%2D9' } }), { scid: 'abc-1', sccid: 'click-9' });
 });
 

@@ -1,6 +1,6 @@
 /** Meta Pixel (إعلانات فيسبوك/إنستقرام): أحداث البيع الأساسية — وكل حدث ينحسب بعد في «مسار البيع» باللوحة */
 import { track } from './stats';
-import { snapCheckout, snapPurchase, snapTrial } from './snap';
+import { snapCheckout, snapPurchase, snapSetUser, snapTrial } from './snap';
 type Fbq = (cmd: 'track' | 'trackCustom' | 'init', event: string, params?: Record<string, unknown>, opts?: { eventID?: string }) => void;
 export const PIXEL_ID = '29329924966644106';
 const fbq = (): Fbq | null => {
@@ -50,6 +50,7 @@ export function setBuyer({ phone, email, name }: { phone?: string; email?: strin
   const fn = String(name || '').trim().split(/\s+/)[0];
   if (fn) ud.fn = fn.toLowerCase();
   fbq()?.('init', PIXEL_ID, ud);
+  void snapSetUser({ phone: ud.ph, email: ud.em });
 }
 
 /** خلصت التجربة المجانية (للجمهور: جرّبوا وما اشتروا) */

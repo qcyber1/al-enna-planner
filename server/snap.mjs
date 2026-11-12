@@ -16,8 +16,10 @@ const sha = (v) => crypto.createHash('sha256').update(String(v).trim().toLowerCa
 export function snapUser({ email, phone, ip, ua, scid, sccid }) {
   const u = {};
   if (email && !/@i3enna\.qa$/i.test(email)) u.em = [sha(email)];
-  if (phone) u.ph = [sha(String(phone).replace(/\D/g, ''))];
-  if (ua) u.user_agent = String(ua).slice(0, 400);
+  let ph = String(phone || '').replace(/\D/g, '');
+  if (ph.length === 8) ph = '974' + ph; // أرقام قطر بدون مفتاح الدولة
+  if (ph) u.ph = [sha(ph)];
+  if (ua) u.client_user_agent = String(ua).slice(0, 400);
   if (ip) u.client_ip_address = ip;
   if (sccid) u.sc_click_id = sccid;
   if (scid) u.sc_cookie1 = scid;
@@ -31,17 +33,17 @@ export function snapPayload({ name, eventId, value, url, user, product, now = Da
     data: [
       {
         event_name: name,
+        event_id: eventId, // نفس client_dedup_id في البكسل → سناب يحسبها مرة وحدة
         action_source: 'website',
         event_source_url: url || (p === 'izba' ? 'https://www.i3enna.qa/izba' : 'https://www.i3enna.qa/'),
         event_time: Math.floor(now / 1000),
         user_data: user,
         custom_data: {
-          event_id: eventId,
           value: Number(value) || 0,
           currency: 'QAR',
           content_ids: [ITEM[p]],
           content_category: [p === 'izba' ? 'izba-planner' : 'camp-planner'],
-          number_items: ['1'],
+          num_items: 1,
           order_id: eventId,
         },
       },

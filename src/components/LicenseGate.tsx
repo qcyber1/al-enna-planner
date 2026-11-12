@@ -20,6 +20,7 @@ import { track } from '../lib/stats';
 import { claimOffer, getOffer, leftLabel, type TrialOffer } from '../lib/offer';
 import { getProducts, landingSite, markDemoSite, saveProducts, izbaLive, setIzbaLive } from '../lib/license';
 import { useUpgrade } from './UpgradeIzba';
+import { snapSetUser } from '../lib/snap';
 import { setBuyer as pixelBuyer, trackCheckout, trackDemoBuyClick, trackPurchase, trackTrial, trackTrialEnded } from '../lib/pixel';
 import { demoLeft, demoUsed, isDemo, setDemoActive, startDemo } from '../lib/demo';
 
@@ -237,7 +238,11 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               const rc = (v.data as { receipt?: Receipt }).receipt ?? null;
               setReceipt(rc);
               // تجربة الشراء من اللوحة ما تنحسب بيعة عند ميتا
-              if (rc && !rc.test) trackPurchase(rc.ref, rc.amount, rc.product === 'izba' ? 'izba' : 'enna');
+              if (rc && !rc.test) {
+                // سناب: بيانات العميل المشفّرة قبل حدث الشراء (المطابقة)
+                await snapSetUser({ phone: a.data.phone, email: (a.data as { email?: string }).email });
+                trackPurchase(rc.ref, rc.amount, rc.product === 'izba' ? 'izba' : 'enna');
+              }
               return setState('paid');
             }
           } catch {
