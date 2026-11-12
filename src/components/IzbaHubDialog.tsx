@@ -6,6 +6,8 @@ import { useSummary } from '../hooks/useDerived';
 import { Button, Modal, cx } from './ui';
 import { IzbaInsightsPanel, IzbaIrrigationPanel } from './IzbaInsightsPanel';
 import { IzbaCostPanel } from './IzbaCostPanel';
+import { IzbaRunningPanel } from './IzbaRunningPanel';
+import { izbaRunning } from '../lib/izbaRunning';
 import { izbaEstimate } from '../lib/izbaCost';
 import { izbaInsights } from '../lib/izbaInsights';
 import { izbaMaterials, materialRows } from '../lib/izbaMaterials';
@@ -14,10 +16,11 @@ import { openReport } from '../lib/report';
 import { demoBlock } from './Dialogs';
 import { formatNumber } from '../lib/geometry';
 
-type Tab = 'summary' | 'cost' | 'materials' | 'water' | 'power' | 'calendar' | 'next';
+type Tab = 'summary' | 'cost' | 'running' | 'materials' | 'water' | 'power' | 'calendar' | 'next';
 const TABS: [Tab, string][] = [
   ['summary', '📊 الملخص'],
   ['cost', '💰 التكلفة'],
+  ['running', '💵 المصاريف الشهرية'],
   ['materials', '🧱 المواد'],
   ['water', '💧 الري'],
   ['power', '⚡ الكهرباء'],
@@ -39,6 +42,7 @@ function Body() {
   const [tab, setTab] = useState<Tab>('summary');
   const est = useMemo(() => izbaEstimate(design.plan, s, project.prices), [design.plan, s, project.prices]);
   const ins = useMemo(() => izbaInsights(design.plan, s), [design.plan, s]);
+  const run = useMemo(() => izbaRunning(design.plan, s, project.prices, est.total), [design.plan, s, project.prices, est.total]);
   const land = design.plan.land;
   const k = (n: number) => formatNumber(Math.round(n / 1000), 0) + ' ألف';
   const report = () => {
@@ -76,6 +80,9 @@ function Body() {
           <span>
             💰 تقريباً <b>{k(est.total)} ر.ق</b>
           </span>
+          <button type="button" onClick={() => setTab('running')} className="underline-offset-2 hover:underline" data-testid="hub-run-strip">
+            💵 تشغيل <b>~{formatNumber(run.monthly, 0)} ر.ق</b>/شهر
+          </button>
           <span>
             🏠 مباني <b>{formatNumber(ins.builtArea, 0)} م²</b>
           </span>
@@ -99,6 +106,7 @@ function Body() {
 
         {tab === 'summary' && <IzbaInsightsPanel plan={design.plan} summary={s} hideIrrigation />}
         {tab === 'cost' && <IzbaCostPanel plan={design.plan} summary={s} />}
+        {tab === 'running' && <IzbaRunningPanel plan={design.plan} summary={s} buildCost={est.total} />}
         {tab === 'water' && (
           <div className="space-y-2">
             <IzbaIrrigationPanel plan={design.plan} />
