@@ -1,4 +1,5 @@
-import { useMemo, type MutableRefObject } from 'react';
+import { loadAiStatus, useAiPhoto } from '../components/AiPhotoDialog';
+import { useEffect, useMemo, useState, type MutableRefObject } from 'react';
 import { Camera, Home, Sparkles, Eye, Footprints, DoorOpen, Tent, Plane, Box, ArrowUp, ArrowDown, RotateCcw, RotateCw, X } from 'lucide-react';
 import { useEditor, usePlan } from '../store/editorStore';
 import { useView3D } from './viewStore';
@@ -35,6 +36,10 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
   const interior = useView3D((s) => s.interior);
   const toggleInterior = useView3D((s) => s.toggleInterior);
   const hasRooms = usePlan().elements.some((e) => e.kind === 'room');
+  const [aiOn, setAiOn] = useState(false);
+  useEffect(() => {
+    void loadAiStatus().then((s) => setAiOn(!!s?.on));
+  }, []);
   const izbaSite = usePlan().land.site === 'izba';
   const hold = (k: 'f' | 's' | 'turn', v: number) => ({
     onPointerDown: () => (move.current[k] = v),
@@ -61,6 +66,17 @@ export function Camera3DOverlay({ move }: { move: MutableRefObject<{ f: number; 
           <Camera size={17} />
         </IconButton>
       </div>
+      {aiOn && !walking && !photoBusy && (
+        <button
+          type="button"
+          onClick={() => useAiPhoto.getState().show()}
+          title="صورة حقيقية بالذكاء الاصطناعي — كأنها مصوّرة بالدرون"
+          data-testid="ai-photo-btn"
+          className={`pointer-events-auto absolute left-3 flex h-11 items-center gap-1.5 rounded-xl bg-dune px-4 text-sm font-bold text-sand-50 shadow-lg hover:brightness-110 ${BETA ? 'bottom-16' : 'bottom-3'}`}
+        >
+          📸 صورة حقيقية
+        </button>
+      )}
       {BETA && !walking && !photoBusy && (
         <button
           type="button"

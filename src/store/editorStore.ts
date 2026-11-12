@@ -102,7 +102,7 @@ interface State {
   saveState: 'saved' | 'pending' | 'error';
   saveError: string | null;
   /** طلب تصدير صورة 3D (يعالجه المشهد عند تغير الرقم) */
-  capture3d: { nonce: number; mode: 'download' | 'share' | 'thumb' };
+  capture3d: { nonce: number; mode: 'download' | 'share' | 'thumb' | 'ai' };
 
   // ——— المخطط والتاريخ ———
   setPlan: (fn: (p: Plan) => Plan, opts?: SetPlanOptions) => void;
@@ -149,7 +149,7 @@ interface State {
   openDialog: (d: DialogName | null) => void;
   toast: (text: string, kind?: Toast['kind'], action?: Toast['action']) => void;
   dismissToast: (id: string) => void;
-  requestCapture3d: (mode: 'download' | 'share' | 'thumb') => void;
+  requestCapture3d: (mode: 'download' | 'share' | 'thumb' | 'ai') => void;
 
   // ——— التصاميم ———
   switchDesign: (id: string) => void;

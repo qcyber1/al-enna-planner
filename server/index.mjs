@@ -8,11 +8,12 @@ import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { adminPage, adminLoginPage } from './admin.mjs';
 import { privacyPage } from './privacy.mjs';
-import { recordEvent, funnelSummary } from './funnel.mjs';
+import { recordEvent, funnelSummary, qaDay } from './funnel.mjs';
 import { validateBuyer, parsePhone } from './buyer.mjs';
 import { safeJoin, readBody as readBodyRaw } from './http-utils.mjs';
 import { sendEvent, userData, metaCookies, capiEnabled } from './meta.mjs';
 import { buildReport } from './report.mjs';
+import { buildPrompt, generatePhoto, parseImage } from './aiPhoto.mjs';
 import { sendSnap, snapUser, snapCookies, snapEnabled } from './snap.mjs';
 import { loadDbFile, latestBackup, writeDbFile, dailyBackup } from './datastore.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
@@ -61,6 +62,33 @@ const izbaListPrice = () => setNum('izbaListPrice', 999);
 const izbaUpgrade = () => setNum('izbaUpgrade', 299);
 // العزبة قبل الإطلاق مخفية عن العملاء: لا صفحة ولا بيع ولا ترقية (الفريق ياخذ أكواد عزبة من «أكواد يدوية»)
 const izbaLive = () => db.settings.izbaLive === true;
+// «📸 صورة حقيقية» بالذكاء الاصطناعي: مطفية لين الأدمن يشغّلها، والمفتاح في Railway
+const aiKey = () => process.env.OPENAI_API_KEY || '';
+const aiOn = () => db.settings.aiOn === true && !!aiKey();
+const aiFree = () => setNum('aiFree', 3);
+const aiPackSize = () => setNum('aiPackSize', 10);
+const aiPackPrice = () => setNum('aiPackPrice', 19);
+/** سقف المصروف اليومي (ر.ق) وتكلفة الصورة التقديرية — حماية من فاتورة مفاجئة */
+const aiDailyCap = () => setNum('aiDailyCap', 20);
+const aiCost = () => setNum('aiCost', 0.25);
+const aiLeft = (rec) => Math.max(0, aiFree() + (rec?.aiBought || 0) - (rec?.aiUsed || 0));
+const aiToday = () => (db.aiLog || []).filter((x) => x.ok && qaDay(x.at) === qaDay()).length;
+const aiInflight = new Set();
+/** إحصائيات الصور للأدمن: اليوم والشهر والتكلفة التقديرية والفاشلة */
+function aiStats() {
+  const log = db.aiLog || [];
+  const today = qaDay();
+  const month = today.slice(0, 7);
+  const ok = log.filter((x) => x.ok);
+  const m = ok.filter((x) => qaDay(x.at).startsWith(month));
+  return { today: ok.filter((x) => qaDay(x.at) === today).length, month: m.length, monthCost: Math.round(m.reduce((t, x) => t + (x.cost || 0), 0) * 100) / 100, failed: log.filter((x) => !x.ok && qaDay(x.at).startsWith(month)).length, total: ok.length };
+}
+/** صاحب الكود (لشراء باقة الصور) */
+function codeOfToken(token) {
+  const t = token ? readToken(token) : null;
+  const rec = t && db.codes[t.c];
+  return rec && !rec.revoked ? rec : null;
+}
 // عمولة سكيب كاش (من عقد التاجر): نسبة % + رسوم ثابتة لكل عملية — للعرض في الإيراد بس، ما تأثر على سعر العميل
 const skipcashFee = () => ({ pct: setNum('skipcashFeePct', 0), fixed: setNum('skipcashFeeFixed', 0) });
 const PRODUCTS = ['enna', 'izba'];
@@ -281,6 +309,18 @@ function applyPayment(o, st) {
 function markPaid(o) {
   if (o.codeId) {
     o.status = 'paid';
+    return;
+  }
+  // باقة صور الذكاء الاصطناعي: تنضاف لرصيد نفس الكود
+  if (o.product === 'photos') {
+    const rec = o.upgradeOf && db.codes[o.upgradeOf];
+    if (rec) {
+      rec.aiBought = (rec.aiBought || 0) + (Number(o.photos) || aiPackSize());
+      o.codeId = rec.id;
+    }
+    o.status = 'paid';
+    o.paidAt = Date.now();
+    saveDb();
     return;
   }
   // ترقية: نضيف العزبة لنفس الكود (ما نطلع كود جديد)
@@ -580,6 +620,8 @@ const server = http.createServer(async (req, res) => {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
       const { name, phone, email, ref, offer, product: prodIn, upgradeToken } = await readBody(req);
       const product = productOf(prodIn);
+      const pack = prodIn === 'photos' ? codeOfToken(upgradeToken) : null;
+      if (prodIn === 'photos' && (!aiOn() || !pack)) return send(res, 400, { ok: false, error: 'لازم تكون مسجّل دخول وخدمة الصور مفعّلة' });
       if (product === 'izba' && !izbaLive()) return send(res, 403, { ok: false, error: 'العزبة غير متاحة حالياً' });
       const upRec = product === 'izba' ? upgradeTarget(upgradeToken) : null;
       if (product === 'izba' && upgradeToken && !upRec) return send(res, 400, { ok: false, error: 'حسابك فيه العزبة من قبل، أو لازم تسجّل دخول من جديد' });
@@ -596,6 +638,7 @@ const server = http.createServer(async (req, res) => {
       // لميتا (Conversions API): عنوان الجهاز والمتصفح وكوكيز البكسل — تنحفظ مع الطلب عشان نرسل الشراء من السيرفر
       const mc = metaCookies(req);
       const sc = snapCookies(req);
+      if (pack) Object.assign(order, { product: 'photos', amount: aiPackPrice(), upgradeOf: pack.id, photos: aiPackSize(), ref: undefined, offer: undefined });
       order.meta = { ip, ua: String(req.headers['user-agent'] || '').slice(0, 400), fbp: mc.fbp, fbc: mc.fbc, scid: sc.scid, sccid: sc.sccid };
       // نحفظ الطلب قبل ما نكلم سكيب كاش: لو صار شي بعد الدفع ما يضيع الطلب
       db.orders.unshift(order);
@@ -673,17 +716,57 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true });
     }
 
+    if (p === '/api/ai-photo/status' && req.method === 'POST') {
+      const rec = codeOfToken((await readBody(req)).token);
+      return send(res, 200, { on: aiOn(), left: rec ? aiLeft(rec) : 0, free: aiFree(), packSize: aiPackSize(), packPrice: aiPackPrice(), online: skipcashEnabled && LICENSING, signedIn: !!rec });
+    }
+    if (p === '/api/ai-photo' && req.method === 'POST') {
+      if (!aiOn()) return send(res, 400, { ok: false, error: 'خدمة الصور غير مفعّلة حالياً' });
+      if (limited(ip, 30)) return send(res, 429, { ok: false, error: 'طلبات كثيرة — حاول بعد شوي' });
+      const body = await readBodyRaw(req, 4_500_000);
+      if (!body || typeof body !== 'object' || body.__tooLarge) return send(res, 400, { ok: false, error: 'الصورة كبيرة — حاول مرة ثانية' });
+      const rec = codeOfToken(body.token);
+      if (!rec) return send(res, 401, { ok: false, error: 'سجّل دخول من جديد' });
+      if (aiLeft(rec) <= 0) return send(res, 402, { ok: false, error: 'خلص رصيد الصور', left: 0 });
+      if (aiInflight.has(rec.id)) return send(res, 429, { ok: false, error: 'في صورة قاعدة تتجهز — انتظرها' });
+      // سقف يومي للموقع كله
+      if ((aiToday() + 1) * aiCost() > aiDailyCap()) return send(res, 503, { ok: false, error: 'وصلنا الحد اليومي للصور — جرّب بكرة' });
+      const image = parseImage(body.image);
+      if (!image) return send(res, 400, { ok: false, error: 'ما قدرنا نقرأ لقطة المجسم — حاول مرة ثانية' });
+      const prompt = buildPrompt({ mood: body.mood, hints: body.hints, izba: body.izba === true });
+      aiInflight.add(rec.id);
+      try {
+        const b64 = await generatePhoto({ key: aiKey(), base: process.env.OPENAI_BASE_URL || undefined, model: process.env.OPENAI_IMAGE_MODEL || undefined, image, prompt });
+        rec.aiUsed = (rec.aiUsed || 0) + 1;
+        (db.aiLog ??= []).push({ at: Date.now(), c: rec.id, ok: true, cost: aiCost(), mood: String(body.mood || 'day').slice(0, 10) });
+        db.aiLog = db.aiLog.slice(-5000);
+        saveDb();
+        return send(res, 200, { ok: true, image: 'data:image/png;base64,' + b64, left: aiLeft(rec) });
+      } catch (e) {
+        console.error('[ai-photo]', e.message);
+        (db.aiLog ??= []).push({ at: Date.now(), c: rec.id, ok: false, err: String(e.message).slice(0, 120) });
+        db.aiLog = db.aiLog.slice(-5000);
+        saveDb();
+        return send(res, 502, { ok: false, error: 'ما طلعت الصورة هالمرة — ما انخصمت من رصيدك، جرّب مرة ثانية' });
+      } finally {
+        aiInflight.delete(rec.id);
+      }
+    }
+
     if (p === '/api/order' && req.method === 'POST') {
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
       const { name, phone, ref, offer, product: prodIn, upgradeToken } = await readBody(req);
       const product = productOf(prodIn);
       if (product === 'izba' && !izbaLive()) return send(res, 403, { ok: false, error: 'العزبة غير متاحة حالياً' });
+      const pack = prodIn === 'photos' ? codeOfToken(upgradeToken) : null;
+      if (prodIn === 'photos' && (!aiOn() || !pack)) return send(res, 400, { ok: false, error: 'لازم تكون مسجّل دخول وخدمة الصور مفعّلة' });
       const upRec = product === 'izba' ? upgradeTarget(upgradeToken) : null;
-      const refId = product === 'izba' ? null : parseRef(ref);
+      const refId = product === 'izba' || pack ? null : parseRef(ref);
       const v = validateBuyer({ name, phone }, false);
       if (v.errors) return send(res, 400, { ok: false, error: Object.values(v.errors)[0], errors: v.errors });
       const full = v.phone;
       db.orders.unshift({ id: crypto.randomBytes(6).toString('hex'), no: nextOrderNo(), name: v.name, phone: full.slice(0, 20), createdAt: Date.now(), status: 'new', ref: refId || undefined, amount: upRec ? izbaUpgrade() : amountFor(refId, offer, product), offer: product === 'enna' && offerFor(offer) ? true : undefined, product, upgradeOf: upRec ? upRec.id : undefined });
+      if (pack) Object.assign(db.orders[0], { product: 'photos', amount: aiPackPrice(), upgradeOf: pack.id, photos: aiPackSize(), offer: undefined });
       db.orders = db.orders.slice(0, 2000);
       saveDb();
       return send(res, 200, { ok: true });
@@ -810,7 +893,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
-        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive(), skipcashFeePct: skipcashFee().pct, skipcashFeeFixed: skipcashFee().fixed } });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive(), aiOn: db.settings.aiOn === true, aiKey: !!aiKey(), aiFree: aiFree(), aiPackSize: aiPackSize(), aiPackPrice: aiPackPrice(), aiDailyCap: aiDailyCap(), aiCost: aiCost(), aiStats: aiStats(), skipcashFeePct: skipcashFee().pct, skipcashFeeFixed: skipcashFee().fixed } });
       }
       // تجربة شاشة ما بعد الدفع بدون سكيب كاش ولا فلوس (ما تنحسب في المبيعات)
       if (p === '/api/admin/test-order' && req.method === 'POST') {
@@ -879,6 +962,15 @@ const server = http.createServer(async (req, res) => {
           next.izbaUpgrade = iu;
         }
         if (b.izbaLive !== undefined) next.izbaLive = b.izbaLive === true;
+        if (b.aiOn !== undefined) {
+          const f = num(b.aiFree, 0, 50);
+          const ps = num(b.aiPackSize, 1, 200);
+          const pp = num(b.aiPackPrice, 1, 10000);
+          const cap = num(b.aiDailyCap, 1, 10000);
+          const cost = Number(b.aiCost);
+          if (f === null || ps === null || pp === null || cap === null || !Number.isFinite(cost) || cost <= 0 || cost > 20) return send(res, 400, { error: 'تأكد من أرقام صور الذكاء الاصطناعي' });
+          Object.assign(next, { aiOn: b.aiOn === true, aiFree: f, aiPackSize: ps, aiPackPrice: pp, aiDailyCap: cap, aiCost: Math.round(cost * 100) / 100 });
+        }
         if (b.skipcashFeePct !== undefined) {
           const fp = Number(b.skipcashFeePct);
           const ff = Number(b.skipcashFeeFixed ?? 0);
