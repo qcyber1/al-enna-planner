@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Minus, Plus, Sparkles, Check, Layers } from 'lucide-react';
 import { useEditor, usePlan } from '../store/editorStore';
 import { Button, Modal, Toggle, cx } from './ui';
-import { DEFAULT_GEN, generateDesigns, type GenInput, type GenResult } from '../lib/generator';
+import { DEFAULT_GEN, genInputFromPlan, generateDesigns, type GenInput, type GenResult } from '../lib/generator';
 import { izbaEnabled, izbaIdeas } from '../lib/izba';
 import { IzbaLockedCard } from './UpgradeIzba';
 import { planThumbnail } from '../render2d/exportImage';
@@ -37,6 +37,21 @@ export function GeneratorDialog() {
   const [results, setResults] = useState<GenResult[] | null>(null);
   const [busy, setBusy] = useState(false);
   const set = (p: Partial<GenInput>) => setInput((i) => ({ ...i, ...p }));
+  // «اللي عندي»: لما تفتح المولّد نعبّي الأعداد والمقاسات من مخططك الحالي
+  const [fromPlan, setFromPlan] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const own = plan.land.site === 'izba' ? null : genInputFromPlan(plan);
+    if (own) {
+      setInput(own);
+      setFromPlan(true);
+    } else {
+      setInput(DEFAULT_GEN);
+      setFromPlan(false);
+    }
+    setResults(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   const b = landBounds(plan.land);
   const izba = plan.land.site === 'izba';
   const thumbs = useMemo(() => (results ? results.map((r) => planThumbnail(r.plan, 520)) : []), [results]);
@@ -102,6 +117,14 @@ export function GeneratorDialog() {
           <p className="text-sm text-sand-700">
             حدّد وش تبي في عنتك، والمولّد يوزّعها لك بخمس طرق مختلفة على أرضك ({Math.round(b.maxX - b.minX)} × {Math.round(b.maxY - b.minY)} م) مع الممرات والإنارة، بدون تداخل.
           </p>
+          {fromPlan ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-turf-500/10 p-2.5 text-[13px] text-turf-800" data-testid="gen-from-plan">
+              <span>✓ عبّينا الأعداد من مخططك الحالي{input.sizes?.length ? ' وبنحافظ على مقاسات خيامك' : ''} — غيّر اللي تبيه.</span>
+              <button type="button" className="font-semibold underline" onClick={() => { setInput(DEFAULT_GEN); setFromPlan(false); }}>
+                ابدأ من الافتراضي
+              </button>
+            </div>
+          ) : null}
           <div className="grid gap-2 sm:grid-cols-2">
             <Counter icon="⛺" label="الخيام (أولها المجلس)" value={input.tents} onChange={(n) => set({ tents: Math.max(1, n) })} />
             <Counter icon="🛏️" label="كبائن رقدة" value={input.sleepCabins} onChange={(n) => set({ sleepCabins: n })} />
