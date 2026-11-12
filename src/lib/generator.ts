@@ -36,6 +36,8 @@ export interface GenInput {
   kids: boolean;
   screen: boolean;
   bbq: boolean;
+  /** مقاسات الخيام اللي عند المستخدم (من مخططه) — الأولى المجلس */
+  sizes?: { w: number; d: number }[];
 }
 
 export const DEFAULT_GEN: GenInput = {
@@ -277,8 +279,9 @@ function build(land: Land, input: GenInput, s: Strategy): GenResult {
   P.occupied.push(rectCorners(f.E.x + f.n.x * 2, f.E.y + f.n.y * 2, entranceInfo(land).width + 1, 4, aimRotation({ x: 0, y: 0 }, f.t) + 90));
 
   // 1) المجلس الرئيسي
-  const mW = big >= 40 ? 12 : big >= 30 ? 10 : 8;
-  const mD = big >= 40 ? 7 : big >= 30 ? 6.5 : 5.5;
+  const own = input.sizes ?? [];
+  const mW = own[0]?.w ?? (big >= 40 ? 12 : big >= 30 ? 10 : 8);
+  const mD = own[0]?.d ?? (big >= 40 ? 7 : big >= 30 ? 6.5 : 5.5);
   const majlis = mk('main-tent', { name: 'المجلس الرئيسي', width: mW, depth: mD });
   // العنة البحرية: المجلس قريب من البحر وقدامه جلسة تطل على البحر
   const entEdge = entranceInfo(land).edge;
@@ -351,7 +354,7 @@ function build(land: Land, input: GenInput, s: Strategy): GenResult {
     const family = s.partition && i === 1;
     const el = family
       ? mk('main-tent', { name: 'مجلس العائلة', width: Math.max(6, mW - 3), depth: Math.max(5, mD - 1), accent: '#2f5d3a' })
-      : mk('small-tent', { name: `خيمة ${i}`, width: big >= 30 ? 4.5 : 3.5, depth: big >= 30 ? 4 : 3.5 });
+      : mk('small-tent', { name: `خيمة ${i}`, width: own[i]?.w ?? (big >= 30 ? 4.5 : 3.5), depth: own[i]?.d ?? (big >= 30 ? 4 : 3.5) });
     const want = family ? at(f, s.anchors.tents) : at(f, { u: s.anchors.tents.u, v: s.anchors.tents.v - ((i - 1) % 4) * 0.12 });
     el.rotation = faceToward(want, yard, f);
     if (!placeNear(P, el, want, 1.5)) skipped.push(el.name);
@@ -524,4 +527,30 @@ export function generateDesigns(land: Land, input: GenInput, seed = 0): GenResul
     }
     return sea ? { ...r, description: r.description + ' — والمجلس يطل على البحر مع جلسة بحرية' } : r;
   });
+}
+
+/** الأعداد والمقاسات من مخطط المستخدم: «عندي 4 خيام و4 كباين وملعب» ← يطلع توزيع جديد بنفس الأغراض */
+export function genInputFromPlan(plan: Plan): GenInput | null {
+  const els = plan.elements;
+  const n = (...kinds: string[]) => els.filter((e) => kinds.includes(e.kind)).length;
+  const tents = els.filter((e) => e.kind === 'main-tent' || e.kind === 'small-tent' || e.kind === 'dining-tent');
+  if (!els.length) return null;
+  // المجلس (أكبر خيمة) أول
+  const sorted = [...tents].sort((a, b) => b.width * b.depth - a.width * a.depth);
+  const slots = els.filter((e) => e.kind === 'parking').reduce((t, e) => t + (e.parking?.slots ?? 1), 0);
+  return {
+    tents: Math.max(1, Math.min(12, tents.length)),
+    sleepCabins: Math.min(12, n('sleep-cabin')),
+    kitchenCabins: Math.min(6, n('kitchen-cabin', 'kitchen-tent')),
+    toilets: Math.min(10, n('toilet')),
+    sinks: Math.min(10, n('sink')),
+    court: n('volleyball') > 0,
+    firePit: n('fire-pit') > 0,
+    parking: Math.min(20, slots),
+    prayer: n('prayer-area') > 0,
+    kids: n('kids-area') > 0,
+    screen: n('screen') > 0,
+    bbq: n('bbq') > 0,
+    sizes: sorted.map((e) => ({ w: e.width, d: e.depth })),
+  };
 }
