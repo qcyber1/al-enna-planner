@@ -224,6 +224,8 @@ function perimeterLayout(use: IzbaUse, W: number, D: number): [Spec[], PlanEleme
     ground.push(lawn(mid - (big ? 14 : 0), D - 16, big ? 7 : 5));
     if (!family) for (let y = 12; y <= D - 12; y += 8) s.push(['palm', W - 3, y]);
     if (big && !family) s.push(['volleyball', cx1 - 12, tall ? D - 20 : D / 2]);
+    // العائلية الكبيرة: ملعب كورة خماسي للعيال والشباب
+    if (big && family) s.push(['football', mid + 14, tall ? D - 22 : D / 2 + 12, { rotation: 90 }]);
   }
   if (farm) {
     const fx0 = cx0;
