@@ -18,6 +18,7 @@ import { LangToggle } from './LangToggle';
 import { getLang } from '../lib/i18n';
 import { track } from '../lib/stats';
 import { claimOffer, getOffer, leftLabel, type TrialOffer } from '../lib/offer';
+import { clearRescue, getRescue, saveRescue, type Rescue } from '../lib/rescue';
 import { getProducts, landingSite, markDemoSite, saveProducts, izbaLive, setIzbaLive } from '../lib/license';
 import { useUpgrade } from './UpgradeIzba';
 import { snapSetUser } from '../lib/snap';
@@ -177,19 +178,24 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   };
   // عرض «خلصت التجربة» (سعر خاص لوقت محدود من السيرفر)
   const [offer, setOffer] = useState<TrialOffer | null>(() => getOffer());
+  // خصم «وصل الدفع وما كمّل» (مربوط برقمه، من السيرفر)
+  const [rescue, setRescue] = useState<Rescue | null>(() => getRescue());
   const [, tick] = useState(0);
   useEffect(() => {
-    if (!offer) return;
+    if (!offer && !rescue) return;
     const t = setInterval(() => {
-      if (!getOffer()) setOffer(null);
+      if (offer && !getOffer()) setOffer(null);
+      if (rescue && !getRescue()) setRescue(null);
       tick((n) => n + 1);
     }, 1000);
     return () => clearInterval(t);
-  }, [offer]);
+  }, [offer, rescue]);
   // الأقل بين السعر الحالي (أو الإحالة) وسعر العرض
   const basePrice = izbaSite && info.izba ? info.izba.price : info.price;
   const listPrice = izbaSite && info.izba ? info.izba.basePrice : info.basePrice;
-  const payPrice = offer && !izbaSite ? Math.min(basePrice, offer.price) : basePrice;
+  const offerPrice = offer && !izbaSite ? Math.min(basePrice, offer.price) : basePrice;
+  const rescueOk = info.online && rescue && rescue.product === site && rescue.exp > Date.now() && rescue.price < offerPrice ? rescue : null;
+  const payPrice = rescueOk ? rescueOk.price : offerPrice;
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [notice, setNotice] = useState('');
   const [payHelp, setPayHelp] = useState(false);
@@ -223,6 +229,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           try {
             const v = await post('/api/checkout/verify', { orderId, paymentId });
             if ((v.data as { failed?: boolean }).failed) {
+              setRescue(saveRescue((v.data as { rescue?: Rescue }).rescue) ?? getRescue());
               setError((v.data as { error?: string }).error || 'الدفع ما تم — جرّب مرة ثانية');
               setMode('buy');
               return setState('locked');
@@ -252,6 +259,26 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         }
         setError('الدفع للحين ما تأكد من سكيب كاش. إذا انخصم المبلغ من حسابك، تواصل معنا على الواتساب ونرسل لك الكود خلال دقائق.');
         return setState('locked');
+      }
+      // رابط الخصم من رسالة الواتساب (?rescue=…) — نفتح نموذج الدفع على طول
+      const rq = q.get('rescue');
+      if (rq) {
+        history.replaceState(null, '', window.location.pathname);
+        const r = saveRescue({ token: rq });
+        if (r) setRescue(r);
+        if (r && !get(TOKEN_KEY)) {
+          track('visit');
+          setMode('buy');
+          return setState('locked');
+        }
+      } else if (!get(TOKEN_KEY) && get(ORDER_KEY)) {
+        // رجع بعد ما سكّر صفحة الدفع بدون ما يكمل: نشوف إذا له خصم خاص
+        post('/api/rescue', { orderId: get(ORDER_KEY) })
+          .then(({ data }) => {
+            const r = (data as { ok?: boolean }).ok ? saveRescue(data as Partial<Rescue>) : null;
+            if (r) setRescue(r);
+          })
+          .catch(() => {});
       }
       const token = get(TOKEN_KEY);
       if (!token) {
@@ -354,13 +381,17 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     setBusy(true);
     try {
       if (info.online) {
-        const { data } = await post('/api/checkout', { ...buyer, phone: phoneFull, ref: izbaSite ? undefined : get(REF_KEY) || undefined, offer: izbaSite ? undefined : offer?.token, product: site });
+        const { data } = await post('/api/checkout', { ...buyer, phone: phoneFull, ref: izbaSite ? undefined : get(REF_KEY) || undefined, offer: izbaSite ? undefined : offer?.token, rescue: rescueOk?.token, product: site });
         const d = data as { ok?: boolean; error?: string; payUrl?: string; orderId?: string };
         if (d.ok && d.payUrl) {
           if (d.orderId) set(ORDER_KEY, d.orderId);
           trackCheckout(payPrice, d.orderId, site);
           window.location.href = d.payUrl;
           return;
+        }
+        if ((d as { rescueGone?: boolean }).rescueGone) {
+          clearRescue();
+          setRescue(null);
         }
         const fe = (d as { errors?: typeof fieldErr }).errors;
         if (fe) setFieldErr(fe);
@@ -537,8 +568,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             {(demoOver || demoUsed()) && <TrialOverCard offer={!izbaSite && offer && offer.price < info.price ? offer : null} was={basePrice} list={listPrice} />}
             <div className="rounded-lg bg-white p-3 text-center">
               {listPrice > payPrice && (
-                <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700" data-testid="price-badge">{payPrice < basePrice ? `🎁 عرضك الخاص — ينتهي بعد ${leftLabel(offer!.exp)}` : !izbaSite && info.refValid ? '🎁 وصلك خصم من صديقك' : '🔥 عرض لفترة محدودة'}</div>
+                <div className="mb-1 rounded-md bg-turf-500/10 px-2 py-1 text-xs font-semibold text-turf-700" data-testid="price-badge">{rescueOk ? `🎁 خصمك الخاص — ينتهي بعد ${leftLabel(rescueOk.exp)}` : payPrice < basePrice ? `🎁 عرضك الخاص — ينتهي بعد ${leftLabel(offer!.exp)}` : !izbaSite && info.refValid ? '🎁 وصلك خصم من صديقك' : '🔥 عرض لفترة محدودة'}</div>
               )}
+              {rescueOk && <div className="mb-1 text-[11px] text-sand-600" data-testid="rescue-note">الخصم مربوط برقمك — اكتب نفس الرقم اللي حاولت تدفع فيه أول مرة</div>}
               <div className="flex items-baseline justify-center gap-3" data-testid="price">
                 <span className="text-3xl font-bold text-dune">
                   <span className="tabular-nums">{payPrice}</span> <span className="text-lg">ر.ق</span>

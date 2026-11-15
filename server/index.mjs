@@ -273,6 +273,45 @@ function amountFor(refId, offer, product = 'enna') {
   const o = offerFor(offer);
   return o ? Math.min(priceFor(refId), o) : priceFor(refId);
 }
+// ——— «خصم ما كمّل الدفع»: اللي وصل صفحة الدفع وما كمّل ياخذ خصم خاص مربوط برقمه لمدة محددة (من الأدمن) ———
+const rescueOff = () => setNum('rescueOff', 50);
+const rescueHours = () => setNum('rescueHours', 24);
+const rescueOn = () => db.settings.rescueOn === true && rescueOff() > 0;
+const last8 = (ph) => String(ph || '').replace(/\D/g, '').slice(-8);
+/** الرقم دفع (أو عنده كود) لنفس المنتج؟ */
+function phonePaid(phone, product) {
+  const k = last8(phone);
+  if (k.length !== 8) return false;
+  const pr = productOf(product);
+  if (db.orders.some((o) => !o.test && o.status === 'paid' && productOf(o.product) === pr && o.product !== 'photos' && last8(o.phone) === k)) return true;
+  return Object.values(db.codes).some((c) => !c.revoked && last8(c.phone) === k && prodsOf(c).includes(pr));
+}
+const rescueSig = (id, exp, p, prod) => hmac(`rescue:${id}:${exp}:${p}:${prod}`).toString('base64url').slice(0, 22);
+/** الخصم للطلب اللي ما اكتمل (أو null): المدة تبدأ من وقت الطلب */
+function rescueFor(o, now = Date.now()) {
+  if (!rescueOn() || !o || o.test || o.status === 'paid' || !o.online || o.upgradeOf || o.product === 'photos') return null;
+  const prod = productOf(o.product);
+  if (prod === 'izba' && !izbaLive()) return null;
+  if (phonePaid(o.phone, prod)) return null;
+  const exp = (o.createdAt || 0) + rescueHours() * 3600 * 1000;
+  if (exp <= now) return null;
+  const p = Math.max(1, (prod === 'izba' ? izbaPrice() : price()) - rescueOff());
+  return { token: `${o.id}.${exp}.${p}.${prod}.${rescueSig(o.id, exp, p, prod)}`, price: p, exp, product: prod };
+}
+/** يتحقق من توكن الخصم وقت الدفع: لازم نفس الرقم ونفس المنتج وما انتهى */
+function rescueCheck(token, phone, product) {
+  const m = /^([0-9a-f]{8,32})\.(\d{10,15})\.(\d{1,6})\.(enna|izba)\.([\w-]{22})$/.exec(String(token || ''));
+  if (!m) return { error: 'رابط الخصم غلط' };
+  const [, id, exp, p, prod, sig] = m;
+  if (rescueSig(id, exp, p, prod) !== sig) return { error: 'رابط الخصم غلط' };
+  if (!rescueOn()) return { error: 'الخصم الخاص انتهى' };
+  if (Number(exp) + 2 * 60 * 1000 < Date.now()) return { error: 'الخصم الخاص انتهى وقته' };
+  if (prod !== productOf(product)) return { error: 'الخصم لمنتج ثاني' };
+  const src = db.orders.find((o) => o.id === id);
+  if (!src || last8(src.phone) !== last8(phone)) return { error: 'الخصم مربوط بالرقم اللي حاولت تدفع فيه أول مرة — اكتب نفس الرقم' };
+  return { price: Math.max(1, Number(p)) };
+}
+
 /** ترقية للعزبة: لازم توكن صحيح لكود فيه العنة وما فيه العزبة */
 function upgradeTarget(token) {
   const t = token ? readToken(token) : null;
@@ -618,7 +657,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/checkout' && req.method === 'POST') {
       if (!skipcashEnabled || !LICENSING) return send(res, 400, { ok: false, error: 'الدفع الإلكتروني غير مفعّل' });
       if (limited(ip)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد عشر دقائق' });
-      const { name, phone, email, ref, offer, product: prodIn, upgradeToken } = await readBody(req);
+      const { name, phone, email, ref, offer, product: prodIn, upgradeToken, rescue } = await readBody(req);
       const product = productOf(prodIn);
       const pack = prodIn === 'photos' ? codeOfToken(upgradeToken) : null;
       if (prodIn === 'photos' && (!aiOn() || !pack)) return send(res, 400, { ok: false, error: 'لازم تكون مسجّل دخول وخدمة الصور مفعّلة' });
@@ -639,6 +678,12 @@ const server = http.createServer(async (req, res) => {
       const mc = metaCookies(req);
       const sc = snapCookies(req);
       if (pack) Object.assign(order, { product: 'photos', amount: aiPackPrice(), upgradeOf: pack.id, photos: aiPackSize(), ref: undefined, offer: undefined });
+      // خصم «ما كمّل الدفع»: لو الرابط غلط أو انتهى نوقف ونقول للعميل (ما ندفّعه سعر ثاني بدون ما يدري)
+      if (rescue && !pack && !upRec) {
+        const rc = rescueCheck(rescue, full, product);
+        if (rc.error) return send(res, 400, { ok: false, error: rc.error + ' — اضغط «ادفع» مرة ثانية بالسعر العادي', rescueGone: true });
+        if (rc.price < order.amount) Object.assign(order, { amount: rc.price, rescue: true });
+      }
       order.meta = { ip, ua: String(req.headers['user-agent'] || '').slice(0, 400), fbp: mc.fbp, fbc: mc.fbc, scid: sc.scid, sccid: sc.sccid };
       // نحفظ الطلب قبل ما نكلم سكيب كاش: لو صار شي بعد الدفع ما يضيع الطلب
       db.orders.unshift(order);
@@ -699,10 +744,19 @@ const server = http.createServer(async (req, res) => {
         }
         saveDb();
       }
-      if (failed) return send(res, 200, { ok: false, failed: true, error: 'الدفع ما تم (انلغى أو انرفضت البطاقة) — ما انخصم شي، جرّب مرة ثانية' });
+      if (failed) return send(res, 200, { ok: false, failed: true, error: 'الدفع ما تم (انلغى أو انرفضت البطاقة) — ما انخصم شي، جرّب مرة ثانية', rescue: rescueFor(o) });
       if (o.review) return send(res, 200, { ok: false, pending: true, review: true, error: 'وصلنا دفعك بس يحتاج مراجعة سريعة — تواصل معنا ونرسل لك الكود خلال دقائق' });
-      if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'الدفع ما اكتمل للحين' });
+      if (o.status !== 'paid') return send(res, 200, { ok: false, pending: true, error: 'الدفع ما اكتمل للحين', rescue: rescueFor(o) });
       return send(res, 200, { ok: true, code: db.codes[o.codeId]?.code, receipt: { ref: orderRef(o), paymentId: o.paymentId ? '…' + String(o.paymentId).replace(/-/g, '').slice(-8).toUpperCase() : '', amount: o.amount ?? price(), paidAt: o.paidAt || Date.now(), name: o.name, seller: 'نقلة لحلول المواقع (Naqla For Website Solutions)', sellerAddress: db.content.sellerAddress || '', sellerCR: db.content.sellerCR || '', sellerPhone: db.content.support || '', test: !!o.test, product: productOf(o.product), upgrade: !!o.upgradeOf }, products: prodsOf(db.codes[o.codeId]) });
+    }
+
+    // رجع للموقع بعد ما سكّر صفحة الدفع بدون ما يكمل: نعطيه الخصم الخاص (لو مفعّل)
+    if (p === '/api/rescue' && req.method === 'POST') {
+      if (limited('rs:' + ip, 30)) return send(res, 429, { ok: false });
+      const { orderId } = await readBody(req);
+      const o = db.orders.find((x) => x.id === String(orderId || ''));
+      const r = o && o.status !== 'paid' ? rescueFor(o) : null;
+      return send(res, 200, r ? { ok: true, ...r } : { ok: false });
     }
 
     if (p === '/api/skipcash/webhook' && req.method === 'POST') {
@@ -893,7 +947,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
-        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive(), aiOn: db.settings.aiOn === true, aiKey: !!aiKey(), aiFree: aiFree(), aiPackSize: aiPackSize(), aiPackPrice: aiPackPrice(), aiDailyCap: aiDailyCap(), aiCost: aiCost(), aiStats: aiStats(), skipcashFeePct: skipcashFee().pct, skipcashFeeFixed: skipcashFee().fixed } });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive(), aiOn: db.settings.aiOn === true, aiKey: !!aiKey(), aiFree: aiFree(), aiPackSize: aiPackSize(), aiPackPrice: aiPackPrice(), aiDailyCap: aiDailyCap(), aiCost: aiCost(), aiStats: aiStats(), skipcashFeePct: skipcashFee().pct, skipcashFeeFixed: skipcashFee().fixed, rescueOn: db.settings.rescueOn === true, rescueOff: rescueOff(), rescueHours: rescueHours() }, rescue: Object.fromEntries(db.orders.slice(0, 400).map((o) => [o.id, rescueFor(o)]).filter((x) => x[1])) });
       }
       // تجربة شاشة ما بعد الدفع بدون سكيب كاش ولا فلوس (ما تنحسب في المبيعات)
       if (p === '/api/admin/test-order' && req.method === 'POST') {
@@ -970,6 +1024,13 @@ const server = http.createServer(async (req, res) => {
           const cost = Number(b.aiCost);
           if (f === null || ps === null || pp === null || cap === null || !Number.isFinite(cost) || cost <= 0 || cost > 20) return send(res, 400, { error: 'تأكد من أرقام صور الذكاء الاصطناعي' });
           Object.assign(next, { aiOn: b.aiOn === true, aiFree: f, aiPackSize: ps, aiPackPrice: pp, aiDailyCap: cap, aiCost: Math.round(cost * 100) / 100 });
+        }
+        if (b.rescueOn !== undefined) {
+          const off = num(b.rescueOff, 1, 100000);
+          const hrs = num(b.rescueHours ?? 24, 1, 168);
+          if (off === null || hrs === null) return send(res, 400, { error: 'تأكد من خصم «ما كمّل الدفع» (المبلغ 1 أو أكثر، والمدة 1–168 ساعة)' });
+          if (b.rescueOn === true && off >= next.price) return send(res, 400, { error: 'خصم «ما كمّل الدفع» لازم يكون أقل من السعر' });
+          Object.assign(next, { rescueOn: b.rescueOn === true, rescueOff: off, rescueHours: hrs });
         }
         if (b.skipcashFeePct !== undefined) {
           const fp = Number(b.skipcashFeePct);

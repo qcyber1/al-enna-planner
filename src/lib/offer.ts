@@ -41,5 +41,7 @@ export async function claimOffer(): Promise<TrialOffer | null> {
 export function leftLabel(exp: number, now = Date.now()): string {
   const s = Math.max(0, Math.round((exp - now) / 1000));
   const m = Math.floor(s / 60);
+  // أكثر من ساعة: «5:07:09» (ساعات:دقائق:ثواني)
+  if (m >= 60) return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   return `${m}:${String(s % 60).padStart(2, '0')}`;
 }

@@ -214,6 +214,51 @@ test('طلب يدوي ما ينفتح برقم دفع يرسله العميل', 
   assert.notEqual(readDb().orders.find((x) => x.id === manual.id).status, 'paid');
 });
 
+test('خصم «وصل الدفع وما كمّل»: مطفي افتراضياً، مربوط بالرقم والمنتج، ويختفي بعد الدفع', async () => {
+  let ipN = 0;
+  const px = async (p, b, h = {}) => { const r = await fetch(BASE + p, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': `10.9.0.${++ipN}`, ...h }, body: JSON.stringify(b) }); return { status: r.status, json: await r.json().catch(() => ({})), headers: r.headers }; };
+  const lg = await px('/api/admin/login', { user: 'admin', password: 'x' });
+  const H = { cookie: (lg.headers.get('set-cookie') || '').split(';')[0], 'x-enna-admin': '1' };
+  const list = async () => (await fetch(BASE + '/api/admin/list', { headers: H })).json();
+  const a = await px('/api/checkout', { name: 'سالم المري', phone: '55998877', email: 's@example.com' });
+  assert.equal(a.status, 200);
+  const A = a.json.orderId;
+  // مطفي
+  assert.equal((await px('/api/rescue', { orderId: A })).json.ok, false);
+  const cur = (await list()).settings;
+  assert.equal((await px('/api/admin/settings', { ...cur, rescueOn: true, rescueOff: 50, rescueHours: 24 }, H)).status, 200);
+  const r = (await px('/api/rescue', { orderId: A })).json;
+  assert.equal(r.ok, true);
+  assert.equal(r.price, cur.price - 50);
+  assert.ok(r.exp > Date.now() + 23 * 3600e3 && r.exp <= Date.now() + 24 * 3600e3);
+  assert.ok((await list()).rescue[A], 'الأدمن يشوف الخصم للطلب');
+  // التحقق من دفع ما اكتمل يرجع الخصم بعد
+  assert.equal((await px('/api/checkout/verify', { orderId: A })).json.rescue.token, r.token);
+  // رقم ثاني = مرفوض (وما ندفّعه سعر ثاني بدون ما يدري)
+  const other = await px('/api/checkout', { name: 'سالم المري', phone: '55990000', rescue: r.token });
+  assert.equal(other.status, 400);
+  assert.equal(other.json.rescueGone, true);
+  // توكن معدّل السعر = مرفوض
+  const bad = r.token.replace(`.${r.price}.`, '.1.');
+  assert.equal((await px('/api/checkout', { name: 'سالم المري', phone: '55998877', rescue: bad })).status, 400);
+  // منتج ثاني = مرفوض
+  assert.equal((await px('/api/checkout', { name: 'سالم المري', phone: '55998877', rescue: r.token, product: 'izba' })).status >= 400, true);
+  // نفس الرقم (بصيغة ثانية) = السعر بعد الخصم يوصل سكيب كاش
+  const ok = await px('/api/checkout', { name: 'سالم المري', phone: '+974 5599 8877', rescue: r.token });
+  assert.equal(ok.status, 200, JSON.stringify(ok.json));
+  assert.equal(Number(lastBody.amount), cur.price - 50);
+  const o2 = (await list()).orders.find((o) => o.id === ok.json.orderId);
+  assert.equal(o2.amount, cur.price - 50);
+  assert.equal(o2.rescue, true);
+  // دفع ← ما عاد له خصم
+  payments.get(ok.json.payUrl.split('/pay/')[1]).statusId = 2;
+  assert.equal((await px('/api/checkout/verify', { orderId: ok.json.orderId })).json.ok, true);
+  assert.equal((await px('/api/rescue', { orderId: A })).json.ok, false);
+  // إيقاف من الأدمن
+  await px('/api/admin/settings', { ...cur, rescueOn: false, rescueOff: 50, rescueHours: 24 }, H);
+  assert.equal((await list()).settings.rescueOn, false);
+});
+
 test('التحقق من الدفع عليه حد محاولات', async () => {
   const hit = (ip) => fetch(BASE + '/api/checkout/verify', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': ip }, body: JSON.stringify({ orderId: 'nope' }) });
   let last;
