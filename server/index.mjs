@@ -276,7 +276,8 @@ function amountFor(refId, offer, product = 'enna') {
 // ——— «خصم ما كمّل الدفع»: اللي وصل صفحة الدفع وما كمّل ياخذ خصم خاص مربوط برقمه لمدة محددة (من الأدمن) ———
 const rescueOff = () => setNum('rescueOff', 50);
 const rescueHours = () => setNum('rescueHours', 24);
-const rescueOn = () => db.settings.rescueOn === true && rescueOff() > 0;
+// شغّال تلقائياً (افتراضي) — يطفى بس لو الأدمن طفّاه بنفسه (rescueSetAt = حفظ من الإعداد الجديد)
+const rescueOn = () => (db.settings.rescueSetAt ? db.settings.rescueOn === true : true) && rescueOff() > 0;
 const last8 = (ph) => String(ph || '').replace(/\D/g, '').slice(-8);
 /** الرقم دفع (أو عنده كود) لنفس المنتج؟ */
 function phonePaid(phone, product) {
@@ -947,7 +948,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
-        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive(), aiOn: db.settings.aiOn === true, aiKey: !!aiKey(), aiFree: aiFree(), aiPackSize: aiPackSize(), aiPackPrice: aiPackPrice(), aiDailyCap: aiDailyCap(), aiCost: aiCost(), aiStats: aiStats(), skipcashFeePct: skipcashFee().pct, skipcashFeeFixed: skipcashFee().fixed, rescueOn: db.settings.rescueOn === true, rescueOff: rescueOff(), rescueHours: rescueHours() }, rescue: Object.fromEntries(db.orders.slice(0, 400).map((o) => [o.id, rescueFor(o)]).filter((x) => x[1])) });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive(), aiOn: db.settings.aiOn === true, aiKey: !!aiKey(), aiFree: aiFree(), aiPackSize: aiPackSize(), aiPackPrice: aiPackPrice(), aiDailyCap: aiDailyCap(), aiCost: aiCost(), aiStats: aiStats(), skipcashFeePct: skipcashFee().pct, skipcashFeeFixed: skipcashFee().fixed, rescueOn: rescueOn(), rescueOff: rescueOff(), rescueHours: rescueHours() }, rescue: Object.fromEntries(db.orders.slice(0, 400).map((o) => [o.id, rescueFor(o)]).filter((x) => x[1])) });
       }
       // تجربة شاشة ما بعد الدفع بدون سكيب كاش ولا فلوس (ما تنحسب في المبيعات)
       if (p === '/api/admin/test-order' && req.method === 'POST') {
@@ -1030,7 +1031,7 @@ const server = http.createServer(async (req, res) => {
           const hrs = num(b.rescueHours ?? 24, 1, 168);
           if (off === null || hrs === null) return send(res, 400, { error: 'تأكد من خصم «ما كمّل الدفع» (المبلغ 1 أو أكثر، والمدة 1–168 ساعة)' });
           if (b.rescueOn === true && off >= next.price) return send(res, 400, { error: 'خصم «ما كمّل الدفع» لازم يكون أقل من السعر' });
-          Object.assign(next, { rescueOn: b.rescueOn === true, rescueOff: off, rescueHours: hrs });
+          Object.assign(next, { rescueOn: b.rescueOn === true, rescueOff: off, rescueHours: hrs, rescueSetAt: Date.now() });
         }
         if (b.skipcashFeePct !== undefined) {
           const fp = Number(b.skipcashFeePct);

@@ -162,7 +162,7 @@ ${REPORT_SECTION}
   </div>
   <h3 style="margin:18px 0 6px">💸 خصم «وصل الدفع وما كمّل»</h3>
   <p class="sub" style="margin:0 0 10px">اللي يفتح صفحة الدفع وما يكمل: يطلع له خصم خاص <b>مربوط برقمه</b> لمدة محددة من وقت المحاولة — في الموقع لما يرجع، وفي رسالة الواتساب من قائمة «حاول يدفع وما كمّل».</p>
-  <label style="display:flex;gap:8px;align-items:center;margin:0 0 12px;font-weight:700"><input id="st_rs_on" type="checkbox" style="width:auto"> 🎁 الخصم شغّال</label>
+  <label style="display:flex;gap:8px;align-items:center;margin:0 0 12px;font-weight:700"><input id="st_rs_on" type="checkbox" style="width:auto"> 🎁 الخصم شغّال (تلقائي لكل من ما كمّل — شيل الصح لو تبي توقفه)</label>
   <div class="grid">
     <div><label for="st_rs_off">مبلغ الخصم (ر.ق)</label><input id="st_rs_off" type="number" min="1" dir="ltr"></div>
     <div><label for="st_rs_hrs">مدة الخصم (ساعات)</label><input id="st_rs_hrs" type="number" min="1" max="168" dir="ltr"></div>

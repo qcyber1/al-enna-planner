@@ -214,7 +214,7 @@ test('طلب يدوي ما ينفتح برقم دفع يرسله العميل', 
   assert.notEqual(readDb().orders.find((x) => x.id === manual.id).status, 'paid');
 });
 
-test('خصم «وصل الدفع وما كمّل»: مطفي افتراضياً، مربوط بالرقم والمنتج، ويختفي بعد الدفع', async () => {
+test('خصم «وصل الدفع وما كمّل»: شغّال تلقائياً، مربوط بالرقم والمنتج، ويختفي بعد الدفع', async () => {
   let ipN = 0;
   const px = async (p, b, h = {}) => { const r = await fetch(BASE + p, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': `10.9.0.${++ipN}`, ...h }, body: JSON.stringify(b) }); return { status: r.status, json: await r.json().catch(() => ({})), headers: r.headers }; };
   const lg = await px('/api/admin/login', { user: 'admin', password: 'x' });
@@ -223,9 +223,10 @@ test('خصم «وصل الدفع وما كمّل»: مطفي افتراضياً�
   const a = await px('/api/checkout', { name: 'سالم المري', phone: '55998877', email: 's@example.com' });
   assert.equal(a.status, 200);
   const A = a.json.orderId;
-  // مطفي
-  assert.equal((await px('/api/rescue', { orderId: A })).json.ok, false);
+  // شغّال تلقائياً من البداية
+  assert.equal((await px('/api/rescue', { orderId: A })).json.ok, true);
   const cur = (await list()).settings;
+  assert.equal(cur.rescueOn, true);
   assert.equal((await px('/api/admin/settings', { ...cur, rescueOn: true, rescueOff: 50, rescueHours: 24 }, H)).status, 200);
   const r = (await px('/api/rescue', { orderId: A })).json;
   assert.equal(r.ok, true);
@@ -257,6 +258,8 @@ test('خصم «وصل الدفع وما كمّل»: مطفي افتراضياً�
   // إيقاف من الأدمن
   await px('/api/admin/settings', { ...cur, rescueOn: false, rescueOff: 50, rescueHours: 24 }, H);
   assert.equal((await list()).settings.rescueOn, false);
+  const b2 = await px('/api/checkout', { name: 'فهد', phone: '55776655' });
+  assert.equal((await px('/api/rescue', { orderId: b2.json.orderId })).json.ok, false, 'لما يطفيه الأدمن يوقف');
 });
 
 test('التحقق من الدفع عليه حد محاولات', async () => {
