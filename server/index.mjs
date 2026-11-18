@@ -54,6 +54,8 @@ const refReward = () => setNum('refReward', envNum('REF_REWARD', 50));
 const listPrice = () => setNum('listPrice', 0);
 /** عرض «خلصت التجربة»: سعر خاص لمدة محدودة (0 = بدون عرض) */
 const offerPrice = () => setNum('offerPrice', 249);
+/** مدة تجربة العزبة المجانية بالثواني (العنة ثابتة 30 ثانية) */
+const izbaDemoSec = () => setNum('izbaDemoSec', 180);
 const offerMinutes = () => setNum('offerMinutes', 60);
 const offerOn = () => offerPrice() > 0 && offerPrice() < price();
 /** منتج العزبة: سعره، وسعره قبل الخصم، وسعر ترقية شاري العنة */
@@ -635,7 +637,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === '/api/status') {
       const refId = parseRef(url.searchParams.get('ref'));
-      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null, izba: { price: izbaPrice(), basePrice: Math.max(izbaPrice(), izbaListPrice()), upgrade: izbaUpgrade(), live: izbaLive() } });
+      return send(res, 200, { licensing: LICENSING, price: priceFor(refId), basePrice: Math.max(price(), listPrice()), sale: !refId && listPrice() > price(), refValid: !!refId, refDiscount: refDiscount(), online: skipcashEnabled && LICENSING, content: db.content, offer: offerOn() ? { price: offerPrice(), minutes: offerMinutes() } : null, izba: { price: izbaPrice(), basePrice: Math.max(izbaPrice(), izbaListPrice()), upgrade: izbaUpgrade(), live: izbaLive(), demoSec: izbaDemoSec() } });
     }
 
     // عرض «خلصت التجربة»: نعطي المتصفح عرض موقّع بوقت محدود
@@ -948,7 +950,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (p === '/api/admin/list') {
         const list = Object.values(db.codes).sort((a, b) => b.createdAt - a.createdAt).map(publicRec);
-        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive(), aiOn: db.settings.aiOn === true, aiKey: !!aiKey(), aiFree: aiFree(), aiPackSize: aiPackSize(), aiPackPrice: aiPackPrice(), aiDailyCap: aiDailyCap(), aiCost: aiCost(), aiStats: aiStats(), skipcashFeePct: skipcashFee().pct, skipcashFeeFixed: skipcashFee().fixed, rescueOn: rescueOn(), rescueOff: rescueOff(), rescueHours: rescueHours() }, rescue: Object.fromEntries(db.orders.slice(0, 400).map((o) => [o.id, rescueFor(o)]).filter((x) => x[1])) });
+        return send(res, 200, { list, orders: db.orders, referrals: db.referrals, feedback: db.feedback, content: db.content, paymentLink: PAYMENT_LINK, price: price(), refReward: refReward(), settings: { price: price(), listPrice: listPrice(), refDiscount: refDiscount(), refReward: refReward(), offerPrice: offerPrice(), offerMinutes: offerMinutes(), izbaPrice: izbaPrice(), izbaListPrice: izbaListPrice(), izbaUpgrade: izbaUpgrade(), izbaLive: izbaLive(), izbaDemoSec: izbaDemoSec(), aiOn: db.settings.aiOn === true, aiKey: !!aiKey(), aiFree: aiFree(), aiPackSize: aiPackSize(), aiPackPrice: aiPackPrice(), aiDailyCap: aiDailyCap(), aiCost: aiCost(), aiStats: aiStats(), skipcashFeePct: skipcashFee().pct, skipcashFeeFixed: skipcashFee().fixed, rescueOn: rescueOn(), rescueOff: rescueOff(), rescueHours: rescueHours() }, rescue: Object.fromEntries(db.orders.slice(0, 400).map((o) => [o.id, rescueFor(o)]).filter((x) => x[1])) });
       }
       // تجربة شاشة ما بعد الدفع بدون سكيب كاش ولا فلوس (ما تنحسب في المبيعات)
       if (p === '/api/admin/test-order' && req.method === 'POST') {
@@ -1017,6 +1019,11 @@ const server = http.createServer(async (req, res) => {
           next.izbaUpgrade = iu;
         }
         if (b.izbaLive !== undefined) next.izbaLive = b.izbaLive === true;
+        if (b.izbaDemoSec !== undefined) {
+          const ds = num(b.izbaDemoSec, 30, 3600);
+          if (ds === null) return send(res, 400, { error: 'مدة تجربة العزبة من 30 ثانية لين ساعة' });
+          next.izbaDemoSec = ds;
+        }
         if (b.aiOn !== undefined) {
           const f = num(b.aiFree, 0, 50);
           const ps = num(b.aiPackSize, 1, 200);

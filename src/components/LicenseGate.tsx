@@ -23,7 +23,7 @@ import { getProducts, landingSite, markDemoSite, saveProducts, izbaLive, setIzba
 import { useUpgrade } from './UpgradeIzba';
 import { snapSetUser } from '../lib/snap';
 import { setBuyer as pixelBuyer, trackCheckout, trackDemoBuyClick, trackPurchase, trackTrial, trackTrialEnded } from '../lib/pixel';
-import { demoLeft, demoUsed, isDemo, setDemoActive, startDemo } from '../lib/demo';
+import { demoLeft, demoSeconds, demoUsed, isDemo, setDemoActive, setIzbaDemoSeconds, startDemo } from '../lib/demo';
 
 const TOKEN_KEY = 'enna.license.token';
 const DEVICE_KEY = 'enna.license.device';
@@ -124,10 +124,10 @@ const waLink = (phone: string, text: string) => `https://wa.me/${phone.replace(/
 const DEFAULT_TEXT = { title: 'مخطط العنة ⛺', tagline: 'صمّم عنتك قبل لا تركّبها، واتفقوا على كل شي قبل ما تشترون' };
 const IZBA_TEXT = { title: 'i3enna للعزب 🏡', tagline: 'خطط عزبتك قبل البناء: الحلال والمباني والزراعة بمقاسات حقيقية، وشوفها كأنها صورة' };
 const IZBA_FEATURES = [
-  ['🐑', 'قوالب حلال واستراحة وزراعة'],
-  ['🏠', 'مباني وتصميم داخلي'],
-  ['📸', 'رندر واقعي كأنه صورة'],
-  ['📐', 'مخطط A3 للمقاول'],
+  ['🐑', '7 قوالب: حلال، خيل، هجن، استراحة وزراعة'],
+  ['💰', 'تكلفة البناء والمصاريف الشهرية'],
+  ['🧱', 'كميات المواد وتقرير PDF للمقاول'],
+  ['📸', '3D ورندر واقعي كأنه صورة'],
 ];
 const localPhone = (ph?: string) => (ph && ph.startsWith('974') && ph.length === 11 ? ph.slice(3) : ph || '');
 const ORDER_KEY = 'enna.order';
@@ -211,6 +211,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         if (!s.licensing) return setState('open');
         setInfo({ price: s.price ?? 299, online: !!s.online, basePrice: s.basePrice ?? s.price ?? 299, refValid: !!s.refValid, sale: !!(s as { sale?: boolean }).sale, content: (s as { content?: SiteContent }).content || {}, izba: (s as { izba?: { price: number; basePrice: number; upgrade: number; live?: boolean } }).izba });
         setIzbaLive((s as { izba?: { live?: boolean } }).izba?.live);
+        setIzbaDemoSeconds((s as { izba?: { demoSec?: number } }).izba?.demoSec);
       } catch {
         // بيئة التطوير بدون خادم: لا يوجد نظام أكواد
         if (import.meta.env.DEV) return setState('open');
@@ -662,7 +663,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
                 className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border-2 border-gold-500/60 bg-white font-semibold text-dune disabled:opacity-50"
                 data-testid="try-demo"
               >
-                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoUsed() ? 'خلصت تجربتك المجانية' : '👀 جرّب مجاناً 30 ثانية — بدون تسجيل'}
+                {demoLeft() > 0 ? '👀 كمّل التجربة المجانية' : demoUsed() ? 'خلصت تجربتك المجانية' : `👀 جرّب مجاناً ${demoSeconds() >= 60 ? Math.round(demoSeconds() / 60) + ' دقايق' : demoSeconds() + ' ثانية'} — بدون تسجيل`}
               </button>
             )}
             <p className="text-center text-[11px] text-sand-600">{info.content.buyNote || (info.online ? 'دفع آمن عبر سكيب كاش، والكود يظهر لك مباشرة بعد الدفع.' : 'بنرسل لك رابط الدفع على الواتساب.')}</p>

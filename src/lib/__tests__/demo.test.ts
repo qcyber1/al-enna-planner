@@ -43,3 +43,26 @@ describe('التجربة المجانية', () => {
     expect(demoLeft(100)).toBe(DEMO_MS);
   });
 });
+
+describe('تجربة العزبة منفصلة', () => {
+  beforeEach(() => {
+    Object.assign(globalThis, { localStorage: new MemStorage(), sessionStorage: new MemStorage() });
+  });
+  it('اللي جرّب العنة يقدر يجرّب العزبة، ومدتها من الأدمن', async () => {
+    const d = await import('../demo');
+    const loc = (path: string) => Object.assign(globalThis, { window: { location: { pathname: path } } });
+    loc('/');
+    d.startDemo(1_000);
+    expect(d.demoUsed(1_000 + d.DEMO_MS + 1)).toBe(true);
+    loc('/izba');
+    expect(d.demoUsed(1_000 + d.DEMO_MS + 1)).toBe(false);
+    d.setIzbaDemoSeconds(300);
+    expect(d.demoSeconds()).toBe(300);
+    d.startDemo(100_000);
+    expect(d.demoLeft(100_000 + 60_000)).toBe(240_000);
+    d.setIzbaDemoSeconds(5); // أقل من 30 ثانية مرفوض
+    expect(d.demoSeconds()).toBe(300);
+    loc('/');
+    expect(d.demoSeconds()).toBe(30);
+  });
+});

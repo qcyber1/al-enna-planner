@@ -331,18 +331,46 @@ function presetPose(preset: CameraPreset, plan: Plan, w: WorldInfo): { pos: [num
   }
 }
 
+/** الجوال بالطول: الشاشة ضيقة، فنبعّد الكاميرا شوي عشان الأرض كاملة تبين */
+function fitAspect(p: ReturnType<typeof presetPose>, aspect: number, preset: string, plan: Plan) {
+  if (!(aspect > 0 && aspect < 0.85) || (preset !== 'oblique' && preset !== 'top')) return p;
+  // الأرض المربعة (العنة) كانت مضبوطة — نبعّد بس للأرض الطويلة (عزبة 100×50 وأكثر)
+  const b = landBounds(plan.land);
+  const W = b.maxX - b.minX;
+  const D = b.maxY - b.minY;
+  const long = Math.min(1, Math.max(0, Math.max(W, D) / Math.max(1, Math.min(W, D)) - 1));
+  if (!long) return p;
+  const k = 1 + (Math.min(1.45, 0.85 / aspect) * 0.9 + 0.1 - 1) * long;
+  const pos = p.pos.map((v, i) => p.target[i] + (v - p.target[i]) * k) as [number, number, number];
+  return { ...p, pos };
+}
+
 function CameraRig({ plan, w, walking }: { plan: Plan; w: WorldInfo; walking: boolean }) {
   const ref = useRef<CameraControls>(null);
+  const aspect = useThree((st) => st.size.width / Math.max(1, st.size.height));
   const camera = useEditor((s) => s.camera);
   const first = useRef(true);
   useEffect(() => {
     const c = ref.current;
     if (!c || walking) return;
-    const p = presetPose(camera.preset === 'walk' || camera.preset === 'orbit' ? 'oblique' : camera.preset, plan, w);
+    const pr = camera.preset === 'walk' || camera.preset === 'orbit' ? 'oblique' : camera.preset;
+    const p = fitAspect(presetPose(pr, plan, w), aspect, pr, plan);
     c.setLookAt(...p.pos, ...p.target, !first.current);
     first.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera.nonce, walking]);
+  // تغيّر مقاس الأرض (مثلاً فتح قالب عزبة 100×50 والمجسم مفتوح): نرجّع الكاميرا تشوف الأرض كاملة
+  const lb = landBounds(plan.land);
+  const landKey = `${Math.round(lb.maxX - lb.minX)}x${Math.round(lb.maxY - lb.minY)}`;
+  const lastLand = useRef(landKey);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c || walking || lastLand.current === landKey) return;
+    lastLand.current = landKey;
+    const p = fitAspect(presetPose('oblique', plan, w), aspect, 'oblique', plan);
+    c.setLookAt(...p.pos, ...p.target, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [landKey, walking]);
   const invalidate = useThree((st) => st.invalidate);
   useEffect(() => {
     if (PROMO) Object.assign(window as unknown as Record<string, unknown>, { __ennaCam: ref.current, __ennaInvalidate: invalidate });
