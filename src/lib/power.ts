@@ -5,7 +5,7 @@ import { CATALOG_BY_KIND, isTentKind } from './catalog';
 import { totalLightingWatts } from './lighting';
 
 export type Season = 'winter' | 'summer';
-export type ApplianceId = 'ac' | 'heater' | 'fridge' | 'kettle' | 'tv' | 'chargers' | 'microwave' | 'fan' | 'speaker' | 'water-heater';
+export type ApplianceId = 'ac1' | 'ac' | 'ac2' | 'ac25' | 'heater' | 'fridge' | 'kettle' | 'tv' | 'chargers' | 'microwave' | 'fan' | 'speaker' | 'water-heater';
 
 export interface Appliance {
   id: ApplianceId;
@@ -21,7 +21,11 @@ export interface Appliance {
 }
 
 export const APPLIANCES: Appliance[] = [
+  // المكيفات بأحجام: يختار اللي عنده فعلاً (مب كل خيمة أو كبينة فيها 1.5 طن)
+  { id: 'ac1', label: 'مكيف 1 طن', icon: '❄️', watts: 1200, duty: 0.8, surge: true, season: 'summer' },
   { id: 'ac', label: 'مكيف 1.5 طن', icon: '❄️', watts: 1800, duty: 0.8, surge: true, season: 'summer' },
+  { id: 'ac2', label: 'مكيف 2 طن', icon: '❄️', watts: 2400, duty: 0.8, surge: true, season: 'summer' },
+  { id: 'ac25', label: 'مكيف 2.5 طن', icon: '❄️', watts: 3000, duty: 0.8, surge: true, season: 'summer' },
   { id: 'heater', label: 'دفاية', icon: '🔥', watts: 2000, duty: 0.6, season: 'winter' },
   { id: 'fridge', label: 'ثلاجة', icon: '🧊', watts: 200, duty: 0.5, surge: true },
   { id: 'kettle', label: 'غلاية / ترمس قهوة', icon: '☕', watts: 2000, duty: 0.15 },

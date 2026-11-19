@@ -127,3 +127,21 @@ describe('التحقق من بيانات المشتري', () => {
     expect(checkEmail('abc')).toMatch(/مو صحيح/);
   });
 });
+
+import { costLines as _costLines, priceOf as _priceOf, computeSummary as _cs, DEFAULT_ESTIMATE as _DE } from '../quantities';
+import { createElement as _ce } from '../catalog';
+import { emptyPlan as _ep } from '../sample';
+describe('ملاحظات العملاء: سعر كل خيمة', () => {
+  it('كل خيمة سطر لحالها باسمها، وتاخذ سعر النوع القديم لو ما انكتب لها سعر', () => {
+    const p = _ep();
+    const a = _ce('small-tent', { x: 10, y: 10 });
+    a.name = 'خيمة الشباب';
+    const b = _ce('small-tent', { x: 20, y: 10 });
+    b.name = 'خيمة الأهل';
+    p.elements.push(a, b);
+    const lines = _costLines(_cs(p, _DE)).filter((l) => l.key.startsWith('tent:'));
+    expect(lines.map((l) => l.label.split(' (')[0])).toEqual(['خيمة الشباب', 'خيمة الأهل']);
+    expect(_priceOf({ 'kind:small-tent': 900 }, lines[0])).toBe(900);
+    expect(_priceOf({ 'kind:small-tent': 900, [lines[1].key]: 1500 }, lines[1])).toBe(1500);
+  });
+});

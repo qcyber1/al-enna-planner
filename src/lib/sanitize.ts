@@ -78,6 +78,7 @@ export function sanitizeLand(raw: unknown): Land {
       edge: Math.round(num(ent.edge, d.entrance.edge, 0, 64)),
       offset: num(ent.offset, width / 2, 0, 1000),
       width: num(ent.width, d.entrance.width, 0.5, 50),
+      ...(ent.gate === false ? { gate: false } : {}),
     },
     fence: {
       enabled: bool(fence.enabled, d.fence.enabled),
@@ -114,6 +115,7 @@ export function sanitizeElement(raw: unknown): PlanElement | null {
   };
   if (raw.allowOutside === true) el.allowOutside = true;
   if (typeof raw.notes === 'string') el.notes = raw.notes.slice(0, 1000);
+  if (raw.spotlight === true && (el.kind === 'sleep-cabin' || el.kind === 'kitchen-cabin')) el.spotlight = true;
 
   if (cat.geometry === 'polyline') {
     const pts = Array.isArray(raw.points) ? raw.points.map(vec).filter((p): p is Vec2 => !!p) : [];

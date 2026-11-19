@@ -308,6 +308,12 @@ function SingleElement({ el }: { el: PlanElement }) {
           <Toggle label="إظهار سيارات توضيحية" checked={el.parking.showCars} onChange={(c) => upd({ parking: { ...el.parking!, showCars: c } })} />
         </Section>
       )}
+      {(el.kind === 'sleep-cabin' || el.kind === 'kitchen-cabin') && (
+        <Section title="الكبينة">
+          <Toggle label="💡 فيها كشاف فوق الباب (50 واط)" checked={!!el.spotlight} onChange={(c) => upd({ spotlight: c })} />
+          <p className="text-[11px] text-sand-600">ينحسب مع الكشافات في الكميات والكهرباء، ويضوي قدام الكبينة في الإنارة الليلية.</p>
+        </Section>
+      )}
       {el.kind === 'prayer-area' && (
         <Section title="المصلّى">
           <p className="text-[12px] text-sand-700">المحراب يتجه للقبلة (حوالي 255° من الشمال في قطر) حسب اتجاه الشمال المحدد للأرض.</p>

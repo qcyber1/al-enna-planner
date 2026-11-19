@@ -54,6 +54,8 @@ export interface Summary {
   landArea: number;
   landPerimeter: number;
   fenceLength: number;
+  /** طول السواتر المرسومة نقطة بنقطة */
+  screenLength: number;
   tents: { id: string; name: string; kind: ElementKind; width: number; depth: number; area: number; capacity: number | null }[];
   /** مجموع السعة التقديرية للجلوس في الخيام */
   capacity: number;
@@ -222,6 +224,8 @@ export function computeSummary(plan: Plan, est: EstimateSettings = DEFAULT_ESTIM
       tents.push({ id: el.id, name: el.name, kind: el.kind, width: el.width, depth: el.depth, area: el.width * el.depth, capacity: tentCapacity(el) });
       if (el.tent?.entranceLight) lights.tentEntranceLights++;
     }
+    // كشاف الكبينة ينحسب مع الكشافات
+    if ((el.kind === 'sleep-cabin' || el.kind === 'kitchen-cabin') && el.spotlight) lights.floods++;
     switch (el.kind) {
       case 'football':
       case 'volleyball': {
@@ -286,6 +290,7 @@ export function computeSummary(plan: Plan, est: EstimateSettings = DEFAULT_ESTIM
     landArea: landA,
     landPerimeter: perimeter,
     fenceLength: plan.land.fence.enabled ? Math.max(0, perimeter - ent.width) : 0,
+    screenLength: plan.elements.filter((e) => e.kind === 'screen-line').reduce((t, e) => t + polylineLength(e.points ?? []), 0),
     tents,
     tentCount: tents.length,
     tentArea: tents.reduce((s, t) => s + t.area, 0),
@@ -317,17 +322,26 @@ export interface CostLine {
   label: string;
   unit: string;
   qty: number;
+  /** لو ما انكتب سعر لهالبند ناخذ سعر هالمفتاح (مثلاً سعر الخيمة القديم لنفس النوع) */
+  fallback?: string;
 }
+
+/** سعر البند اللي كتبه المستخدم (أو سعر نفس النوع لو ما كتب سعر لهالبند بالذات) */
+export function priceOf(prices: Record<string, number>, l: CostLine): number | undefined {
+  return prices[l.key] ?? (l.fallback ? prices[l.fallback] : undefined);
+}
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /** بنود التكلفة التقديرية — الكميات تلقائية والأسعار يدخلها المستخدم */
 export function costLines(s: Summary): CostLine[] {
   const lines: CostLine[] = [];
   const kindLabel = (k: ElementKind) => CATALOG_BY_KIND[k].label;
+  // كل خيمة لحالها باسمها ومقاسها (عشان يكتب سعر كل وحدة)
+  for (const t of s.tents) {
+    lines.push({ key: `tent:${t.id}`, label: `${t.name || kindLabel(t.kind)} (${round1(t.width)}×${round1(t.depth)} م)`, unit: 'خيمة', qty: 1, fallback: `kind:${t.kind}` });
+  }
   const pieceKinds: ElementKind[] = [
-    'main-tent',
-    'small-tent',
-    'dining-tent',
-    'kitchen-tent',
     'canopy',
     'majlis-rug',
     'volleyball',
@@ -337,6 +351,7 @@ export function costLines(s: Summary): CostLine[] {
     'outdoor-kitchen',
     'storage',
     'water-tank',
+    'water-bladder',
     'generator',
     'bbq',
     'table-set',
@@ -361,6 +376,7 @@ export function costLines(s: Summary): CostLine[] {
   for (const k of pieceKinds) {
     if (s.counts[k] > 0) lines.push({ key: `kind:${k}`, label: kindLabel(k), unit: 'قطعة', qty: s.counts[k] });
   }
+  if (s.screenLength > 0) lines.push({ key: 'screen-length', label: 'ساتر قماش (بالرسم)', unit: 'م طولي', qty: s.screenLength });
   if (s.lights.stringLength > 0)
     lines.push({ key: 'string-length', label: 'سلاسل ليتات معلقة', unit: 'م طولي', qty: s.lights.stringLength });
   if (s.lights.pathEdgeLights > 0)

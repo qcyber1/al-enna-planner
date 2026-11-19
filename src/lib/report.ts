@@ -1,6 +1,6 @@
 // تقرير للطباعة / PDF: صفحة فيها المخطط + لقطة 3D + الأرقام + جدول الكميات والتكلفة (يُرسل للمقاول)
 import type { Project, Design } from '../types/plan';
-import { computeSummary, costLines, DEFAULT_ESTIMATE } from './quantities';
+import { computeSummary, costLines, DEFAULT_ESTIMATE, priceOf } from './quantities';
 import { renderPlanCanvas, dateLabel } from '../render2d/exportImage';
 import { loadThumbs } from './storage';
 import { DEV_LINE, OWNER_LINE } from './brand';
@@ -20,7 +20,7 @@ export function buildReportHtml(project: Project, design: Design): string {
   const s = computeSummary(design.plan, est);
   const izba = isIzba(design.plan.land);
   const lines = costLines(s);
-  const total = lines.reduce((sum, l) => sum + (project.prices[l.key] ?? 0) * l.qty, 0);
+  const total = lines.reduce((sum, l) => sum + (priceOf(project.prices, l) ?? 0) * l.qty, 0);
   const ie = izba ? izbaEstimate(design.plan, s, project.prices) : null;
   const ii = izba ? izbaInsights(design.plan, s) : null;
   const ir = izba ? izbaIrrigation(design.plan) : null;
@@ -56,7 +56,7 @@ export function buildReportHtml(project: Project, design: Design): string {
     : '';
   const rows = lines
     .map((l) => {
-      const price = project.prices[l.key];
+      const price = priceOf(project.prices, l);
       return `<tr><td>${esc(l.label)}</td><td>${esc(l.unit)}</td><td class="n">${round(l.qty, 2)}</td><td class="n">${price !== undefined ? money(price) : '—'}</td><td class="n">${price !== undefined ? money(price * l.qty) : '—'}</td></tr>`;
     })
     .join('');

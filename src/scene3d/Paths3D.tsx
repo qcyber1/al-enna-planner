@@ -6,6 +6,7 @@ import { useMat } from './common';
 import { pathTexture, woodTexture } from './textures';
 import { pathEdgeLights, stringBulbs, LIGHT_HEX } from '../lib/lighting';
 import { dist } from '../lib/geometry';
+import { useWorld } from './world';
 
 const THICK: Record<string, number> = {
   turf: 0.035,
@@ -133,6 +134,49 @@ export const StringLights3D = memo(function StringLights3D({
         <mesh key={i} position={[p.x, (h + 0.25) / 2, p.y]} castShadow>
           <cylinderGeometry args={[0.04, 0.05, h + 0.25, 8]} />
           <meshStandardMaterial color="#5a3d26" roughness={0.8} />
+        </mesh>
+      ))}
+    </group>
+  );
+});
+
+/** ساتر بالرسم: ألواح قماش بين الزوايا (متصلة) + أعمدة خشب */
+export const ScreenLine3D = memo(function ScreenLine3D({ el }: { el: PlanElement }) {
+  const w = useWorld();
+  const pts = el.points ?? [];
+  const h = Math.max(0.5, el.height);
+  const posts: Vec2[] = [];
+  pts.forEach((p, i) => {
+    posts.push(p);
+    if (i) {
+      const L = Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y);
+      const n = Math.floor(L / 2.5);
+      for (let k = 1; k <= n; k++) posts.push({ x: pts[i - 1].x + ((p.x - pts[i - 1].x) * k) / (n + 1), y: pts[i - 1].y + ((p.y - pts[i - 1].y) * k) / (n + 1) });
+    }
+  });
+  return (
+    <group>
+      {pts.slice(1).map((b, i) => {
+        const a = pts[i];
+        const L = Math.hypot(b.x - a.x, b.y - a.y);
+        const ang = Math.atan2(b.y - a.y, b.x - a.x);
+        return (
+          <group key={i} position={[(a.x + b.x) / 2 - w.ox, 0, (a.y + b.y) / 2 - w.oy]} rotation={[0, -ang, 0]}>
+            <mesh position={[0, h / 2 + 0.05, 0]} castShadow receiveShadow>
+              <boxGeometry args={[L + 0.06, h - 0.1, 0.04]} />
+              <meshStandardMaterial color={el.color} roughness={0.95} />
+            </mesh>
+            <mesh position={[0, h - 0.25, 0]}>
+              <boxGeometry args={[L + 0.07, 0.14, 0.05]} />
+              <meshStandardMaterial color={el.accent} roughness={0.9} />
+            </mesh>
+          </group>
+        );
+      })}
+      {posts.map((p, i) => (
+        <mesh key={i} position={[p.x - w.ox, h / 2 + 0.05, p.y - w.oy]} castShadow>
+          <boxGeometry args={[0.07, h + 0.1, 0.07]} />
+          <meshStandardMaterial color="#5c4033" roughness={0.8} />
         </mesh>
       ))}
     </group>

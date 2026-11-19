@@ -1112,9 +1112,45 @@ export function drawStringLights(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   ctx.restore();
 }
 
+/** ساتر بالرسم: خط سميك بزوايا متصلة + أعمدة عند كل زاوية وكل 2.5 م */
+export function drawScreenLine(ctx: Ctx, el: PlanElement, o: DrawOpts) {
+  const pts = el.points ?? [];
+  if (pts.length < 2) return;
+  ctx.save();
+  ctx.lineJoin = 'miter';
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = shade(el.color, -0.35);
+  ctx.lineWidth = Math.max(0.28, px(o, 4));
+  ctx.beginPath();
+  pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+  ctx.stroke();
+  ctx.strokeStyle = el.color;
+  ctx.lineWidth = Math.max(0.18, px(o, 2.6));
+  ctx.stroke();
+  // خط السدو الأحمر في النص
+  ctx.strokeStyle = el.accent;
+  ctx.lineWidth = Math.max(0.04, px(o, 0.8));
+  ctx.stroke();
+  ctx.fillStyle = '#5c4033';
+  const s = Math.max(0.16, px(o, 3));
+  for (let i = 0; i < pts.length; i++) {
+    ctx.fillRect(pts[i].x - s / 2, pts[i].y - s / 2, s, s);
+    if (i) {
+      const L = dist(pts[i - 1], pts[i]);
+      const n = Math.floor(L / 2.5);
+      for (let k = 1; k <= n; k++) {
+        const q = lerp(pts[i - 1], pts[i], k / (n + 1));
+        ctx.fillRect(q.x - s / 3, q.y - s / 3, (s * 2) / 3, (s * 2) / 3);
+      }
+    }
+  }
+  ctx.restore();
+}
+
 export function drawPolylineElement(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   if (el.kind === 'path') drawPath(ctx, el, o);
   else if (el.kind === 'string-lights') drawStringLights(ctx, el, o);
+  else if (el.kind === 'screen-line') drawScreenLine(ctx, el, o);
 }
 
 /** رسم أي عنصر في الإحداثيات العالمية (للتصدير) */
@@ -1200,7 +1236,7 @@ export function drawFence(ctx: Ctx, land: Land, o: DrawOpts) {
   // بوابة المدخل
   ctx.fillStyle = '#7a4a24';
   const gp = Math.max(0.3, px(o, 5));
-  for (const p of [ent.a, ent.b]) ctx.fillRect(p.x - gp / 2, p.y - gp / 2, gp, gp);
+  if (land.entrance.gate !== false) for (const p of [ent.a, ent.b]) ctx.fillRect(p.x - gp / 2, p.y - gp / 2, gp, gp);
   const arrowBase = add(ent.center, scale(ent.inward, -1.6));
   const tip = add(ent.center, scale(ent.inward, 0.4));
   ctx.strokeStyle = '#a0522d';

@@ -187,6 +187,27 @@ export function collectEmitters(plan: Plan, opts: EmitterOptions = {}): Emitter[
       });
     }
 
+    // كشاف الكبينة (اختياري): فوق الباب، يضوي قدامها
+    if (isCabinKind(el.kind) && el.spotlight) {
+      const lm = CABIN_SPOT_W * EFFICACY;
+      const fwd = rotate({ x: 0, y: 1 }, el.rotation);
+      const tilt = 35 * DEG;
+      out.push({
+        key: `${el.id}:spot`,
+        sourceId: el.id,
+        kind: 'spot',
+        pos: localToWorld(el, { x: 0, y: el.depth / 2 + 0.25 }),
+        height: Math.max(2, el.height - 0.2),
+        dir: { x: fwd.x * Math.cos(tilt), y: fwd.y * Math.cos(tilt), down: Math.sin(tilt) },
+        halfAngle: 55 * DEG,
+        candela: coneCandela(lm, 110),
+        lumens: lm,
+        color: 'white',
+        priority: 95,
+        category: 'flood',
+      });
+    }
+
     // الضو (شبّة النار) يضيء الجلسة حوله
     if (el.kind === 'fire-pit') {
       const lm = 1800;
@@ -403,9 +424,14 @@ export function floodTarget(el: PlanElement): Vec2 {
   return add({ x: el.x, y: el.y }, scale(rotate({ x: 0, y: 1 }, el.rotation), reach));
 }
 
+/** قدرة كشاف الكبينة (واط) */
+export const CABIN_SPOT_W = 50;
+export const isCabinKind = (k: string) => k === 'sleep-cabin' || k === 'kitchen-cabin';
+
 export function totalLightingWatts(plan: Plan): number {
   let w = 0;
   for (const el of plan.elements) {
+    if (isCabinKind(el.kind) && el.spotlight) w += CABIN_SPOT_W;
     if (!el.light || !isLightKind(el.kind)) continue;
     if (el.kind === 'string-lights') w += el.light.watts * stringBulbs(el).length;
     else w += el.light.watts;

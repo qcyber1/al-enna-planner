@@ -302,6 +302,7 @@ export const Fence3D = memo(function Fence3D({ land, w }: { land: Land; w: World
 });
 
 function Gate({ land, w }: { land: Land; w: WorldInfo }) {
+  if (land.entrance.gate === false) return null;
   const ent = entranceInfo(land);
   const h = Math.max(2.6, land.fence.height + 0.8);
   const ang = Math.atan2(ent.dir.y, ent.dir.x);

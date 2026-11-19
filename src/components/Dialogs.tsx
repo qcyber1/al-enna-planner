@@ -6,7 +6,7 @@ import { useSummary } from '../hooks/useDerived';
 import { Button, Field, Modal, NumberInput, Select, Stat, TextInput, Toggle, cx } from './ui';
 import { FENCE_LABELS, GROUND_LABELS, PATH_MATERIAL_LABELS, SURROUND_LABELS } from '../lib/catalog';
 import { formatArea, formatMeters, formatNumber, landEdges, round } from '../lib/geometry';
-import { DEFAULT_ESTIMATE, computeSummary, costLines } from '../lib/quantities';
+import { DEFAULT_ESTIMATE, computeSummary, costLines, priceOf } from '../lib/quantities';
 import { renderPlanCanvas, canvasToBlob, dateLabel, planThumbnail } from '../render2d/exportImage';
 import { askConfirm, stamp, copyText, exportDesignJson, exportProjectJson, readFileText, safeFileName, shareOrDownload, downloadBlob } from '../lib/files';
 import { buildShareLink } from '../lib/share';
@@ -357,6 +357,7 @@ export function LandDialog() {
             </Field>
             <Field label="عرض المدخل"><NumberInput value={land.entrance.width} min={1} max={30} onChange={(width) => setLand({ ...land, entrance: { ...land.entrance, width } })} unit="م" /></Field>
           </div>
+          <Toggle label="بوابة خشب على المدخل" checked={land.entrance.gate !== false} onChange={(c) => setLand({ ...land, entrance: { ...land.entrance, gate: c ? undefined : false } })} />
           <Field label={`موضع المدخل على الضلع: ${round(land.entrance.offset, 1)} م من بدايته`}>
             <input type="range" className="w-full" min={land.entrance.width / 2} max={Math.max(land.entrance.width / 2, (edge?.length ?? 10) - land.entrance.width / 2)} step={0.5} value={land.entrance.offset} onChange={(e) => setLand({ ...land, entrance: { ...land.entrance, offset: parseFloat(e.target.value) } })} />
           </Field>
@@ -411,8 +412,8 @@ export function SummaryDialog() {
   const est = project.estimate ?? DEFAULT_ESTIMATE;
   const izbaPlan = isIzba(design.plan.land);
   const lines = costLines(s);
-  const total = lines.reduce((sum, l) => sum + (project.prices[l.key] ?? 0) * l.qty, 0);
-  const priced = lines.filter((l) => project.prices[l.key] !== undefined).length;
+  const total = lines.reduce((sum, l) => sum + (priceOf(project.prices, l) ?? 0) * l.qty, 0);
+  const priced = lines.filter((l) => priceOf(project.prices, l) !== undefined).length;
   const exportCsv = () => {
     if (izbaPlan) {
       const e = izbaEstimate(design.plan, s, project.prices);
@@ -420,7 +421,7 @@ export function SummaryDialog() {
       const csv = '\ufeff' + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
       return downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `i3enna-izba-cost-${stamp()}.csv`);
     }
-    const rows = [['البند', 'الوحدة', 'الكمية', 'سعر الوحدة', 'الإجمالي'], ...lines.map((l) => [l.label, l.unit, String(round(l.qty, 2)), String(project.prices[l.key] ?? ''), String(round((project.prices[l.key] ?? 0) * l.qty, 2))])];
+    const rows = [['البند', 'الوحدة', 'الكمية', 'سعر الوحدة', 'الإجمالي'], ...lines.map((l) => [l.label, l.unit, String(round(l.qty, 2)), String(priceOf(project.prices, l) ?? ''), String(round((priceOf(project.prices, l) ?? 0) * l.qty, 2))])];
     const csv = '﻿' + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `al-enna-quantities-${stamp()}.csv`);
   };
@@ -545,13 +546,13 @@ export function SummaryDialog() {
                         min={0}
                         dir="ltr"
                         placeholder="—"
-                        value={project.prices[l.key] ?? ''}
+                        value={priceOf(project.prices, l) ?? ''}
                         onChange={(e) => setPrice(l.key, e.target.value === '' ? null : parseFloat(e.target.value))}
                         className="h-8 w-full rounded border border-sand-300 px-2 text-left text-sm"
                         aria-label={`سعر ${l.label}`}
                       />
                     </td>
-                    <td className="text-center tabular-nums">{project.prices[l.key] !== undefined ? formatNumber(project.prices[l.key] * l.qty, 2) : '—'}</td>
+                    <td className="text-center tabular-nums">{priceOf(project.prices, l) !== undefined ? formatNumber(priceOf(project.prices, l)! * l.qty, 2) : '—'}</td>
                   </tr>
                 ))}
               </tbody>

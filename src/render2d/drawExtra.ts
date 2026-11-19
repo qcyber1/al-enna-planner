@@ -59,6 +59,25 @@ function cabin(ctx: Ctx, el: PlanElement, o: DrawOpts, kitchen: boolean) {
   ctx.strokeStyle = shade(el.color, -0.5);
   ctx.lineWidth = Math.max(px(o, 1.2), 0.03);
   ctx.strokeRect(-w / 2, -d / 2, w, d);
+  // كشاف فوق الباب: نقطة صفرا ومروحة ضو قدام الكبينة
+  if (el.spotlight) {
+    const g = ctx.createRadialGradient(0, d / 2, 0, 0, d / 2, 3);
+    g.addColorStop(0, 'rgba(255,236,150,0.55)');
+    g.addColorStop(1, 'rgba(255,236,150,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(0, d / 2);
+    ctx.arc(0, d / 2, 3, Math.PI * 0.2, Math.PI * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#f5c400';
+    ctx.strokeStyle = '#3a3a3a';
+    ctx.lineWidth = Math.max(px(o, 1), 0.02);
+    ctx.beginPath();
+    ctx.arc(0, d / 2 + 0.12, 0.16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
   label(ctx, kitchen ? 'مطبخ' : 'رقدة', 0, 0, o, 11, shade(el.accent, -0.2));
   outline(ctx, w, d, o);
 }
@@ -227,6 +246,29 @@ function tannour(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   outline(ctx, w, d, o);
 }
 
+function waterBladder(ctx: Ctx, el: PlanElement, o: DrawOpts) {
+  const w = el.width;
+  const d = el.depth;
+  const g = ctx.createRadialGradient(-w * 0.15, -d * 0.15, 0, 0, 0, Math.max(w, d) / 1.6);
+  g.addColorStop(0, shade(el.color, 0.35));
+  g.addColorStop(1, el.color);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.roundRect(-w / 2, -d / 2, w, d, Math.min(w, d) * 0.35);
+  ctx.fill();
+  ctx.fillStyle = el.accent;
+  ctx.beginPath();
+  ctx.arc(0, 0, Math.min(0.15, d * 0.08), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(w / 2 - 0.05, -0.05, 0.3, 0.1);
+  label(ctx, 'جربة ماي', 0, d * 0.22, o, 10, '#fff');
+  ctx.strokeStyle = shade(el.color, -0.4);
+  ctx.lineWidth = Math.max(px(o, 1.2), 0.03);
+  ctx.beginPath();
+  ctx.roundRect(-w / 2, -d / 2, w, d, Math.min(w, d) * 0.35);
+  ctx.stroke();
+}
+
 function dieselTank(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   const w = el.width;
   const d = el.depth;
@@ -310,6 +352,9 @@ export function drawExtra(ctx: Ctx, el: PlanElement, o: DrawOpts): boolean {
       return true;
     case 'diesel-tank':
       dieselTank(ctx, el, o);
+      return true;
+    case 'water-bladder':
+      waterBladder(ctx, el, o);
       return true;
     case 'carport':
       carport(ctx, el, o);

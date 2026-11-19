@@ -41,6 +41,19 @@ function Cabin({ el, night, lampsOn, kitchen }: P & { kitchen: boolean }) {
         <boxGeometry args={[0.2, 0.12, 0.1]} />
         <meshStandardMaterial color={lit ? '#fff1c9' : '#ccc'} emissive={lit ? '#ffb347' : '#000'} emissiveIntensity={lit ? 2.5 : 0} toneMapped={!lit} />
       </mesh>
+      {/* الكشاف (اختياري) فوق الباب */}
+      {el.spotlight && (
+        <group position={[0, h - 0.35, d / 2 + 0.12]} rotation={[0.6, 0, 0]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.36, 0.26, 0.12]} />
+            <meshStandardMaterial color="#2a2a2a" metalness={0.5} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0, 0.065]}>
+            <planeGeometry args={[0.3, 0.2]} />
+            <meshStandardMaterial color={lit ? '#ffffff' : '#dfe6ea'} emissive={lit ? '#ffffff' : '#000'} emissiveIntensity={lit ? 4 : 0} toneMapped={!lit} />
+          </mesh>
+        </group>
+      )}
       {/* الشباك */}
       <mesh position={[w * 0.15, 1.5, d / 2 + 0.01]}>
         <planeGeometry args={[Math.min(1.2, w * 0.3), 0.8]} />
@@ -316,6 +329,34 @@ function Tannour({ el, night, lampsOn }: P) {
   );
 }
 
+/** جربة ماي: خزان مرن منفوخ على الأرض (شكل مخدة) مع محبس */
+function WaterBladder({ el }: P) {
+  const w = el.width;
+  const d = el.depth;
+  const h = Math.max(0.3, el.height);
+  return (
+    <group>
+      <mesh position={[0, h / 2, 0]} scale={[w / 2, h / 2, d / 2]} castShadow receiveShadow>
+        <sphereGeometry args={[1, 32, 16]} />
+        <meshStandardMaterial color={el.color} roughness={0.35} metalness={0.05} />
+      </mesh>
+      <mesh position={[0, 0.03, 0]} receiveShadow>
+        <boxGeometry args={[w * 0.92, 0.06, d * 0.92]} />
+        <meshStandardMaterial color={el.color} roughness={0.5} />
+      </mesh>
+      {/* المحبس والفتحة */}
+      <mesh position={[w / 2 - 0.05, 0.18, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.06, 0.06, 0.4, 10]} />
+        <meshStandardMaterial color={el.accent} metalness={0.5} />
+      </mesh>
+      <mesh position={[0, h + 0.02, 0]}>
+        <cylinderGeometry args={[0.12, 0.12, 0.08, 14]} />
+        <meshStandardMaterial color={el.accent} />
+      </mesh>
+    </group>
+  );
+}
+
 function DieselTank({ el }: P) {
   const w = el.width;
   const d = el.depth;
@@ -391,6 +432,8 @@ export function Extra3D(props: P) {
       return <Tannour {...props} />;
     case 'diesel-tank':
       return <DieselTank {...props} />;
+    case 'water-bladder':
+      return <WaterBladder {...props} />;
     case 'carport':
       return <Carport {...props} />;
     default:

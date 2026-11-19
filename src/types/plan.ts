@@ -19,6 +19,8 @@ export interface LandEntrance {
   /** موقع منتصف المدخل بالمتر من بداية الضلع */
   offset: number;
   width: number;
+  /** بوابة الخشب على المدخل (افتراضي موجودة) — false = بدون بوابة */
+  gate?: boolean;
 }
 
 export interface Fence {
@@ -88,6 +90,8 @@ export type ElementKind =
   | 'dakka'
   | 'tannour'
   | 'diesel-tank'
+  | 'water-bladder'
+  | 'screen-line'
   | 'carport'
   // ——— العزبة ———
   | 'sheep-pen'
@@ -222,6 +226,8 @@ export interface PlanElement {
   allowOutside?: boolean;
   /** نقاط الخط للممرات وسلاسل الليتات (إحداثيات مطلقة) */
   points?: Vec2[];
+  /** كبينة: كشاف (50 واط) فوق الباب يضوي قدامها */
+  spotlight?: boolean;
   tent?: TentProps;
   court?: CourtProps;
   path?: PathProps;
@@ -295,5 +301,5 @@ export interface ProjectMeta {
 
 export type ViewMode = '2d' | '3d' | 'split';
 export type TimeOfDay = 'day' | 'sunset' | 'night';
-export type Tool = 'select' | 'pan' | 'path' | 'string-lights' | 'measure';
+export type Tool = 'select' | 'pan' | 'path' | 'string-lights' | 'screen-line' | 'measure';
 export type CameraPreset = 'orbit' | 'top' | 'oblique' | 'human' | 'entrance' | 'main-tent' | 'walk';

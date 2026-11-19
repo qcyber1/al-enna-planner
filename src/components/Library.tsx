@@ -42,9 +42,9 @@ export function freeSpot(el: PlanElement, others: PlanElement[], land: Box): { x
 function addAtCenter(item: CatalogItem) {
   const st = useEditor.getState();
   if (item.geometry === 'polyline') {
-    st.setTool(item.kind === 'path' ? 'path' : 'string-lights');
+    st.setTool(item.kind === 'path' ? 'path' : item.kind === 'screen-line' ? 'screen-line' : 'string-lights');
     if (st.view === '3d') st.setView('2d');
-    st.toast(item.kind === 'path' ? 'ارسم الممر: انقر نقطة البداية ثم الزوايا، وانقر مرتين للإنهاء' : 'انقر على الأعمدة لتعليق السلسلة، وانقر مرتين للإنهاء', 'info');
+    st.toast(item.kind === 'path' ? 'ارسم الممر: انقر نقطة البداية ثم الزوايا، وانقر مرتين للإنهاء' : item.kind === 'screen-line' ? 'ارسم الساتر: انقر عند كل زاوية (تنشبك الزوايا مع بعض)، وانقر مرتين للإنهاء' : 'انقر على الأعمدة لتعليق السلسلة، وانقر مرتين للإنهاء', 'info');
     return;
   }
   const plan = getPlan();
@@ -190,7 +190,7 @@ export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: bo
                     <span className="text-xl leading-none">{item.icon}</span>
                     <span className="text-[12px] font-semibold leading-tight text-dune">{item.label}</span>
                     <span className="text-[10px] leading-tight text-sand-600">
-                      {item.geometry === 'polyline'
+                      {item.geometry === 'polyline' && item.kind === 'screen-line' ? 'ارسمه نقطة بنقطة' : item.geometry === 'polyline'
                         ? item.kind === 'path'
                           ? 'ارسم من نقطة لنقطة'
                           : 'بين الأعمدة'
