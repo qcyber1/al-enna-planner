@@ -695,7 +695,7 @@ export const CATALOG: CatalogItem[] = [
   {
     kind: 'screen-line',
     category: 'tents',
-    label: 'ساتر بالرسم (زوايا متصلة)',
+    label: 'ساتر أو تور بالرسم (زوايا متصلة)',
     description: 'ارسمه نقطة بنقطة مثل الممر: انقر عند كل زاوية وانقر مرتين للإنهاء',
     icon: '📐',
     geometry: 'polyline',

@@ -1127,10 +1127,18 @@ export function drawScreenLine(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   ctx.strokeStyle = el.color;
   ctx.lineWidth = Math.max(0.18, px(o, 2.6));
   ctx.stroke();
-  // خط السدو الأحمر في النص
-  ctx.strokeStyle = el.accent;
-  ctx.lineWidth = Math.max(0.04, px(o, 0.8));
-  ctx.stroke();
+  // ساتر قماش: خط السدو الأحمر في النص — تور شبك: خط متقطع
+  if (el.screenStyle === 'mesh') {
+    ctx.setLineDash([0.25, 0.2]);
+    ctx.strokeStyle = shade(el.color, 0.35);
+    ctx.lineWidth = Math.max(0.06, px(o, 1.2));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  } else {
+    ctx.strokeStyle = el.accent;
+    ctx.lineWidth = Math.max(0.04, px(o, 0.8));
+    ctx.stroke();
+  }
   ctx.fillStyle = '#5c4033';
   const s = Math.max(0.16, px(o, 3));
   for (let i = 0; i < pts.length; i++) {

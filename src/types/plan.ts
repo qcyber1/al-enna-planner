@@ -228,6 +228,8 @@ export interface PlanElement {
   points?: Vec2[];
   /** كبينة: كشاف (50 واط) فوق الباب يضوي قدامها */
   spotlight?: boolean;
+  /** الساتر المرسوم: قماش (ساتر) أو شبك (تور) */
+  screenStyle?: 'fabric' | 'mesh';
   tent?: TentProps;
   court?: CourtProps;
   path?: PathProps;

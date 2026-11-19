@@ -115,6 +115,7 @@ export function sanitizeElement(raw: unknown): PlanElement | null {
   };
   if (raw.allowOutside === true) el.allowOutside = true;
   if (typeof raw.notes === 'string') el.notes = raw.notes.slice(0, 1000);
+  if (raw.screenStyle === 'mesh' && el.kind === 'screen-line') el.screenStyle = 'mesh';
   if (raw.spotlight === true && (el.kind === 'sleep-cabin' || el.kind === 'kitchen-cabin')) el.spotlight = true;
 
   if (cat.geometry === 'polyline') {

@@ -145,6 +145,7 @@ export const ScreenLine3D = memo(function ScreenLine3D({ el }: { el: PlanElement
   const w = useWorld();
   const pts = el.points ?? [];
   const h = Math.max(0.5, el.height);
+  const mesh = el.screenStyle === 'mesh';
   const posts: Vec2[] = [];
   pts.forEach((p, i) => {
     posts.push(p);
@@ -162,14 +163,16 @@ export const ScreenLine3D = memo(function ScreenLine3D({ el }: { el: PlanElement
         const ang = Math.atan2(b.y - a.y, b.x - a.x);
         return (
           <group key={i} position={[(a.x + b.x) / 2 - w.ox, 0, (a.y + b.y) / 2 - w.oy]} rotation={[0, -ang, 0]}>
-            <mesh position={[0, h / 2 + 0.05, 0]} castShadow receiveShadow>
-              <boxGeometry args={[L + 0.06, h - 0.1, 0.04]} />
-              <meshStandardMaterial color={el.color} roughness={0.95} />
+            <mesh position={[0, h / 2 + 0.05, 0]} castShadow={!mesh} receiveShadow>
+              <boxGeometry args={[L + 0.06, h - 0.1, mesh ? 0.02 : 0.04]} />
+              <meshStandardMaterial color={el.color} roughness={0.95} transparent={mesh} opacity={mesh ? 0.55 : 1} depthWrite={!mesh} />
             </mesh>
-            <mesh position={[0, h - 0.25, 0]}>
-              <boxGeometry args={[L + 0.07, 0.14, 0.05]} />
-              <meshStandardMaterial color={el.accent} roughness={0.9} />
-            </mesh>
+            {!mesh && (
+              <mesh position={[0, h - 0.25, 0]}>
+                <boxGeometry args={[L + 0.07, 0.14, 0.05]} />
+                <meshStandardMaterial color={el.accent} roughness={0.9} />
+              </mesh>
+            )}
           </group>
         );
       })}

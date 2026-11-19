@@ -572,6 +572,29 @@ export function SummaryDialog() {
 }
 
 // ——— التصاميم والمقارنة ———
+/** يفتح ملف JSON (مشروع كامل أو تصميم) — من «مشاركة وتصدير» أو من «التصاميم» */
+async function importFile(file: File) {
+  const toast = useEditor.getState().toast;
+  const openDialog = useEditor.getState().openDialog;
+  try {
+    const text = await readFileText(file);
+    const res = parseImport(text);
+    const st = useEditor.getState();
+    if (res.kind === 'project' && res.project) {
+      st.importProject(res.project);
+      toast(`تم استيراد المشروع «${res.project.name}» (${res.project.designs.length} تصاميم)`, 'success');
+    } else if (res.design) {
+      st.importDesign(res.design);
+      toast(`تمت إضافة «${res.design.name}» كتصميم جديد في هذا المشروع`, 'success');
+    }
+    if (res.report.dropped) toast(`تم تجاهل ${res.report.dropped} عنصر غير صالح`, 'warning');
+    openDialog(null);
+    setTimeout(() => useViewport.getState().requestFit(), 50);
+  } catch (e) {
+    toast(e instanceof ImportError || e instanceof Error ? e.message : 'ما قدرنا نفتح الملف', 'error');
+  }
+}
+
 export function DesignsDialog() {
   const dialog = useEditor((s) => s.dialog);
   const open = dialog === 'designs' || dialog === 'compare';
@@ -579,6 +602,7 @@ export function DesignsDialog() {
   const project = useEditor((s) => s.project);
   const st = useEditor.getState();
   const [newName, setNewName] = useState('');
+  const importRef = useRef<HTMLInputElement>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   useEffect(() => {
     if (open) setCompareIds(project.designs.slice(0, 3).map((d) => d.id));
@@ -636,6 +660,18 @@ export function DesignsDialog() {
           <Button variant="primary" onClick={() => { st.addDesign(newName, 'copy'); setNewName(''); }} data-testid="design-copy"><Copy size={15} /> نسخ الحالي</Button>
           <Button onClick={() => { st.addDesign(newName, 'blank'); setNewName(''); }}><Plus size={15} /> تصميم فارغ</Button>
           <Button onClick={() => { st.addDesign(newName || 'المثال التجريبي', 'sample'); setNewName(''); }}><Sparkles size={15} /> من المثال</Button>
+          <Button onClick={() => importRef.current?.click()} data-testid="designs-import" title="افتح ملف JSON صدّرته من جهاز ثاني"><Upload size={15} /> استيراد ملف JSON</Button>
+          <input
+            ref={importRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void importFile(f);
+              e.target.value = '';
+            }}
+          />
         </div>
         <p className="text-[12px] text-sand-600">حدد حتى 4 تصاميم للمقارنة جنباً إلى جنب. لحفظ لقطة 3D لأي تصميم: افتحه في العرض 3D واضغط زر الكاميرا 📷.</p>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -741,25 +777,7 @@ export function ShareDialog() {
     }
     requestCapture3d(mode);
   };
-  const onImport = async (file: File) => {
-    try {
-      const text = await readFileText(file);
-      const res = parseImport(text);
-      const st = useEditor.getState();
-      if (res.kind === 'project' && res.project) {
-        st.importProject(res.project);
-        toast(`تم استيراد المشروع «${res.project.name}» (${res.project.designs.length} تصاميم)`, 'success');
-      } else if (res.design) {
-        st.importDesign(res.design);
-        toast(`تمت إضافة «${res.design.name}» كتصميم جديد في هذا المشروع`, 'success');
-      }
-      if (res.report.dropped) toast(`تم تجاهل ${res.report.dropped} عنصر غير صالح`, 'warning');
-      openDialog(null);
-      setTimeout(() => useViewport.getState().requestFit(), 50);
-    } catch (e) {
-      toast(e instanceof ImportError || e instanceof Error ? e.message : 'ما قدرنا نفتح الملف', 'error');
-    }
-  };
+  const onImport = (file: File) => importFile(file);
   return (
     <Modal open={open} onClose={() => openDialog(null)} wide title="المشاركة والتصدير" footer={<Button variant="primary" onClick={() => openDialog(null)}>إغلاق</Button>}>
       <div className="grid gap-4 p-5 md:grid-cols-2">

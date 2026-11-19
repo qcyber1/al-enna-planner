@@ -44,7 +44,7 @@ import { aimRotation } from '../lib/sample';
 import { stringBulbs } from '../lib/lighting';
 import { windNotes, type WindNote } from '../lib/wind';
 import { useMemo } from 'react';
-import { Button, ColorInput, Field, NumberInput, Section, Select, TextInput, Toggle, cx } from './ui';
+import { Button, ColorInput, Field, NumberInput, Section, Segmented, Select, TextInput, Toggle, cx } from './ui';
 
 function useEl(): PlanElement[] {
   const plan = usePlan();
@@ -306,6 +306,23 @@ function SingleElement({ el }: { el: PlanElement }) {
         <Section title="المواقف">
           <Field label="عدد المواقف"><NumberInput value={el.parking.slots} min={1} max={60} step={1} digits={0} onChange={(n) => upd({ parking: { ...el.parking!, slots: Math.round(n) }, width: round(Math.round(n) * 2.7, 2) }, 'slots')} /></Field>
           <Toggle label="إظهار سيارات توضيحية" checked={el.parking.showCars} onChange={(c) => upd({ parking: { ...el.parking!, showCars: c } })} />
+        </Section>
+      )}
+      {el.kind === 'screen-line' && (
+        <Section title="الساتر / التور">
+          <Field label="النوع">
+            <Segmented
+              size="sm"
+              value={el.screenStyle ?? 'fabric'}
+              onChange={(v) => upd({ screenStyle: v === 'mesh' ? 'mesh' : undefined, ...(v === 'mesh' && el.color === '#d9c49b' ? { color: '#3f5d3a' } : v === 'fabric' && el.color === '#3f5d3a' ? { color: '#d9c49b' } : {}) })}
+              options={[
+                { value: 'fabric', label: 'ساتر قماش' },
+                { value: 'mesh', label: 'تور (شبك)' },
+              ]}
+            />
+          </Field>
+          <Field label="الارتفاع"><NumberInput value={el.height} min={0.5} max={4} step={0.1} digits={1} unit="م" onChange={(n) => upd({ height: n }, 'height')} /></Field>
+          <p className="text-[11px] text-sand-600">اسحب أي زاوية تعدّلها — الزوايا تظل متصلة.</p>
         </Section>
       )}
       {(el.kind === 'sleep-cabin' || el.kind === 'kitchen-cabin') && (
