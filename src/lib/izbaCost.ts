@@ -150,6 +150,9 @@ export function izbaCostLines(plan: Plan, s: Summary): IzbaCostLine[] {
   add('irr-sprinklers', 'رشاشات الحشيش', PC, irr.sprinklers, 35, 'garden');
   add('irr-pump', `مضخة الري (${irr.pumpHp} حصان)`, PC, irr.pumpHp ? 1 : 0, 900 + irr.pumpHp * 600, 'garden');
   add('irr-control', `جهاز ري أوتوماتيكي + ${irr.zones} محبس`, PC, irr.zones ? 1 : 0, 400 + irr.zones * 150, 'garden');
+  add('pen-fence', 'شبك الحلال (مجلفن مع الأعمدة)', LM, s.penFenceLength, 45, 'livestock');
+  add('screen-line', 'سواتر قماش', LM, s.screenLength, 40, 'services');
+  add('mesh-line', 'تور شبك', LM, s.meshLength, 35, 'services');
   add('string-lights', 'سلاسل ليتات', LM, s.lights.stringLength, 25, 'lighting');
   add('path-edge', 'إنارة جوانب الممرات', PC, s.lights.pathEdgeLights, 150, 'lighting');
   return out;

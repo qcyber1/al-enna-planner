@@ -1128,7 +1128,7 @@ export function drawScreenLine(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   ctx.lineWidth = Math.max(0.18, px(o, 2.6));
   ctx.stroke();
   // ساتر قماش: خط السدو الأحمر في النص — تور شبك: خط متقطع
-  if (el.screenStyle === 'mesh') {
+  if (el.screenStyle === 'mesh' || el.kind === 'pen-fence') {
     ctx.setLineDash([0.25, 0.2]);
     ctx.strokeStyle = shade(el.color, 0.35);
     ctx.lineWidth = Math.max(0.06, px(o, 1.2));
@@ -1158,7 +1158,7 @@ export function drawScreenLine(ctx: Ctx, el: PlanElement, o: DrawOpts) {
 export function drawPolylineElement(ctx: Ctx, el: PlanElement, o: DrawOpts) {
   if (el.kind === 'path') drawPath(ctx, el, o);
   else if (el.kind === 'string-lights') drawStringLights(ctx, el, o);
-  else if (el.kind === 'screen-line') drawScreenLine(ctx, el, o);
+  else if (el.kind === 'screen-line' || el.kind === 'pen-fence') drawScreenLine(ctx, el, o);
 }
 
 /** رسم أي عنصر في الإحداثيات العالمية (للتصدير) */

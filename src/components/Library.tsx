@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { CATALOG, CATEGORY_LABELS, CATEGORY_ORDER, IZBA_CATEGORY_ORDER, createElement, qiblaRotation, type CatalogItem } from '../lib/catalog';
 import { getPlan, useEditor, usePlan } from '../store/editorStore';
-import { landBounds } from '../lib/geometry';
+import { landBounds, rotate } from '../lib/geometry';
+import { WIND_FROM } from '../lib/wind';
 import { DND_MIME } from '../editor2d/Editor2D';
 import { useViewport } from '../editor2d/viewport';
 import { cx } from './ui';
@@ -42,9 +43,9 @@ export function freeSpot(el: PlanElement, others: PlanElement[], land: Box): { x
 function addAtCenter(item: CatalogItem) {
   const st = useEditor.getState();
   if (item.geometry === 'polyline') {
-    st.setTool(item.kind === 'path' ? 'path' : item.kind === 'screen-line' ? 'screen-line' : 'string-lights');
+    st.setTool(item.kind === 'path' ? 'path' : item.kind === 'screen-line' ? 'screen-line' : item.kind === 'pen-fence' ? 'pen-fence' : 'string-lights');
     if (st.view === '3d') st.setView('2d');
-    st.toast(item.kind === 'path' ? 'ارسم الممر: انقر نقطة البداية ثم الزوايا، وانقر مرتين للإنهاء' : item.kind === 'screen-line' ? 'ارسم الساتر: انقر عند كل زاوية (تنشبك الزوايا مع بعض)، وانقر مرتين للإنهاء' : 'انقر على الأعمدة لتعليق السلسلة، وانقر مرتين للإنهاء', 'info');
+    st.toast(item.kind === 'path' ? 'ارسم الممر: انقر نقطة البداية ثم الزوايا، وانقر مرتين للإنهاء' : item.kind === 'screen-line' ? 'ارسم الساتر: انقر عند كل زاوية (تنشبك الزوايا مع بعض)، وانقر مرتين للإنهاء' : item.kind === 'pen-fence' ? 'ارسم الشبك: انقر عند كل زاوية، وارجع لأول نقطة عشان يتسكّر الحوش، وانقر مرتين للإنهاء' : 'انقر على الأعمدة لتعليق السلسلة، وانقر مرتين للإنهاء', 'info');
     return;
   }
   const plan = getPlan();
@@ -82,6 +83,32 @@ export function addBuilding(id: BuildingPreset['id']) {
   st.setTool('select');
   st.addElements(els);
   st.toast(`تمت إضافة «${preset.title}» — اضغط أي غرفة وغيّر نوعها وتشطيبها، أو شوف الداخل من 3D`, 'success');
+}
+
+/** مجموعة عناصر جاهزة (حظاير الحلال، المجلس) في مكان فاضي — العناصر حول (0،0) الزاوية العلوية اليسار */
+export function addGroup(g: { els: PlanElement[]; width: number; depth: number }, msg: string, downwind = false) {
+  const st = useEditor.getState();
+  const plan = getPlan();
+  const b = landBounds(plan.land);
+  const vp = useViewport.getState();
+  let p = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
+  const host = document.querySelector('[data-testid="editor-2d"]');
+  if (host && st.view !== '3d') p = { x: (host.clientWidth / 2 - vp.x) / vp.scale, y: (host.clientHeight / 2 - vp.y) / vp.scale };
+  // الحلال: نبدأ الدوّارة من جهة «تحت الريح» (عكس ريح الشمال) عشان ريحتها ما توصل المجلس
+  if (downwind) {
+    const brg = ((WIND_FROM + 180) * Math.PI) / 180;
+    const v = rotate({ x: Math.sin(brg), y: -Math.cos(brg) }, plan.land.northAngle);
+    const cx0 = (b.minX + b.maxX) / 2;
+    const cy0 = (b.minY + b.maxY) / 2;
+    p = { x: cx0 + v.x * Math.max(0, (b.maxX - b.minX) / 2 - g.width / 2 - 2), y: cy0 + v.y * Math.max(0, (b.maxY - b.minY) / 2 - g.depth / 2 - 2) };
+  }
+  const probe = createElement('room', { x: Math.round(p.x), y: Math.round(p.y) }, { width: g.width, depth: g.depth });
+  const spot = freeSpot(probe, plan.elements, b);
+  const ox = Math.round((spot.x - g.width / 2) * 2) / 2;
+  const oy = Math.round((spot.y - g.depth / 2) * 2) / 2;
+  st.setTool('select');
+  st.addElements(g.els.map((e) => ({ ...e, x: e.x + ox, y: e.y + oy })));
+  st.toast(msg, 'success');
 }
 
 /** دائرة حشيش كاملة (مثلاً تحت جلسة دائرية) — نصف القطر يتعدل من الخصائص */
@@ -138,6 +165,36 @@ export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: bo
             <IzbaLockedCard compact />
           </div>
         )}
+        {izbaOk && !q && (
+          <div className="mb-3 grid grid-cols-2 gap-1.5" data-testid="izba-quick">
+            <button
+              type="button"
+              onClick={() => {
+                useEditor.getState().openDialog('herd');
+                onPicked?.();
+              }}
+              data-testid="lib-quick-herd"
+              className="rounded-xl bg-dune p-2.5 text-right text-sand-50 shadow-sm transition hover:brightness-110"
+            >
+              <span className="text-xl leading-none">🐑</span>
+              <span className="block text-[13px] font-bold">أضف حلالك</span>
+              <span className="block text-[10px] leading-tight text-sand-200">اكتب العدد ← حظاير بالمقاس</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                useEditor.getState().openDialog('majlis');
+                onPicked?.();
+              }}
+              data-testid="lib-quick-majlis"
+              className="rounded-xl bg-gold-500 p-2.5 text-right text-dune shadow-sm transition hover:brightness-105"
+            >
+              <span className="text-xl leading-none">🏠</span>
+              <span className="block text-[13px] font-bold">صمّم مجلسك</span>
+              <span className="block text-[10px] leading-tight text-dune/70">اختار المقاس + حمام ومطبخ</span>
+            </button>
+          </div>
+        )}
         {order.map((cat) => {
           const list = items.filter((i) => i.category === cat);
           if (!list.length) return null;
@@ -190,7 +247,7 @@ export function Library({ onPicked, sheet }: { onPicked?: () => void; sheet?: bo
                     <span className="text-xl leading-none">{item.icon}</span>
                     <span className="text-[12px] font-semibold leading-tight text-dune">{item.label}</span>
                     <span className="text-[10px] leading-tight text-sand-600">
-                      {item.geometry === 'polyline' && item.kind === 'screen-line' ? 'ارسمه نقطة بنقطة' : item.geometry === 'polyline'
+                      {item.geometry === 'polyline' && (item.kind === 'screen-line' || item.kind === 'pen-fence') ? 'ارسمه نقطة بنقطة' : item.geometry === 'polyline'
                         ? item.kind === 'path'
                           ? 'ارسم من نقطة لنقطة'
                           : 'بين الأعمدة'

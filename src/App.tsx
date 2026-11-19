@@ -15,6 +15,7 @@ import { BackupNudge } from './components/BackupNudge';
 import { ChecklistDialog } from './components/ChecklistDialog';
 import { PowerDialog } from './components/PowerDialog';
 import { IzbaHubDialog } from './components/IzbaHubDialog';
+import { IzbaQuickDialog } from './components/IzbaQuickDialog';
 import { AiPhotoDialog } from './components/AiPhotoDialog';
 import { BottomSheet } from './components/BottomSheet';
 import Editor2D from './editor2d/Editor2D';
@@ -193,6 +194,7 @@ export default function App() {
       <ChecklistDialog />
       <PowerDialog />
       <IzbaHubDialog />
+      <IzbaQuickDialog />
       <AiPhotoDialog />
       <WelcomeDialog />
       <LandDialog />

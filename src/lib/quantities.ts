@@ -16,6 +16,7 @@ import {
   polygonPerimeter,
   polylineLength,
   type Bounds,
+  closedArea,
 } from './geometry';
 import { pathEdgeLights, stringBulbs, totalLightingWatts } from './lighting';
 
@@ -58,6 +59,9 @@ export interface Summary {
   screenLength: number;
   /** طول التور (الشبك) المرسوم */
   meshLength: number;
+  /** شبك الحلال المرسوم: الطول ومساحة الأحواش المسكّرة */
+  penFenceLength: number;
+  penFenceArea: number;
   tents: { id: string; name: string; kind: ElementKind; width: number; depth: number; area: number; capacity: number | null }[];
   /** مجموع السعة التقديرية للجلوس في الخيام */
   capacity: number;
@@ -292,6 +296,8 @@ export function computeSummary(plan: Plan, est: EstimateSettings = DEFAULT_ESTIM
     landArea: landA,
     landPerimeter: perimeter,
     fenceLength: plan.land.fence.enabled ? Math.max(0, perimeter - ent.width) : 0,
+    penFenceLength: plan.elements.filter((e) => e.kind === 'pen-fence').reduce((t, e) => t + polylineLength(e.points ?? []), 0),
+    penFenceArea: plan.elements.filter((e) => e.kind === 'pen-fence').reduce((t, e) => t + closedArea(e.points), 0),
     meshLength: plan.elements.filter((e) => e.kind === 'screen-line' && e.screenStyle === 'mesh').reduce((t, e) => t + polylineLength(e.points ?? []), 0),
     screenLength: plan.elements.filter((e) => e.kind === 'screen-line' && e.screenStyle !== 'mesh').reduce((t, e) => t + polylineLength(e.points ?? []), 0),
     tents,
@@ -380,6 +386,7 @@ export function costLines(s: Summary): CostLine[] {
     if (s.counts[k] > 0) lines.push({ key: `kind:${k}`, label: kindLabel(k), unit: 'قطعة', qty: s.counts[k] });
   }
   if (s.screenLength > 0) lines.push({ key: 'screen-length', label: 'ساتر قماش (بالرسم)', unit: 'م طولي', qty: s.screenLength });
+  if (s.penFenceLength > 0) lines.push({ key: 'pen-fence-length', label: 'شبك غنم (بالرسم)', unit: 'م طولي', qty: s.penFenceLength });
   if (s.meshLength > 0) lines.push({ key: 'mesh-length', label: 'تور شبك (بالرسم)', unit: 'م طولي', qty: s.meshLength });
   if (s.lights.stringLength > 0)
     lines.push({ key: 'string-length', label: 'سلاسل ليتات معلقة', unit: 'م طولي', qty: s.lights.stringLength });

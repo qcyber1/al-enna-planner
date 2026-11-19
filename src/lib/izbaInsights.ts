@@ -57,7 +57,8 @@ export function izbaInsights(plan: Plan, s: Summary, people = 15): IzbaInsights 
   const els = plan.elements;
   const built = sumArea(els, ['room', 'majlis-room', 'worker-room', 'feed-store', 'toilet']);
   const cooled = sumArea(els, ['room', 'majlis-room', 'worker-room']);
-  const sheep = Math.floor(sumArea(els, ['sheep-pen', 'animal-shade']) / RATES.sheepM2);
+  // الحوش المرسوم بالشبك (مسكّر) ينحسب مع الحظاير
+  const sheep = Math.floor((sumArea(els, ['sheep-pen', 'animal-shade']) + s.penFenceArea) / RATES.sheepM2);
   const camels = Math.floor(sumArea(els, ['camel-pen']) / RATES.camelM2);
   const horses = els.filter((e) => e.kind === 'horse-stable').reduce((t, e) => t + Math.max(1, Math.floor(Math.max(e.width, e.depth) / RATES.horseBay)), 0);
   const palms = count(els, 'palm');

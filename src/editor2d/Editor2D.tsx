@@ -208,15 +208,15 @@ export default function Editor2D() {
     if (d && d.length >= 2) {
       const clean = d.filter((p, i) => i === 0 || dist(p, d[i - 1]) > 0.05);
       if (clean.length >= 2) {
-        const kind: ElementKind = st.tool === 'string-lights' ? 'string-lights' : st.tool === 'screen-line' ? 'screen-line' : 'path';
+        const kind: ElementKind = st.tool === 'string-lights' ? 'string-lights' : st.tool === 'screen-line' ? 'screen-line' : st.tool === 'pen-fence' ? 'pen-fence' : 'path';
         const count = getPlan().elements.filter((e) => e.kind === kind).length + 1;
         const el = createElement(kind, clean[0], {
           points: clean,
-          name: kind === 'path' ? `ممر ${count}` : kind === 'screen-line' ? `ساتر ${count}` : `سلسلة ليتات ${count}`,
+          name: kind === 'path' ? `ممر ${count}` : kind === 'screen-line' ? `ساتر ${count}` : kind === 'pen-fence' ? `شبك حلال ${count}` : `سلسلة ليتات ${count}`,
         });
         st.addElement(el);
         st.setTool('select');
-        st.toast(kind === 'path' ? 'تمت إضافة الممر — عدّل عرضه ونوعه من لوحة الخصائص' : kind === 'screen-line' ? 'تمت إضافة الساتر — اسحب أي زاوية تعدّلها، وغيّر الارتفاع واللون من الخصائص' : 'تمت إضافة سلسلة الليتات', 'success');
+        st.toast(kind === 'path' ? 'تمت إضافة الممر — عدّل عرضه ونوعه من لوحة الخصائص' : kind === 'screen-line' ? 'تمت إضافة الساتر — اسحب أي زاوية تعدّلها، وغيّر الارتفاع واللون من الخصائص' : kind === 'pen-fence' ? 'تمت إضافة الشبك — اسحب أي زاوية تعدّلها، ولو سكّرته يصير حوش ينحسب في سعة الحلال' : 'تمت إضافة سلسلة الليتات', 'success');
       } else {
         st.toast('أضف نقطتين مختلفتين على الأقل', 'warning');
       }
@@ -230,7 +230,7 @@ export default function Editor2D() {
   }, [draft, measureDraft]);
 
   useEffect(() => {
-    if (tool !== 'path' && tool !== 'string-lights' && tool !== 'screen-line') setDraft(null);
+    if (tool !== 'path' && tool !== 'string-lights' && tool !== 'screen-line' && tool !== 'pen-fence') setDraft(null);
     if (tool !== 'measure') setMeasureDraft(null);
   }, [tool]);
 
@@ -472,7 +472,7 @@ export default function Editor2D() {
       setMeasureDraft({ a: p, b: p });
       return;
     }
-    if (st.tool === 'path' || st.tool === 'string-lights' || st.tool === 'screen-line') {
+    if (st.tool === 'path' || st.tool === 'string-lights' || st.tool === 'screen-line' || st.tool === 'pen-fence') {
       const p = drawPoint(world, !isTouch && (evt as MouseEvent).shiftKey);
       setDraft((d) => (d ? [...d, p] : [p]));
       return;
@@ -635,7 +635,7 @@ export default function Editor2D() {
   const cursorStyle =
     panRef.current || tool === 'pan' || spaceDown
       ? 'grab'
-      : tool === 'path' || tool === 'string-lights' || tool === 'screen-line' || tool === 'measure'
+      : tool === 'path' || tool === 'string-lights' || tool === 'screen-line' || tool === 'pen-fence' || tool === 'measure'
         ? 'crosshair'
         : 'default';
 

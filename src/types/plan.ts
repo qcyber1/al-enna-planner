@@ -92,6 +92,7 @@ export type ElementKind =
   | 'diesel-tank'
   | 'water-bladder'
   | 'screen-line'
+  | 'pen-fence'
   | 'carport'
   // ——— العزبة ———
   | 'sheep-pen'
@@ -303,5 +304,5 @@ export interface ProjectMeta {
 
 export type ViewMode = '2d' | '3d' | 'split';
 export type TimeOfDay = 'day' | 'sunset' | 'night';
-export type Tool = 'select' | 'pan' | 'path' | 'string-lights' | 'screen-line' | 'measure';
+export type Tool = 'select' | 'pan' | 'path' | 'string-lights' | 'screen-line' | 'pen-fence' | 'measure';
 export type CameraPreset = 'orbit' | 'top' | 'oblique' | 'human' | 'entrance' | 'main-tent' | 'walk';

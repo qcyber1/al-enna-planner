@@ -86,6 +86,18 @@ export function polygonPerimeter(poly: Vec2[]): number {
   return p;
 }
 
+/** شبك مسكّر (آخر نقطة رجعت لأولها): مساحة الحوش، وإلا 0 */
+export function closedArea(points: Vec2[] | undefined): number {
+  const p = points ?? [];
+  if (p.length < 3) return 0;
+  const a = p[0];
+  const b = p[p.length - 1];
+  if (Math.hypot(a.x - b.x, a.y - b.y) > 0.8) return 0;
+  let s = 0;
+  for (let i = 0; i < p.length - 1; i++) s += p[i].x * p[i + 1].y - p[i + 1].x * p[i].y;
+  return Math.abs(s) / 2;
+}
+
 export function polylineLength(points: Vec2[]): number {
   let l = 0;
   for (let i = 1; i < points.length; i++) l += dist(points[i - 1], points[i]);

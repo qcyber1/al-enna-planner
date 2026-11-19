@@ -797,6 +797,18 @@ export const CATALOG: CatalogItem[] = [
     defaults: { ...base, width: 14, depth: 5, height: 3.2, color: '#d8c7a4', accent: '#6b4a2b' },
   },
   {
+    kind: 'pen-fence',
+    category: 'livestock',
+    label: 'شبك غنم (بالرسم)',
+    description: 'شبك حلال مجلفن على أعمدة — ارسمه نقطة بنقطة بأي شكل، ولو سكّرته يصير حوش وينحسب كم راس يكفي',
+    icon: '🥅',
+    geometry: 'polyline',
+    collision: 'none',
+    minSize: 0.2,
+    izbaOnly: true,
+    defaults: { ...base, height: 1.5, color: '#9aa3a8', accent: '#6f777d' },
+  },
+  {
     kind: 'animal-shade',
     category: 'livestock',
     label: 'مظلة حلال',

@@ -145,7 +145,8 @@ export const ScreenLine3D = memo(function ScreenLine3D({ el }: { el: PlanElement
   const w = useWorld();
   const pts = el.points ?? [];
   const h = Math.max(0.5, el.height);
-  const mesh = el.screenStyle === 'mesh';
+  const mesh = el.screenStyle === 'mesh' || el.kind === 'pen-fence';
+  const metal = el.kind === 'pen-fence';
   const posts: Vec2[] = [];
   pts.forEach((p, i) => {
     posts.push(p);
@@ -179,7 +180,7 @@ export const ScreenLine3D = memo(function ScreenLine3D({ el }: { el: PlanElement
       {posts.map((p, i) => (
         <mesh key={i} position={[p.x - w.ox, h / 2 + 0.05, p.y - w.oy]} castShadow>
           <boxGeometry args={[0.07, h + 0.1, 0.07]} />
-          <meshStandardMaterial color="#5c4033" roughness={0.8} />
+          <meshStandardMaterial color={metal ? el.accent : '#5c4033'} roughness={metal ? 0.4 : 0.8} metalness={metal ? 0.6 : 0} />
         </mesh>
       ))}
     </group>

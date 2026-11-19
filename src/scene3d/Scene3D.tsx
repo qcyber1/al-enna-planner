@@ -73,7 +73,7 @@ const Element3D = memo(function Element3D({ el, night, lampsOn, selected, showSa
   };
 
   if (el.kind === 'path') return <group onClick={click}><Path3D el={el} lampsOn={lampsOn} /></group>;
-  if (el.kind === 'screen-line') return <group onClick={click}><ScreenLine3D el={el} /></group>;
+  if (el.kind === 'screen-line' || el.kind === 'pen-fence') return <group onClick={click}><ScreenLine3D el={el} /></group>;
   if (el.kind === 'string-lights') return <group onClick={click}><StringLights3D el={el} lampsOn={lampsOn} poleSpots={poleSpots} /></group>;
   let body: React.ReactNode = null;
   if (isTentKind(el.kind) && el.tent) body = <Tent3D el={el} glow={lampsOn && el.tent.interiorLight} lampsOn={lampsOn && el.tent.entranceLight} />;

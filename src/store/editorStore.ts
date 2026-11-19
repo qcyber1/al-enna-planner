@@ -44,7 +44,9 @@ export type DialogName =
   | 'feedback'
   | 'checklist'
   | 'power'
-  | 'izba';
+  | 'izba'
+  | 'herd'
+  | 'majlis';
 
 export interface Toast {
   id: string;

@@ -38,6 +38,7 @@ import {
   polylineLength,
   round,
   shapesDistance,
+  closedArea,
 } from '../lib/geometry';
 import { estimateWoodTurf, DEFAULT_ESTIMATE, tentCapacity } from '../lib/quantities';
 import { aimRotation } from '../lib/sample';
@@ -306,6 +307,12 @@ function SingleElement({ el }: { el: PlanElement }) {
         <Section title="المواقف">
           <Field label="عدد المواقف"><NumberInput value={el.parking.slots} min={1} max={60} step={1} digits={0} onChange={(n) => upd({ parking: { ...el.parking!, slots: Math.round(n) }, width: round(Math.round(n) * 2.7, 2) }, 'slots')} /></Field>
           <Toggle label="إظهار سيارات توضيحية" checked={el.parking.showCars} onChange={(c) => upd({ parking: { ...el.parking!, showCars: c } })} />
+        </Section>
+      )}
+      {el.kind === 'pen-fence' && (
+        <Section title="شبك الغنم">
+          <Field label="الارتفاع"><NumberInput value={el.height} min={0.8} max={3} step={0.1} digits={1} unit="م" onChange={(n) => upd({ height: n }, 'height')} /></Field>
+          <p className="text-[11px] text-sand-600">{closedArea(el.points) > 0 ? `حوش مسكّر ${Math.round(closedArea(el.points))} م² — يكفي تقريباً ${Math.floor(closedArea(el.points) / 2)} راس غنم` : 'ارجع بآخر نقطة لأول نقطة عشان يتسكّر الحوش وينحسب كم راس يكفي.'}</p>
         </Section>
       )}
       {el.kind === 'screen-line' && (
