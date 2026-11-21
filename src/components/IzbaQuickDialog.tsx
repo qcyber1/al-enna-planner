@@ -48,7 +48,7 @@ function Herd() {
   const g = useMemo(() => herdGroup({ sheep, camels, horses, feed, worker, hasFeedStore, hasWorker }), [sheep, camels, horses, feed, worker, hasFeedStore, hasWorker]);
   const pens = g.els.filter((e) => ['sheep-pen', 'camel-pen', 'horse-stable'].includes(e.kind));
   const go = () => {
-    addGroup(g, 'تمت إضافة الحلال ✓ — حطيناه جهة تحت الريح بعيد عن المجلس، وتقدر تسحبه أو تكبّره من الخصائص', true);
+    addGroup(g, 'تمت إضافة الحلال ✓ — حطيناه جهة تحت الريح بعيد عن المجلس، وتقدر تسحبه أو تكبّره من الخصائص', 'downwind');
     openDialog(null);
   };
   return (
@@ -95,7 +95,7 @@ function Majlis() {
   const [kitchen, setKitchen] = useState(true);
   const g = useMemo(() => majlisGroup({ width: w, depth: d, bath, kitchen }), [w, d, bath, kitchen]);
   const go = () => {
-    addGroup(g, 'تم بناء المجلس ✓ — اضغط أي غرفة وغيّر الأرضية والجدران، وشوف الداخل من 3D');
+    addGroup(g, 'تم بناء المجلس ✓ — حطيناه جهة فوق الريح بعيد عن الحلال. اضغط أي غرفة وغيّر الأرضية والجدران، وشوف الداخل من 3D', 'upwind');
     openDialog(null);
   };
   return (
@@ -131,7 +131,7 @@ function Majlis() {
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Count icon="↔️" label="الطول" value={w} onChange={(n) => setW(Math.max(4, Math.min(30, n)))} testid="majlis-w" />
           <Count icon="↕️" label="العرض" value={d} onChange={(n) => setD(Math.max(3, Math.min(20, n)))} testid="majlis-d" />
         </div>

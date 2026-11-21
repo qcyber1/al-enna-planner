@@ -86,7 +86,8 @@ export function addBuilding(id: BuildingPreset['id']) {
 }
 
 /** مجموعة عناصر جاهزة (حظاير الحلال، المجلس) في مكان فاضي — العناصر حول (0،0) الزاوية العلوية اليسار */
-export function addGroup(g: { els: PlanElement[]; width: number; depth: number }, msg: string, downwind = false) {
+/** side: 'downwind' للحلال (تحت الريح)، 'upwind' للمجلس (فوق الريح بعيد عن الحلال) */
+export function addGroup(g: { els: PlanElement[]; width: number; depth: number }, msg: string, side: 'downwind' | 'upwind' | null = null) {
   const st = useEditor.getState();
   const plan = getPlan();
   const b = landBounds(plan.land);
@@ -95,8 +96,8 @@ export function addGroup(g: { els: PlanElement[]; width: number; depth: number }
   const host = document.querySelector('[data-testid="editor-2d"]');
   if (host && st.view !== '3d') p = { x: (host.clientWidth / 2 - vp.x) / vp.scale, y: (host.clientHeight / 2 - vp.y) / vp.scale };
   // الحلال: نبدأ الدوّارة من جهة «تحت الريح» (عكس ريح الشمال) عشان ريحتها ما توصل المجلس
-  if (downwind) {
-    const brg = ((WIND_FROM + 180) * Math.PI) / 180;
+  if (side) {
+    const brg = ((WIND_FROM + (side === 'downwind' ? 180 : 0)) * Math.PI) / 180;
     const v = rotate({ x: Math.sin(brg), y: -Math.cos(brg) }, plan.land.northAngle);
     const cx0 = (b.minX + b.maxX) / 2;
     const cy0 = (b.minY + b.maxY) / 2;
