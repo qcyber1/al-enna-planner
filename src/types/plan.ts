@@ -293,6 +293,19 @@ export interface Project {
   estimate?: EstimateSettings;
   /** كهرباء العنة: الأجهزة والموسم وخزان الديزل (lib/power.ts) */
   power?: import('../lib/power').PowerSettings;
+  /** متابعة البناء (العزبة): الشغل اللي خلص والدفعات للمقاول */
+  build?: BuildLog;
+}
+
+export interface BuildPayment {
+  id: string;
+  at: number;
+  amount: number;
+  note: string;
+}
+export interface BuildLog {
+  done: string[];
+  payments: BuildPayment[];
 }
 
 export interface ProjectMeta {

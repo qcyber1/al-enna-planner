@@ -7,6 +7,7 @@ import { Button, Modal, cx } from './ui';
 import { IzbaInsightsPanel, IzbaIrrigationPanel } from './IzbaInsightsPanel';
 import { IzbaCostPanel } from './IzbaCostPanel';
 import { IzbaRunningPanel } from './IzbaRunningPanel';
+import { IzbaBuildPanel } from './IzbaBuildPanel';
 import { izbaRunning } from '../lib/izbaRunning';
 import { izbaEstimate } from '../lib/izbaCost';
 import { izbaInsights } from '../lib/izbaInsights';
@@ -16,7 +17,7 @@ import { openReport } from '../lib/report';
 import { demoBlock } from './Dialogs';
 import { formatNumber } from '../lib/geometry';
 
-type Tab = 'summary' | 'cost' | 'running' | 'materials' | 'water' | 'power' | 'calendar' | 'next';
+type Tab = 'summary' | 'cost' | 'running' | 'build' | 'materials' | 'water' | 'power' | 'calendar' | 'next';
 const TABS: [Tab, string][] = [
   ['summary', '📊 الملخص'],
   ['cost', '💰 التكلفة'],
@@ -25,6 +26,7 @@ const TABS: [Tab, string][] = [
   ['water', '💧 الري'],
   ['power', '⚡ الكهرباء'],
   ['calendar', '📅 التقويم'],
+  ['build', '🏗️ متابعة البناء'],
   ['next', '✅ الخطوات'],
 ];
 
@@ -115,6 +117,7 @@ function Body() {
         )}
         {tab === 'materials' && <MaterialsTab plan={design.plan} />}
         {tab === 'calendar' && <CalendarTab plan={design.plan} />}
+        {tab === 'build' && <IzbaBuildPanel plan={design.plan} estimate={est.total} />}
         {tab === 'power' && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">

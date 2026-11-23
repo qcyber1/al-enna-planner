@@ -16,8 +16,7 @@ import type {
   TimeOfDay,
   Tool,
   Vec2,
-  ViewMode,
-} from '../types/plan';
+  ViewMode, BuildLog } from '../types/plan';
 import { SCHEMA_VERSION } from '../types/plan';
 import { uid } from '../lib/id';
 import { createSamplePlan, emptyPlan } from '../lib/sample';
@@ -175,6 +174,7 @@ interface State {
   setPrice: (key: string, value: number | null) => void;
   setEstimate: (patch: Partial<EstimateSettings>) => void;
   setPower: (patch: Partial<PowerSettings>) => void;
+  setBuild: (fn: (b: BuildLog) => BuildLog) => void;
 
   setSaveState: (s: 'saved' | 'pending' | 'error', err?: string | null) => void;
 }
@@ -706,6 +706,11 @@ export const useEditor = create<State>()((set, get) => ({
   setPower: (patch) => {
     const s = get();
     set({ project: { ...s.project, power: { ...DEFAULT_POWER, ...s.project.power, ...patch }, updatedAt: Date.now() } });
+  },
+
+  setBuild: (fn) => {
+    const s = get();
+    set({ project: { ...s.project, build: fn(s.project.build ?? { done: [], payments: [] }), updatedAt: Date.now() } });
   },
 
   setSaveState: (saveState, err = null) => set({ saveState, saveError: err }),

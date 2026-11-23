@@ -261,6 +261,17 @@ export function sanitizeProject(raw: unknown, report?: SanitizeReport): Project 
   }
   const est = isObj(raw.estimate) ? raw.estimate : {};
   const power = sanitizePower(raw.power);
+  const b = isObj(raw.build) ? raw.build : null;
+  const build = b
+    ? {
+        done: Array.isArray(b.done) ? b.done.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 60)).slice(0, 300) : [],
+        payments: (Array.isArray(b.payments) ? b.payments : [])
+          .filter(isObj)
+          .slice(0, 500)
+          .map((p) => ({ id: str(p.id, uid('pay'), 40) || uid('pay'), at: num(p.at, now), amount: num(p.amount, 0, 0, 1e9), note: str(p.note, '', 120) }))
+          .filter((p) => p.amount > 0),
+      }
+    : null;
   return {
     schema: SCHEMA_VERSION,
     id: str(raw.id, uid('p'), 80) || uid('p'),
@@ -272,6 +283,7 @@ export function sanitizeProject(raw: unknown, report?: SanitizeReport): Project 
     finalDesignId: typeof raw.finalDesignId === 'string' ? raw.finalDesignId : undefined,
     prices,
     ...(power ? { power } : {}),
+    ...(build ? { build } : {}),
     estimate: {
       beamLength: num(est.beamLength, DEFAULT_ESTIMATE.beamLength, 0.5, 12),
       beamSection: str(est.beamSection, DEFAULT_ESTIMATE.beamSection, 20),
