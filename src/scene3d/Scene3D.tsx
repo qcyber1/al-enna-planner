@@ -37,6 +37,7 @@ import {
   WaterTank3D,
 } from './Facilities3D';
 import { Path3D, ScreenLine3D, StringLights3D } from './Paths3D';
+import { VideoRecorder } from './VideoRec';
 import { LightFixture3D, LightRig } from './Lights3D';
 import { Camera3DOverlay } from './Camera3DOverlay';
 import { SelectionBar } from '../editor2d/EditorOverlay';
@@ -589,6 +590,7 @@ export default function Scene3D() {
           {walking && <WalkControls plan={plan} w={w} move={move} />}
           {!walking && <DragController grab={grab} />}
           <CaptureHandler />
+          {!walking && <VideoRecorder />}
           {BETA && (
             // المؤثرات اختيارية: لو طاحت (كرت شاشة ما يدعمها أو ملف ناقص) المجسم يكمل بدونها
             <ErrorBoundary fallback={() => null}>
