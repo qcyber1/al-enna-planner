@@ -790,7 +790,7 @@ const server = http.createServer(async (req, res) => {
       if ((aiToday() + 1) * aiCost() > aiDailyCap()) return send(res, 503, { ok: false, error: 'وصلنا الحد اليومي للصور — جرّب بكرة' });
       const image = parseImage(body.image);
       if (!image) return send(res, 400, { ok: false, error: 'ما قدرنا نقرأ لقطة المجسم — حاول مرة ثانية' });
-      const prompt = buildPrompt({ mood: body.mood, hints: body.hints, izba: body.izba === true });
+      const prompt = buildPrompt({ mood: body.mood, hints: body.hints, izba: body.izba === true, scene: body.scene === 'inside' ? 'inside' : 'aerial' });
       aiInflight.add(rec.id);
       try {
         const b64 = await generatePhoto({ key: aiKey(), base: process.env.OPENAI_BASE_URL || undefined, model: process.env.OPENAI_IMAGE_MODEL || undefined, image, prompt });

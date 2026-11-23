@@ -6,7 +6,7 @@ import { CameraControls, PointerLockControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CameraPreset, Plan, PlanElement } from '../types/plan';
 import { activeDesign, useEditor, usePlan } from '../store/editorStore';
-import { DEG, entranceInfo, landBounds, isFiniteBounds, snapValue } from '../lib/geometry';
+import { DEG, entranceInfo, landBounds, isFiniteBounds, rotate, snapValue } from '../lib/geometry';
 import { getValidation } from '../hooks/useDerived';
 import { isLightKind, isTentKind } from '../lib/catalog';
 import { collectEmitters } from '../lib/lighting';
@@ -321,6 +321,17 @@ function presetPose(preset: CameraPreset, plan: Plan, w: WorldInfo): { pos: [num
         pos: [main.x - w.ox + f.x * dd + 2, 3.4, main.y - w.oy + f.y * dd],
         target: [main.x - w.ox, main.height * 0.45, main.y - w.oy],
       };
+    }
+    case 'inside': {
+      // من داخل المجلس (أو الخيمة الرئيسية): من زاوية قدام على مستوى العين، تطالع بالقطر للجلسة (مثل صور الديكور)
+      if (!main) return presetPose('oblique', plan, w);
+      const at = (lx: number, ly: number) => {
+        const r = rotate({ x: lx, y: ly }, main.rotation);
+        return { x: main.x + r.x - w.ox, z: main.y + r.y - w.oy };
+      };
+      const a = at(-main.width / 2 + 0.45, main.depth / 2 - 0.45);
+      const b = at(main.width / 4, -main.depth / 2);
+      return { pos: [a.x, 1.6, a.z], target: [b.x, 0.9, b.z] };
     }
     case 'oblique':
     default: {

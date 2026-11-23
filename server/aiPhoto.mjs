@@ -15,7 +15,7 @@ const clean = (s) =>
     .slice(0, 60);
 
 /** الوصف اللي يحافظ على التوزيع: نوع المكان + العناصر الموجودة */
-export function buildPrompt({ mood, hints, izba }) {
+export function buildPrompt({ mood, hints, izba, scene }) {
   const m = MOODS[mood] || MOODS.day;
   const items = (Array.isArray(hints) ? hints : [])
     .map(clean)
@@ -25,6 +25,19 @@ export function buildPrompt({ mood, hints, izba }) {
   const place = izba
     ? 'a private Qatari izba (desert farm estate) with plastered block walls'
     : 'a Qatari winter desert camp (enna / mukhayyam) with traditional Bedouin-style tents';
+  if (scene === 'inside') {
+    const room = izba ? 'a modern Qatari majlis (traditional sitting room) inside a private izba' : 'the majlis inside a large Qatari winter camp tent with Sadu-patterned walls';
+    return [
+      `Turn this 3D planning render into a photorealistic interior photograph of ${room}.`,
+      'Keep EXACTLY the same camera angle, room shape, and the position and size of every piece of furniture, door and window. Do not add or remove furniture.',
+      items ? `Objects in the scene: ${items}.` : '',
+      'Make every material look real: floor seating cushions with traditional Sadu red and black patterns, fine carpet or marble floor, real wood and fabric, a TV unit, coffee tables with Arabic dallah and finjan cups.',
+      mood === 'night' ? 'Lighting: warm cozy evening interior lighting from ceiling and wall lamps.' : 'Lighting: soft natural daylight from the windows mixed with warm interior lights.',
+      'Wide-angle professional interior architectural photography, natural colors, high detail. No text, no watermark, no people.',
+    ]
+      .filter(Boolean)
+      .join(' ');
+  }
   return [
     `Turn this 3D planning render into a photorealistic aerial drone photograph of ${place}.`,
     'Keep EXACTLY the same layout, camera angle, framing and the position, size and count of every object. Do not add or remove buildings, tents, courts, cars or paths.',

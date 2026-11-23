@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { Download, Loader2, Share2 } from 'lucide-react';
 import { Modal, cx } from './ui';
 import { activeDesign, useEditor } from '../store/editorStore';
+import { useView3D } from '../scene3d/viewStore';
 import { CATALOG_BY_KIND } from '../lib/catalog';
 import { checkName, fullBuyerPhone, GCC, guessGcc, parseBuyerPhone } from '../lib/buyer';
 import { shareOrDownload, safeFileName, stamp } from '../lib/files';
@@ -81,6 +82,7 @@ export function AiPhotoDialog() {
   const { open, hide, source } = useAiPhoto();
   const [st, setSt] = useState<Status | null>(cached);
   const [mood, setMood] = useState<Mood>('sunset');
+  const [inside, setInside] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [err, setErr] = useState('');
@@ -106,7 +108,7 @@ export function AiPhotoDialog() {
         const r = await fetch('/api/ai-photo', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ token: token(), image: source, mood, hints: planHints(plan), izba: plan.land.site === 'izba' }),
+          body: JSON.stringify({ token: token(), image: source, mood, hints: planHints(plan), izba: plan.land.site === 'izba', scene: inside ? 'inside' : 'aerial' }),
         });
         const d = (await r.json()) as { ok?: boolean; image?: string; left?: number; error?: string };
         if (d.ok && d.image) {
@@ -122,7 +124,7 @@ export function AiPhotoDialog() {
         setBusy(false);
       }
     })();
-  }, [source, waiting, open, mood]);
+  }, [source, waiting, open, mood, inside]);
 
   const start = () => {
     setErr('');
@@ -130,6 +132,13 @@ export function AiPhotoDialog() {
     setBusy(true);
     setWaiting(true);
     useAiPhoto.setState({ source: null });
+    if (inside) {
+      // نحط الكاميرا داخل المجلس (بالسقف) وننتظرها توصل، وبعدين نصوّر
+      useView3D.setState({ interior: false });
+      useEditor.getState().setCamera('inside');
+      setTimeout(() => useEditor.getState().requestCapture3d('ai'), 1400);
+      return;
+    }
     useEditor.getState().requestCapture3d('ai');
   };
 
@@ -143,6 +152,8 @@ export function AiPhotoDialog() {
 
   if (!open) return null;
   const left = st?.left ?? 0;
+  const plan0 = activeDesign(useEditor.getState().project).plan;
+  const canInside = plan0.elements.some((e) => (e.kind === 'room' && e.room?.type === 'majlis') || e.kind === 'main-tent');
   return (
     <Modal open onClose={hide} wide title="📸 صورة حقيقية بالذكاء الاصطناعي">
       <div className="space-y-3 p-4 sm:p-5" data-testid="ai-photo">
@@ -167,6 +178,20 @@ export function AiPhotoDialog() {
                   </button>
                 ))}
               </div>
+              {canInside && (
+                <div className="grid grid-cols-2 gap-1 rounded-xl bg-sand-100 p-1">
+                  {(
+                    [
+                      [false, '🚁 من فوق'],
+                      [true, '🛋️ من الداخل'],
+                    ] as const
+                  ).map(([v, l]) => (
+                    <button key={l} type="button" disabled={busy} onClick={() => setInside(v)} data-testid={`ai-view-${v ? 'inside' : 'aerial'}`} className={cx('h-9 rounded-lg px-3 text-sm font-bold', inside === v ? 'bg-white text-dune shadow-sm' : 'text-sand-700')}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              )}
               <span className="text-sm text-sand-700" data-testid="ai-left">
                 رصيدك: <b className="text-dune">{left}</b> صورة
               </span>
