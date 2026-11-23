@@ -6,6 +6,7 @@ import { izbaInsights } from '../lib/izbaInsights';
 import { izbaIrrigation } from '../lib/irrigation';
 import { formatNumber } from '../lib/geometry';
 import { penShade, shadeFix } from '../lib/izbaShade';
+import { permitFacts, PERMIT_DOCS } from '../lib/izbaPermit';
 import { useEditor } from '../store/editorStore';
 
 const n = (v: number) => formatNumber(v, 0);
@@ -39,6 +40,7 @@ export function IzbaInsightsPanel({ plan, summary, hideIrrigation }: { plan: Pla
         <Card icon="🔌" label="المولد المناسب" value={x.generatorKva ? `${x.generatorKva} KVA` : '—'} sub="مع هامش تشغيل المكيفات" />
       </div>
       <ShadeCard plan={plan} />
+      <PermitCard plan={plan} />
       {!hideIrrigation && <IzbaIrrigationPanel plan={plan} />}
       {x.tips.length > 0 && (
         <ul className="space-y-1" data-testid="izba-tips">
@@ -103,5 +105,26 @@ function ShadeCard({ plan }: { plan: Plan }) {
       </ul>
       <p className="mt-1 text-[11px] text-sand-500">بالصيف الحلال يحتاج ظل طول اليوم: تقريباً 1.2 م² للراس الغنم و4 م² للبعير.</p>
     </div>
+  );
+}
+
+/** 📋 قبل الرخصة: قياسات تاخذها للمكتب الهندسي + الأوراق المعتادة */
+function PermitCard({ plan }: { plan: Plan }) {
+  const f = useMemo(() => permitFacts(plan), [plan]);
+  return (
+    <details className="rounded-xl border border-sand-200 bg-white p-3" data-testid="izba-permit">
+      <summary className="cursor-pointer text-sm font-bold text-dune">📋 قبل الرخصة — أرقام تاخذها للمكتب الهندسي</summary>
+      <div className="mt-2 grid grid-cols-2 gap-2 text-[13px] md:grid-cols-4">
+        <div className="rounded-lg bg-sand-50 p-2">مساحة المباني<b className="block tabular-nums text-dune">{n(f.builtArea)} م² ({f.builtPct}%)</b></div>
+        <div className="rounded-lg bg-sand-50 p-2">عدد المباني<b className="block tabular-nums text-dune">{f.buildings}</b></div>
+        <div className="rounded-lg bg-sand-50 p-2">أقرب مبنى للسور<b className="block tabular-nums text-dune">{f.closestBuilding ? `${f.closestBuilding.m} م` : '—'}</b>{f.closestBuilding && <span className="block truncate text-[11px] text-sand-500">{f.closestBuilding.name}</span>}</div>
+        <div className="rounded-lg bg-sand-50 p-2">أقرب حظيرة للسور<b className="block tabular-nums text-dune">{f.closestPen ? `${f.closestPen.m} م` : '—'}</b>{f.closestPen && <span className="block truncate text-[11px] text-sand-500">{f.closestPen.name}</span>}</div>
+      </div>
+      <div className="mt-2 text-[12px] font-bold text-dune">الأوراق المعتادة:</div>
+      <ul className="mt-1 list-inside list-disc text-[12px] text-sand-800">
+        {PERMIT_DOCS.map((d) => <li key={d}>{d}</li>)}
+      </ul>
+      <p className="mt-2 rounded-lg bg-amber-50 p-2 text-[11px] text-amber-900">الاشتراطات (نسبة البناء، الارتدادات عن السور، بُعد الحظاير، عدد المباني) تتحدث وتختلف حسب المنطقة — اسأل المكتب الهندسي أو البلدية عن الحد المسموح لأرضك وقارنه بهالأرقام.</p>
+    </details>
   );
 }
