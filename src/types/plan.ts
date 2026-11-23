@@ -254,6 +254,19 @@ export interface Plan {
   land: Land;
   elements: PlanElement[];
   measurements: Measurement[];
+  /** صورة الكروكي تحت المخطط (اختياري): مكانها ومقياسها بالمتر لكل بكسل */
+  underlay?: Underlay;
+}
+
+export interface Underlay {
+  src: string;
+  /** مكان الزاوية العلوية اليسار للصورة (م) */
+  x: number;
+  y: number;
+  /** متر لكل بكسل من الصورة */
+  scale: number;
+  opacity: number;
+  show: boolean;
 }
 
 export interface Design {

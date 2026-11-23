@@ -19,6 +19,7 @@ import {
   type DrawOpts,
 } from '../render2d/draw';
 import { drawLightMap } from '../render2d/lightmap';
+import { drawUnderlay } from '../render2d/underlay';
 import { CATALOG_BY_KIND, createElement, isPolyline, qiblaRotation } from '../lib/catalog';
 import {
   DEG,
@@ -77,6 +78,7 @@ export default function Editor2D() {
   const [selMeasure, setSelMeasure] = useState<string | null>(null);
   const [spaceDown, setSpaceDown] = useState(false);
   const [fontsTick, setFontsTick] = useState(0);
+  const [underlayTick, setUnderlayTick] = useState(0);
   const panRef = useRef<{ sx: number; sy: number; vx: number; vy: number } | null>(null);
   const pinchRef = useRef<{ d: number; c: Vec2; scale: number; x: number; y: number } | null>(null);
   const dragRef = useRef<DragInfo | null>(null);
@@ -681,11 +683,12 @@ export default function Editor2D() {
           {/* الخلفية: الأرض، الشبكة، خريطة الإضاءة، منطقة أمان الملعب، السياج */}
           <Layer listening={false}>
             <Shape
-              key={`bg${fontsTick}`}
+              key={`bg${fontsTick}-${underlayTick}`}
               perfectDrawEnabled={false}
               sceneFunc={(c) => {
                 const ctx = nativeCtx(c);
                 drawLand(ctx, plan.land, baseOpts);
+                if (plan.underlay?.show) drawUnderlay(ctx, plan.underlay, () => setUnderlayTick((n) => n + 1));
                 if (grid.show) drawGrid(ctx, plan.land, grid.size, baseOpts);
                 if (overlays.lightMap) drawLightMap(ctx, lightPlan);
                 if (overlays.safety) {

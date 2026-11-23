@@ -324,6 +324,28 @@ export function LandDialog() {
           </Field>
         )}
         {land.site === 'izba' && !izbaOk && plan.land.site !== 'izba' && <IzbaLockedCard compact />}
+        <div className="rounded-xl border border-gold-500/50 bg-gold-50 p-3" data-testid="land-sketch">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[13px] text-dune">
+              <b>📷 أرضك مب مستطيلة؟</b> صوّر الكروكي أو مخطط البلدية وارسم حدودها عليه
+            </span>
+            <Button size="sm" variant="gold" onClick={() => openDialog('sketch')} data-testid="open-sketch">
+              أرضي من الكروكي
+            </Button>
+          </div>
+          {plan.underlay && (
+            <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-gold-500/30 pt-2 text-[12px]">
+              <Toggle label="إظهار الكروكي تحت المخطط" checked={plan.underlay.show} onChange={(c) => useEditor.getState().setPlan((p) => (p.underlay ? { ...p, underlay: { ...p.underlay, show: c } } : p))} />
+              <label className="flex items-center gap-1.5">
+                الشفافية
+                <input type="range" min={0.1} max={1} step={0.05} value={plan.underlay.opacity} onChange={(e) => { const v = parseFloat(e.target.value); useEditor.getState().setPlan((p) => (p.underlay ? { ...p, underlay: { ...p.underlay, opacity: v } } : p), { history: false }); }} />
+              </label>
+              <button type="button" className="text-red-700 underline" onClick={() => useEditor.getState().setPlan(({ underlay: _u, ...p }) => p)}>
+                شيل الصورة
+              </button>
+            </div>
+          )}
+        </div>
         {land.site === 'izba' ? (
           <div>
             <span className="mb-1 block text-[12px] font-medium text-sand-700">الأرض 50 × 50 — كم أرض عندك؟</span>

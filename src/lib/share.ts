@@ -32,7 +32,10 @@ export interface ShareLink {
 }
 
 export function buildShareLink(name: string, plan: Plan, baseUrl = window.location.href): ShareLink {
-  const payload = { v: 1, n: name, p: compact(plan) };
+  // صورة الكروكي ما تنرسل بالرابط (كبيرة) — تبقى عند صاحب التصميم
+  const { underlay: _u, ...rest } = plan;
+  void _u;
+  const payload = { v: 1, n: name, p: compact(rest) };
   const encoded = compressToEncodedURIComponent(JSON.stringify(payload));
   // بدون أي باراميترات (مثل ?ref= حق صديق ثاني أو ?paid=1) عشان الرابط يكون نظيف للي يستلمه
   let base = baseUrl.split('#')[0].split('?')[0];

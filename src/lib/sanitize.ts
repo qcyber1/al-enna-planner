@@ -218,7 +218,12 @@ export function sanitizePlan(raw: unknown, report?: SanitizeReport): Plan {
       if (a && b) measurements.push({ id: str(m.id, uid('m'), 80), a, b });
     }
   }
-  return { land, elements, measurements };
+  const u = isObj(raw.underlay) ? raw.underlay : null;
+  const underlay =
+    u && typeof u.src === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(u.src) && u.src.length < 2_500_000
+      ? { src: u.src, x: num(u.x, 0, -2000, 2000), y: num(u.y, 0, -2000, 2000), scale: num(u.scale, 0.05, 0.0005, 10), opacity: num(u.opacity, 0.5, 0.05, 1), show: bool(u.show, true) }
+      : undefined;
+  return { land, elements, measurements, ...(underlay ? { underlay } : {}) };
 }
 
 export function sanitizeDesign(raw: unknown, report?: SanitizeReport): Design {

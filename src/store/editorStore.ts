@@ -45,7 +45,8 @@ export type DialogName =
   | 'power'
   | 'izba'
   | 'herd'
-  | 'majlis';
+  | 'majlis'
+  | 'sketch';
 
 export interface Toast {
   id: string;

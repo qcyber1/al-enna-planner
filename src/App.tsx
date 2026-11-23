@@ -16,6 +16,7 @@ import { ChecklistDialog } from './components/ChecklistDialog';
 import { PowerDialog } from './components/PowerDialog';
 import { IzbaHubDialog } from './components/IzbaHubDialog';
 import { IzbaQuickDialog } from './components/IzbaQuickDialog';
+import { SketchDialog } from './components/SketchDialog';
 import { AiPhotoDialog } from './components/AiPhotoDialog';
 import { BottomSheet } from './components/BottomSheet';
 import Editor2D from './editor2d/Editor2D';
@@ -195,6 +196,7 @@ export default function App() {
       <PowerDialog />
       <IzbaHubDialog />
       <IzbaQuickDialog />
+      <SketchDialog />
       <AiPhotoDialog />
       <WelcomeDialog />
       <LandDialog />
