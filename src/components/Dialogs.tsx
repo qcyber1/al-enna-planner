@@ -7,6 +7,7 @@ import { Button, Field, Modal, NumberInput, Select, Stat, TextInput, Toggle, cx 
 import { FENCE_LABELS, GROUND_LABELS, PATH_MATERIAL_LABELS, SURROUND_LABELS } from '../lib/catalog';
 import { formatArea, formatMeters, formatNumber, landEdges, round } from '../lib/geometry';
 import { DEFAULT_ESTIMATE, computeSummary, costLines, priceOf } from '../lib/quantities';
+import { buildFromWish, parseWish } from '../lib/izbaDescribe';
 import { renderPlanCanvas, canvasToBlob, dateLabel, planThumbnail } from '../render2d/exportImage';
 import { askConfirm, stamp, copyText, exportDesignJson, exportProjectJson, readFileText, safeFileName, shareOrDownload, downloadBlob } from '../lib/files';
 import { buildShareLink } from '../lib/share';
@@ -41,6 +42,49 @@ import { DEV_LINE, OWNER_LINE } from '../lib/brand';
 import { markBackup } from './BackupNudge';
 
 // ——— الترحيب ———
+/** «✍️ وصّف عزبتك»: جملة وحدة ← تصميم كامل (نوري اللي فهمناه قبل ما نسوي) */
+function DescribeIzba({ onDone }: { onDone: () => void }) {
+  const [text, setText] = useState('');
+  const wish = useMemo(() => (text.trim().length > 3 ? parseWish(text) : null), [text]);
+  const go = () => {
+    if (!wish) return;
+    const st = useEditor.getState();
+    st.addDesign('عزبتي — من الوصف', 'blank', true);
+    st.setPlan(() => buildFromWish(wish), { history: false });
+    onDone();
+    setTimeout(() => useViewport.getState().requestFit(), 60);
+    st.toast('✨ هذي عزبتك حسب وصفك — عدّل عليها براحتك', 'success', { label: '📋 ملف العزبة', run: () => useEditor.getState().openDialog('izba') });
+  };
+  return (
+    <div className="rounded-xl border-2 border-gold-500 bg-gold-50 p-3" data-testid="izba-describe">
+      <div className="mb-1 text-[13px] font-bold text-dune">✍️ وصّف عزبتك بجملة — ونصممها لك</div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={2}
+        placeholder="مثلاً: أرضين، 100 غنم و10 إبل، مجلس 10×7 بحمام ومطبخ، مسبح وملعب كورة"
+        className="w-full resize-none rounded-lg border border-sand-300 bg-white p-2 text-base leading-relaxed focus:border-gold-500 focus:outline-none sm:text-sm"
+        data-testid="izba-describe-text"
+      />
+      {wish && (
+        <div className="mt-1.5 flex flex-wrap gap-1" data-testid="izba-describe-chips">
+          {wish.chips.map((c) => (
+            <span key={c} className="rounded-full bg-white px-2 py-0.5 text-[12px] font-semibold text-dune shadow-sm">
+              {c}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="text-[11px] text-sand-600">أو اختار من القوالب تحت 👇</span>
+        <Button variant="gold" size="sm" disabled={!wish} onClick={go} data-testid="izba-describe-go">
+          ✨ سوّها
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function WelcomeDialog() {
   const open = useEditor((s) => s.dialog === 'welcome');
   const openDialog = useEditor((s) => s.openDialog);
@@ -122,6 +166,7 @@ export function WelcomeDialog() {
             <p className="text-sm leading-relaxed text-sand-800">
               خطط عزبتك قبل البناء: الحلال والمجلس والزراعة بمقاسات حقيقية، والنظام ينبهك إذا الحلال فوق الريح عن المجلس.
             </p>
+            <DescribeIzba onDone={() => openDialog(null)} />
             <div>
               <div className="mb-1.5 text-[13px] font-bold text-dune">كم أرض عندك؟ (الأرض 50 × 50 م)</div>
               <div className="grid grid-cols-3 gap-2">
