@@ -126,7 +126,7 @@ function Body() {
               <Mini icon="🔌" label="المولد المناسب" value={ins.generatorKva ? `${ins.generatorKva} KVA` : '—'} />
               <Mini icon="🛢️" label="الماي يكفي" value={ins.tankDays === null ? '—' : `${ins.tankDays} يوم`} />
             </div>
-            <Button onClick={() => openDialog('power')} data-testid="hub-power-detail">
+            <Button className="h-auto w-full whitespace-normal py-2 text-center leading-snug" onClick={() => openDialog('power')} data-testid="hub-power-detail">
               ⚡ حاسبة الكهرباء التفصيلية (الأجهزة والكيابل والديزل)
             </Button>
           </div>
@@ -134,7 +134,20 @@ function Body() {
         {tab === 'next' && (
           <NextSteps
             hasCost={est.total > 0}
-            go={[() => openDialog('designs'), () => openDialog('share'), () => setTab('summary'), () => setTab('cost'), report, null]}
+            go={[
+              () => openDialog('designs'),
+              () => openDialog('designs'),
+              () => setTab('summary'),
+              () => setTab('cost'),
+              () => {
+                openDialog(null);
+                useEditor.getState().setView('3d');
+                useEditor.getState().toast('اضغط «🎬 فيديو» فوق — الكاميرا تلف حول العزبة وتطلع فيديو للواتساب', 'info');
+              },
+              report,
+              () => setTab('summary'),
+              () => setTab('build'),
+            ]}
           />
         )}
       </div>
@@ -214,11 +227,13 @@ function Mini({ icon, label, value }: { icon: string; label: string; value: stri
 function NextSteps({ hasCost, go }: { hasCost: boolean; go: ((() => void) | null)[] }) {
   const steps: [string, string][] = [
     ['جرّب أكثر من فكرة', 'من «التصاميم» سوّ نسخة وجرّب توزيع ثاني، وقارن بينهم'],
-    ['شاركها مع الأهل', 'أرسل لهم رابط يفتحون فيه المخطط والمجسم ويعطونك رأيهم'],
-    ['شيّك التنبيهات', 'الحلال تحت الريح، الخزان يكفي، المولد بعيد عن الجلسات'],
-    [hasCost ? 'راجع التكلفة' : 'حط الأسعار', 'عدّل الأسعار حسب عروض المقاولين اللي عندك'],
+    ['👨‍👩‍👦 خلّ الأهل يختارون', 'من «التصاميم» حدد تصميمين أو ثلاثة وسوّ رابط تصويت — يصوّتون من الجوال بدون حساب'],
+    ['شيّك التنبيهات وظل الحلال', 'الحلال تحت الريح، الظل يكفي بالصيف، الخزان يكفي، المولد بعيد عن الجلسات'],
+    [hasCost ? '💰 حط ميزانيتك' : 'حط الأسعار', 'اكتب ميزانيتك في «التكلفة» ويقولك وش تبني الحين ووش تأجّل'],
+    ['🎬 سوّ فيديو للعزبة', 'من المجسم 3D: الكاميرا تلف حول العزبة 12 ثانية وتطلع فيديو للواتساب'],
     ['طلّع تقرير المقاول', 'PDF فيه المخطط والمقاسات والكميات والتكلفة — يسهّل عليك عروض الأسعار'],
-    ['البلدية', 'خذ المخطط معك لما تطلب الرخصة وتأكد من نسبة البناء والارتدادات'],
+    ['📋 قبل الرخصة', 'في «الملخص» أرقام تاخذها للمكتب الهندسي: مساحة المباني وبعدها عن السور'],
+    ['🏗️ بديت تبني؟', 'تابع الشغل مرحلة مرحلة وسجّل دفعات المقاول'],
   ];
   return (
     <ol className="space-y-2" data-testid="izba-next">
