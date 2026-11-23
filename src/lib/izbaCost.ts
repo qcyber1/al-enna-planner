@@ -237,3 +237,53 @@ export function phasePlan(plan: Plan, n: 1 | 2 | 3): Plan {
   copy.elements = copy.elements.filter((e) => elementPhase(e) <= n);
   return copy;
 }
+
+/** «ميزانيتي كذا»: وش يدخل فيها مرحلة مرحلة، ووش يتأجل */
+export interface BudgetFit {
+  budget: number;
+  phases: (IzbaPhase & { cum: number; status: 'in' | 'partial' | 'out' })[];
+  /** الباقي من الميزانية بعد كل المراحل اللي دخلت كاملة */
+  left: number;
+  /** كل العزبة داخل الميزانية؟ */
+  all: boolean;
+  /** كم ناقص عشان العزبة كاملة */
+  shortfall: number;
+  /** من المرحلة اللي ما كملت: بنود تقدر تبدأ فيها بالباقي */
+  startWith: { label: string; total: number }[];
+  /** مرحلة بعدها تدخل كاملة بالباقي (مثلاً الحلال قبل المباني) */
+  wholeLater: (IzbaPhase & { cum: number; status: 'in' | 'partial' | 'out' }) | null;
+}
+
+export function budgetFit(e: IzbaEstimate, budget: number): BudgetFit {
+  const phases = izbaPhases(e);
+  const k = e.subtotal ? 1 + CONTINGENCY_PCT / 100 : 1;
+  let cum = 0;
+  let left = budget;
+  let partialN = 0;
+  const out = phases.map((p) => {
+    const before = cum;
+    cum += p.total;
+    let status: 'in' | 'partial' | 'out' = 'out';
+    if (cum <= budget) status = 'in';
+    else if (before < budget) {
+      status = 'partial';
+      partialN = p.n;
+    }
+    if (status === 'in') left = budget - cum;
+    return { ...p, cum, status };
+  });
+  const startWith: { label: string; total: number }[] = [];
+  const wholeLater = partialN ? (out.find((p) => p.n > partialN && p.total <= left) ?? null) : null;
+  if (partialN && !wholeLater) {
+    let rem = left;
+    // الأثاث والتشطيب الداخلي يجي بعد المبنى — نقترح البنود الكبيرة المستقلة أول
+    for (const l of e.lines.filter((x) => phaseOf(x) === partialN && x.group !== 'interior' && x.key !== 'izba:rooms-wet').sort((a, b) => b.total - a.total)) {
+      const t = Math.round(l.total * k);
+      if (t <= rem) {
+        startWith.push({ label: l.label, total: t });
+        rem -= t;
+      }
+    }
+  }
+  return { budget, phases: out, left: Math.max(0, left), all: e.total <= budget, shortfall: Math.max(0, e.total - budget), startWith, wholeLater };
+}
