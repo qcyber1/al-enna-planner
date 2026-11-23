@@ -3,6 +3,8 @@
 import type { Opening, PlanElement } from '../types/plan';
 import { createElement, makeRoom, ROOM_TYPE_LABELS } from './catalog';
 import { RATES } from './izbaInsights';
+import { shadeFix } from './izbaShade';
+import type { Plan } from '../types/plan';
 
 const half = (n: number) => Math.round(n * 2) / 2;
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
@@ -54,17 +56,24 @@ export function herdGroup(h: HerdInput): Group {
   const sheep = Math.max(0, Math.round(h.sheep));
   const camels = Math.max(0, Math.round(h.camels));
   const horses = Math.max(0, Math.round(h.horses));
+  // ظل الصيف: لو مظلة الحظيرة ما تكفي العدد نزيد مظلة داخلها
+  const shade = (pen: PlanElement) => {
+    const s = shadeFix({ elements: [pen] } as unknown as Plan, pen.id);
+    if (s) els.push(s);
+  };
   if (sheep) {
     const { w, d } = penSize(Math.max(24, sheep * RATES.sheepM2), 1.5, 4);
     const pen = createElement('sheep-pen', { x: 0, y: 0 }, { width: w, depth: d, name: `حظيرة غنم (${sheep} راس)` });
     put(pen, w, d);
     trough(pen, w, d, 'الغنم');
+    shade(pen);
   }
   if (camels) {
     const { w, d } = penSize(Math.max(60, camels * RATES.camelM2), 1.33, 6);
     const pen = createElement('camel-pen', { x: 0, y: 0 }, { width: w, depth: d, name: `حظيرة إبل (${camels})` });
     put(pen, w, d);
     trough(pen, w, d, 'الإبل');
+    shade(pen);
   }
   // الخيل: صفوف بوكسات (8 بالصف كحد أقصى)
   for (let left = horses, row = 1; left > 0; row++) {

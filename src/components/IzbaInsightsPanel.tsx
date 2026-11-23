@@ -5,6 +5,8 @@ import type { Summary } from '../lib/quantities';
 import { izbaInsights } from '../lib/izbaInsights';
 import { izbaIrrigation } from '../lib/irrigation';
 import { formatNumber } from '../lib/geometry';
+import { penShade, shadeFix } from '../lib/izbaShade';
+import { useEditor } from '../store/editorStore';
 
 const n = (v: number) => formatNumber(v, 0);
 
@@ -36,6 +38,7 @@ export function IzbaInsightsPanel({ plan, summary, hideIrrigation }: { plan: Pla
         <Card icon="⚡" label="الحمل الكهربائي" value={`${x.powerKw} kW`} sub="تكييف + إنارة + مضخات" />
         <Card icon="🔌" label="المولد المناسب" value={x.generatorKva ? `${x.generatorKva} KVA` : '—'} sub="مع هامش تشغيل المكيفات" />
       </div>
+      <ShadeCard plan={plan} />
       {!hideIrrigation && <IzbaIrrigationPanel plan={plan} />}
       {x.tips.length > 0 && (
         <ul className="space-y-1" data-testid="izba-tips">
@@ -65,5 +68,40 @@ export function IzbaIrrigationPanel({ plan }: { plan: Plan }) {
             <Card icon="⏱️" label="وقت الري باليوم" value={`${n(irr.minutesPerDay)} دقيقة`} sub={`${irr.zones} محبس (زون) — كل واحد لحاله`} />
           </div>
         </div>
+  );
+}
+
+/** ☀️ ظل الحلال بالصيف: كل حظيرة كم راس يلقى ظل، وزر «أضف مظلة» للناقص */
+function ShadeCard({ plan }: { plan: Plan }) {
+  const pens = useMemo(() => penShade(plan), [plan]);
+  if (!pens.length) return null;
+  const add = (id: string) => {
+    const el = shadeFix(plan, id);
+    if (!el) return;
+    const st = useEditor.getState();
+    st.addElement(el);
+    st.toast(`تمت إضافة «${el.name}» داخل الحظيرة ✓`, 'success');
+  };
+  const bad = pens.filter((p) => !p.ok);
+  return (
+    <div className={`rounded-xl border p-3 ${bad.length ? 'border-amber-300 bg-amber-50' : 'border-turf-500/30 bg-turf-500/5'}`} data-testid="izba-shade">
+      <div className="mb-1 text-sm font-bold text-dune">☀️ ظل الحلال وقت الصيف {bad.length ? '' : '— يكفي ✓'}</div>
+      <ul className="space-y-1">
+        {pens.map((p) => (
+          <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+            <span>
+              {p.ok ? '✅' : '⚠️'} <b>{p.name}</b>: الظل يكفي <b className="tabular-nums">{n(p.shadedHeads)}</b> من <b className="tabular-nums">{n(p.heads)}</b> {p.kind === 'sheep' ? 'راس' : 'بعير'}
+              {!p.ok && <span className="text-sand-600"> (ناقص ~{n(p.missingM2)} م²)</span>}
+            </span>
+            {!p.ok && plan.elements.find((e) => e.id === p.id)?.kind !== 'pen-fence' && (
+              <button type="button" onClick={() => add(p.id)} className="rounded-lg bg-gold-500 px-2.5 py-1 text-[12px] font-bold text-dune" data-testid={`shade-fix-${p.id}`}>
+                + أضف مظلة تكفي
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1 text-[11px] text-sand-500">بالصيف الحلال يحتاج ظل طول اليوم: تقريباً 1.2 م² للراس الغنم و4 م² للبعير.</p>
+    </div>
   );
 }

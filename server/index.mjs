@@ -597,6 +597,21 @@ function readSiteFile(file) {
   for (const o of BAKED_ORIGINS) html = html.split(o).join('https://' + SITE_DOMAIN);
   return Buffer.from(html);
 }
+// الضغط: الملفات الصغيرة (مثل index.html) نضغطها على طول، والكبيرة (مثل three.js) بالخلفية بدون ما نوقف السيرفر —
+// قبل: brotli بجودة 9 لملف 700KB كان يوقف السيرفر ثانية أو ثنتين لكل الزوار أول ما ينطلب بعد كل نشر
+const SYNC_LIMIT = 64 * 1024;
+const zpending = new Set();
+function zjob(file, enc, raw, mtime) {
+  const key = `${enc}:${file}`;
+  if (zpending.has(key)) return;
+  zpending.add(key);
+  const done = (err, body) => {
+    zpending.delete(key);
+    if (!err) zcache.set(key, { mtime, body });
+  };
+  if (enc === 'br') zlib.brotliCompress(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length } }, done);
+  else zlib.gzip(raw, { level: 9 }, done);
+}
 function compressed(file, enc) {
   try {
     const st = fs.statSync(file);
@@ -604,6 +619,11 @@ function compressed(file, enc) {
     const hit = zcache.get(key);
     if (hit && hit.mtime === st.mtimeMs) return hit.body;
     const raw = readSiteFile(file);
+    if (raw.length > SYNC_LIMIT) {
+      // هالمرة بدون ضغط، والنسخة المضغوطة تجهز بالخلفية للطلب الجاي
+      zjob(file, enc, raw, st.mtimeMs);
+      return null;
+    }
     const body =
       enc === 'br'
         ? zlib.brotliCompressSync(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length } })
@@ -613,6 +633,31 @@ function compressed(file, enc) {
   } catch {
     return null;
   }
+}
+/** أول ما يشتغل السيرفر: نجهز نسخ مضغوطة لكل ملفات الموقع الكبيرة بالخلفية (وحدة وحدة عشان ما نثقل المعالج) */
+function warmCompression() {
+  let files = [];
+  try {
+    files = fs.readdirSync(path.join(DIST, 'assets')).map((f) => path.join(DIST, 'assets', f));
+  } catch {
+    return;
+  }
+  const list = files.filter((f) => COMPRESSIBLE.has(path.extname(f).toLowerCase()));
+  const next = () => {
+    const f = list.shift();
+    if (!f) return;
+    try {
+      const st = fs.statSync(f);
+      if (st.size <= SYNC_LIMIT) return setImmediate(next);
+      const raw = fs.readFileSync(f);
+      zjob(f, 'br', raw, st.mtimeMs);
+      zjob(f, 'gzip', raw, st.mtimeMs);
+    } catch {
+      /* تجاهل */
+    }
+    setTimeout(next, 30);
+  };
+  setTimeout(next, 500);
 }
 
 // ——— الخادم ———
@@ -1146,4 +1191,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '0.0.0.0', () => console.log(`[enna] يعمل على المنفذ ${PORT} — البيانات في ${DATA_DIR}`));
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[enna] يعمل على المنفذ ${PORT} — البيانات في ${DATA_DIR}`);
+  warmCompression();
+});

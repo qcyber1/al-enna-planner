@@ -15,7 +15,7 @@ describe('أدوات العزبة السريعة', () => {
     expect(g.els.some((e) => e.kind === 'feed-store')).toBe(true);
     expect(g.els.some((e) => e.kind === 'worker-room')).toBe(true);
     // ما في تداخل بين الحظاير (صف وحد)
-    const big = g.els.filter((e) => e.kind !== 'trough').sort((a, b) => a.x - b.x);
+    const big = g.els.filter((e) => e.kind !== 'trough' && e.kind !== 'animal-shade').sort((a, b) => a.x - b.x);
     for (let i = 1; i < big.length; i++) expect(big[i].x - big[i].width / 2).toBeGreaterThanOrEqual(big[i - 1].x + big[i - 1].width / 2);
   });
   it('خيل كثير ينقسم صفوف 8، وبدون معلف لو طفّاه', () => {
