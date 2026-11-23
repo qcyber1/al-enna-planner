@@ -8,6 +8,7 @@ import { FENCE_LABELS, GROUND_LABELS, PATH_MATERIAL_LABELS, SURROUND_LABELS } fr
 import { formatArea, formatMeters, formatNumber, landEdges, round } from '../lib/geometry';
 import { DEFAULT_ESTIMATE, computeSummary, costLines, priceOf } from '../lib/quantities';
 import { buildFromWish, parseWish } from '../lib/izbaDescribe';
+import { FamilyVote } from './FamilyVote';
 import { renderPlanCanvas, canvasToBlob, dateLabel, planThumbnail } from '../render2d/exportImage';
 import { askConfirm, stamp, copyText, exportDesignJson, exportProjectJson, readFileText, safeFileName, shareOrDownload, downloadBlob } from '../lib/files';
 import { buildShareLink } from '../lib/share';
@@ -740,6 +741,7 @@ export function DesignsDialog() {
             }}
           />
         </div>
+        {project.designs.length >= 2 && <FamilyVote designs={project.designs.filter((d) => compareIds.includes(d.id))} />}
         <p className="text-[12px] text-sand-600">حدد حتى 4 تصاميم للمقارنة جنباً إلى جنب. لحفظ لقطة 3D لأي تصميم: افتحه في العرض 3D واضغط زر الكاميرا 📷.</p>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {project.designs.map((d) => {

@@ -15,6 +15,7 @@ import { sendEvent, userData, metaCookies, capiEnabled } from './meta.mjs';
 import { buildReport } from './report.mjs';
 import { buildPrompt, generatePhoto, parseImage } from './aiPhoto.mjs';
 import { sendSnap, snapUser, snapCookies, snapEnabled } from './snap.mjs';
+import { castVote, createRoom, pruneRooms, results, roomOf, voteDir, votePage } from './votes.mjs';
 import { loadDbFile, latestBackup, writeDbFile, dailyBackup } from './datastore.mjs';
 import { createPayment, getPayment, verifyWebhook, skipcashEnabled, skipcashEnv } from './skipcash.mjs';
 
@@ -686,6 +687,56 @@ const server = http.createServer(async (req, res) => {
     }
 
     // عرض «خلصت التجربة»: نعطي المتصفح عرض موقّع بوقت محدود
+    // ——— «الأهل يختارون»: غرف تصويت على التصاميم ———
+    if (p === '/api/vote/create' && req.method === 'POST') {
+      if (limited('vc:' + ip, 20)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد شوي' });
+      const body = await readBodyRaw(req, 2_000_000);
+      if (!body || body.__tooLarge) return send(res, 413, { ok: false, error: 'الصور كبيرة' });
+      const rec = LICENSING ? codeOfToken(body.token) : { id: 'open' };
+      if (!rec) return send(res, 401, { ok: false, error: 'سجّل دخولك أول' });
+      const r = createRoom(db, DATA_DIR, rec.id, body);
+      if (r.error) return send(res, 400, { ok: false, error: r.error });
+      saveDb();
+      return send(res, 200, { ok: true, id: r.room.id, path: `/v/${r.room.id}` });
+    }
+    if (p === '/api/vote/mine' && req.method === 'POST') {
+      const rec = LICENSING ? codeOfToken((await readBody(req)).token) : { id: 'open' };
+      if (!rec) return send(res, 401, { ok: false });
+      const rooms = Object.values(db.votes ?? {})
+        .filter((r) => r.code === rec.id && roomOf(db, r.id))
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 10)
+        .map(results);
+      return send(res, 200, { ok: true, rooms });
+    }
+    {
+      const vm = /^\/api\/vote\/([\w-]{6,16})$/.exec(p);
+      if (vm) {
+        const room = roomOf(db, vm[1]);
+        if (!room) return send(res, 404, { ok: false, error: 'رابط التصويت انتهى أو غلط' });
+        if (req.method === 'POST') {
+          if (limited('vv:' + ip, 40)) return send(res, 429, { ok: false, error: 'محاولات كثيرة — حاول بعد شوي' });
+          const r = castVote(room, await readBody(req));
+          if (r.error) return send(res, 400, { ok: false, error: r.error });
+          saveDb();
+        }
+        return send(res, 200, { ok: true, ...results(room) });
+      }
+      const pm = /^\/v\/([\w-]{6,16})(?:\/img\/(\d))?\/?$/.exec(p);
+      if (pm && (req.method === 'GET' || req.method === 'HEAD')) {
+        const room = roomOf(db, pm[1]);
+        if (!room) return send(res, 404, '<!doctype html><meta charset="utf-8"><p style="font-family:system-ui;text-align:center;margin-top:40px">رابط التصويت انتهى أو غلط</p>');
+        if (pm[2] !== undefined) {
+          const f = path.join(voteDir(DATA_DIR), `${room.id}-${Number(pm[2])}.jpg`);
+          if (!fs.existsSync(f)) return send(res, 404, { ok: false });
+          res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' });
+          return fs.createReadStream(f).pipe(res);
+        }
+        const origin = SITE_DOMAIN ? 'https://' + SITE_DOMAIN : `${req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
+        return send(res, 200, votePage(room, origin), { 'x-robots-tag': 'noindex' });
+      }
+    }
+
     if (p === '/api/offer' && req.method === 'POST') {
       if (!LICENSING || !offerOn()) return send(res, 200, { ok: false });
       if (limited('of:' + ip, 30)) return send(res, 429, { ok: false });
@@ -1194,4 +1245,9 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[enna] يعمل على المنفذ ${PORT} — البيانات في ${DATA_DIR}`);
   warmCompression();
+  try {
+    pruneRooms(db, DATA_DIR);
+  } catch {
+    /* تجاهل */
+  }
 });
